@@ -19,7 +19,7 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[1]
 # El .ico tiene que traer al menos estos tamanos (Windows elige el suyo).
 NEEDED = {16, 24, 32, 48, 256}
-# Logos del README: el de la suite (fondo claro y oscuro) y el icono de cada app.
+# Logos del README: el de la suite (fondo claro y oscuro), el icono de cada app y el banner.
 README = {
     "svg/logo-horizontal.svg": "molino.svg",
     "svg/logo-horizontal-sobre-oscuro.svg": "molino-oscuro.svg",
@@ -27,6 +27,11 @@ README = {
     "svg/icono-hojas.svg": "hojas.svg",
     "svg/icono-presentaciones.svg": "presentaciones.svg",
     "svg/icono-pdf.svg": "pdf.svg",
+    # El banner (las aspas giran), de dia y de noche, en los dos idiomas.
+    "github/banner.svg": "banner.svg",
+    "github/banner-oscuro.svg": "banner-oscuro.svg",
+    "github/banner-en.svg": "banner-en.svg",
+    "github/banner-en-oscuro.svg": "banner-en-oscuro.svg",
 }
 
 
