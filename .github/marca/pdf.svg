@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Molino PDF: folio cerrado con su sello de lacre (la firma, el trámite). Para 48 px o más. -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#B92B32"/>
+  <path d="M17 11 H34 L43 20 V53 H17 Z" fill="#F5EFDF" stroke="#1C1B19" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M34 11 V20 H43" fill="none" stroke="#1C1B19" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M22 26 H36 M22 32 H32" stroke="#1C1B19" stroke-width="2.4" stroke-linecap="round"/>
+  <circle cx="40" cy="44" r="9" fill="#7A1C22" stroke="#1C1B19" stroke-width="2.2"/>
+  <circle cx="40" cy="44" r="4.6" fill="none" stroke="#F5EFDF" stroke-width="1.6"/>
+</svg>

@@ -1,0 +1,130 @@
+# Builds Molino PDF for Windows x64 on every change to main and every pull request,
+# twice: on a Windows x64 machine and on a Windows 11 on Arm machine, where the
+# same x64 build runs under emulation, as it does for people with Arm laptops.
+# Each machine builds its own copy and checks it there: nothing built here is
+# kept or published. Official releases are built, signed and published separately.
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege: read the code, nothing else. No secrets are used.
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    name: windows-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-2025
+            emulated: false
+          - arch: arm64
+            runner: windows-11-arm
+            emulated: true
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      EMULATED: ${{ matrix.emulated }}
+    steps:
+      # Actions pinned to an exact commit, not a movable tag (supply chain).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # x64 Node and Python on both machines: the build is the x64 one people get.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          architecture: x64
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+          architecture: x64
+
+      - name: App
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          # Locked versions, without running third-party install scripts.
+          npm ci --ignore-scripts
+          npm run typecheck
+          npm run build
+
+      - name: Engine
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          # Exact versions checked by hash; nothing is built from source.
+          python -m venv engine\.venv
+          engine\.venv\Scripts\python.exe -m pip install --no-deps --only-binary :all: --require-hashes -r engine\requirements.txt -r engine\requirements-nodeps.txt
+          engine\.venv\Scripts\python.exe -m pip install --only-binary :all: --require-hashes -r engine\requirements-build.txt
+          engine\.venv\Scripts\python.exe -c "import platform, sys; print('Python', platform.python_version(), sys.version)"
+          powershell -NoProfile -ExecutionPolicy Bypass -File scripts\fetch-tessdata.ps1
+          npm run engine:build
+
+      # Every native part of the packaged engine, sandboxed: documents, OCR,
+      # signing (also with throwaway Windows store certificates), photo scanning
+      # and the local AI with the real basic models (checked by SHA-256).
+      - name: Engine check
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          $extra = @()
+          if ($env:EMULATED -eq 'true') { $extra += '--expect-emulated' }
+          engine\.venv\Scripts\python.exe scripts\engine-check.py --packaged dist-engine\molino-engine\molino-engine.exe --full --store-cert --models "$env:RUNNER_TEMP\models" --fetch-models @extra
+
+      - name: Installer and portable zip (unsigned)
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          npm run notices
+          npx --no-install electron-builder --win nsis --x64 --publish never
+          node scripts/make-portable.mjs
+          if (-not (Test-Path dist\MolinoPDF-Setup.exe)) { throw 'No installer was built.' }
+          if (-not (Test-Path dist\MolinoPDF-Portable.zip)) { throw 'No portable zip was built.' }
+
+      # The app: window, PDF opened and page drawn, engine sandboxed. Portable
+      # version, then the installer (install, run, uninstall, nothing left).
+      - name: App check
+        run: |
+          $emulated = $env:EMULATED -eq 'true'
+          ./scripts/app-check.ps1 -Zip dist\MolinoPDF-Portable.zip -Screenshot app-${{ matrix.arch }}.png -ExpectEmulated:$emulated
+          ./scripts/app-check.ps1 -Setup dist\MolinoPDF-Setup.exe -ExpectEmulated:$emulated
+
+      # Only a picture of the Molino PDF window, to see it working on each machine.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: screenshot-${{ matrix.arch }}
+          path: app-${{ matrix.arch }}.png
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # Groundwork for the Linux version: the engine installs from the same locked
+  # versions and loads outside Windows (sandboxing on Linux comes later).
+  linux-engine:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Engine loads on Linux
+        working-directory: engine
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --no-deps --only-binary :all: --require-hashes -r requirements.txt
+          .venv/bin/python -c "import molino_engine.server, molino_engine.ops, molino_engine.broker, molino_engine.brotli_guard"
+          .venv/bin/python -m molino_engine --ai-gpu

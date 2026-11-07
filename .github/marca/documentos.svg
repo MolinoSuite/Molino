@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Molino Documentos: folio escrito con su pluma. Para 48 px o más. -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#2867D1"/>
+  <path d="M19 11 H36 L45 20 V53 H19 Z" fill="#F5EFDF" stroke="#1C1B19" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M36 11 V20 H45" fill="none" stroke="#1C1B19" stroke-width="2.4" stroke-linejoin="round"/>
+  <path d="M24 27 H39 M24 33 H39 M24 39 H33" stroke="#1C1B19" stroke-width="2.4" stroke-linecap="round"/>
+  <path d="M39 49 L49 32 L52.4 34 L42.4 51 L38 52.6 Z" fill="#F5EFDF" stroke="#1C1B19" stroke-width="2.2" stroke-linejoin="round"/>
+</svg>
