@@ -51,7 +51,7 @@ export function isOfficeFile(path: string): boolean {
 // Códigos de formato de x2t con los que el editor pide guardar (ver office.py).
 const SAVE_FORMATS: Record<Kind, Record<number, string>> = {
   word: { 65: '.docx', 67: '.odt', 68: '.rtf' },
-  cell: { 257: '.xlsx', 259: '.ods' },
+  cell: { 257: '.xlsx', 259: '.ods', 260: '.csv' },
   slide: { 129: '.pptx', 131: '.odp' }
 }
 const DEFAULT_SUFFIX: Record<Kind, string> = { word: '.docx', cell: '.xlsx', slide: '.pptx' }
@@ -514,7 +514,7 @@ export class OfficeWindows {
     const format =
       kind === 'print'
         ? 'T.PDF'
-        : `({ docx: T.DOCX, odt: T.ODT, rtf: T.RTF, xlsx: T.XLSX, ods: T.ODS, pptx: T.PPTX, odp: T.ODP })[${JSON.stringify(/^[a-z]{3,4}$/.test(ext) ? ext : '')}] || T.${fallback}`
+        : `({ docx: T.DOCX, odt: T.ODT, rtf: T.RTF, xlsx: T.XLSX, ods: T.ODS, csv: T.CSV, pptx: T.PPTX, odp: T.ODP })[${JSON.stringify(/^[a-z]{3,4}$/.test(ext) ? ext : '')}] || T.${fallback}`
     try {
       return Boolean(
         await frame.executeJavaScript(

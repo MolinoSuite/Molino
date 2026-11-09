@@ -56,6 +56,7 @@
     DeleteRegValue HKCU "Software\Classes\.xlsx\OpenWithProgids" "Molino.Sheets"
     DeleteRegValue HKCU "Software\Classes\.xls\OpenWithProgids" "Molino.Sheets"
     DeleteRegValue HKCU "Software\Classes\.ods\OpenWithProgids" "Molino.Sheets"
+    DeleteRegValue HKCU "Software\Classes\.csv\OpenWithProgids" "Molino.Sheets"
     DeleteRegValue HKCU "Software\Classes\.pptx\OpenWithProgids" "Molino.Slides"
     DeleteRegValue HKCU "Software\Classes\.ppt\OpenWithProgids" "Molino.Slides"
     DeleteRegValue HKCU "Software\Classes\.odp\OpenWithProgids" "Molino.Slides"

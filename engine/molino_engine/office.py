@@ -39,6 +39,7 @@ OPEN_FORMATS: dict[str, tuple[str, int]] = {
     ".xlsx": ("cell", 257),
     ".xls": ("cell", 258),
     ".ods": ("cell", 259),
+    ".csv": ("cell", 260),
     ".pptx": ("slide", 129),
     ".ppt": ("slide", 130),
     ".odp": ("slide", 131),
@@ -46,7 +47,7 @@ OPEN_FORMATS: dict[str, tuple[str, int]] = {
 # Formatos en los que se guarda cada editor.
 SAVE_FORMATS: dict[str, dict[str, int]] = {
     "word": {".docx": 65, ".odt": 67, ".rtf": 68},
-    "cell": {".xlsx": 257, ".ods": 259},
+    "cell": {".xlsx": 257, ".ods": 259, ".csv": 260},
     "slide": {".pptx": 129, ".odp": 131},
 }
 SAVE_SUFFIXES: tuple[str, ...] = tuple(sorted({s for formats in SAVE_FORMATS.values() for s in formats}))
@@ -71,6 +72,75 @@ FONTS_PATH = re.compile(r"^f[0-9a-f]{16}$")
 # Cada cambio que manda el editor: «longitud;base64» (asi los escribe el nativo).
 CHANGE = re.compile(r"^[0-9]{1,10};[A-Za-z0-9+/]*={0,2}$")
 MEDIA_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$", re.IGNORECASE)
+
+
+# --------------------------------------------------------------- CSV
+
+CSV = 260
+# Separadores de x2t (TCsvDelimiter): tabulador, punto y coma, dos puntos, coma.
+CSV_DELIMITERS = {"\t": 1, ";": 2, ":": 3, ",": 4}
+# Codificaciones, con el numero que les da x2t (su tabla, AscCommon.c_oAscEncodings;
+# no son paginas de codigos de Windows): UTF-8 (65001), UTF-16 LE y BE (1200,
+# 1201) y Windows occidental (1252). Con una pagina de codigos, x2t se cae.
+UTF8, UTF16LE, UTF16BE, WINDOWS_1252 = 46, 48, 49, 44
+CSV_SAMPLE = 64 * 1024
+
+
+def csv_encoding(head: bytes) -> int:
+    """La codificacion de un CSV, como la deduce una hoja de calculo: su marca, UTF-8 valido o Windows-1252."""
+    if head.startswith(b"\xef\xbb\xbf"):
+        return UTF8
+    if head.startswith(b"\xff\xfe"):
+        return UTF16LE
+    if head.startswith(b"\xfe\xff"):
+        return UTF16BE
+    try:
+        head.decode("utf-8")
+        return UTF8
+    except UnicodeDecodeError as error:
+        # La muestra puede cortar un caracter por la mitad al final: eso no cuenta.
+        if error.start >= len(head) - 3 and error.reason in ("unexpected end of data",):
+            return UTF8
+        return WINDOWS_1252
+
+
+def csv_text(head: bytes, encoding: int) -> str:
+    """El texto de la muestra (para buscar el separador). ValueError si no parece texto."""
+    codec = {UTF8: "utf-8-sig", UTF16LE: "utf-16", UTF16BE: "utf-16", WINDOWS_1252: "cp1252"}[encoding]
+    text = head.decode(codec, errors="ignore")
+    if "\x00" in text:
+        raise ValueError("no es un CSV")
+    return text
+
+
+def csv_delimiter(text: str, fallback: str = ",") -> int:
+    """El separador de un CSV: el que aparece en todas las lineas y lo mismo en cada una.
+
+    Se cuenta fuera de las comillas en las primeras lineas; gana el que esta en
+    mas lineas con el mismo numero de apariciones (y, a igualdad, el que mas
+    sale). Sin ninguno, el de ``fallback`` (punto y coma en espanol, como Excel).
+    """
+    lines = [line for line in text.splitlines()[:50] if line.strip()][:-1] or text.splitlines()[:1]
+    best: tuple[int, int, int] | None = None
+    best_char = fallback
+    for char in CSV_DELIMITERS:
+        counts = []
+        for line in lines:
+            inside, count = False, 0
+            for c in line:
+                if c == '"':
+                    inside = not inside
+                elif c == char and not inside:
+                    count += 1
+            counts.append(count)
+        present = [n for n in counts if n > 0]
+        if not present:
+            continue
+        common = max(set(present), key=present.count)
+        score = (sum(1 for n in counts if n == common), common, sum(present))
+        if best is None or score > best:
+            best, best_char = score, char
+    return CSV_DELIMITERS[best_char]
 
 
 class OfficeUnavailable(Exception):

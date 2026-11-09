@@ -134,14 +134,14 @@ def _new_folder(ctx: Ctx) -> tuple[str, Path]:
     return doc_id, folder
 
 
-def _load(ctx: Ctx, piece: office.Piece, source: Path, kind: str, doc_id: str, folder: Path) -> Reply:
-    """Convierte ``source`` a Editor.bin y deja el documento abierto."""
+def _load(ctx: Ctx, piece: office.Piece, source: Path, kind: str, doc_id: str, folder: Path, extra: dict[str, object] | None = None) -> Reply:
+    """Convierte ``source`` a Editor.bin y deja el documento abierto (``extra``: campos de x2t, como los del CSV)."""
     item = OfficeDoc(doc_id, kind, folder)
     try:
         (item.doc / "media").mkdir(parents=True, exist_ok=True)
         (item.doc / "changes").mkdir(exist_ok=True)
         ctx.progress(0, 0, _("Abriendo el documento…"))
-        _convert(ctx, piece, folder, {"m_sFileFrom": source, "m_sFileTo": item.doc / "Editor.bin", "m_nFormatTo": office.CANVAS})
+        _convert(ctx, piece, folder, {"m_sFileFrom": source, "m_sFileTo": item.doc / "Editor.bin", "m_nFormatTo": office.CANVAS, **(extra or {})})
         canvas = item.doc / "Editor.bin"
         if not canvas.is_file() or not 0 < canvas.stat().st_size <= office.MAX_CANVAS:
             raise EngineError("conversion_failed", _("No se pudo convertir el documento."))
@@ -227,16 +227,26 @@ def office_open(ctx: Ctx, p: OfficeOpenParams) -> Reply:
     kind = office.OPEN_FORMATS[suffix][0]
     doc_id, folder = _new_folder(ctx)
     source = folder / f"source{suffix}"
+    extra: dict[str, object] | None = None
     try:
         ctx.engine.host.fetch(p.path, source, max_bytes=office.MAX_INPUT)
         with open(source, "rb") as fh:
-            head = fh.read(8)
-        if not head.startswith(_MAGIC):
+            head = fh.read(office.CSV_SAMPLE if suffix == ".csv" else 8)
+        if suffix == ".csv":
+            # Un CSV es texto sin firma: x2t necesita saber su codificacion y su separador.
+            encoding = office.csv_encoding(head)
+            try:
+                text = office.csv_text(head, encoding)
+            except ValueError:
+                raise EngineError("invalid_file", _("El archivo está dañado o no es del tipo que indica su nombre.")) from None
+            delimiter = office.csv_delimiter(text, ";" if language() == "es" else ",")
+            extra = {"m_nCsvTxtEncoding": encoding, "m_nCsvDelimiter": delimiter}
+        elif not head.startswith(_MAGIC):
             raise EngineError("invalid_file", _("El archivo está dañado o no es del tipo que indica su nombre."))
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
-    return _load(ctx, piece, source, kind, doc_id, folder)
+    return _load(ctx, piece, source, kind, doc_id, folder, extra)
 
 
 class OfficeNewParams(Params):
@@ -339,7 +349,7 @@ class SaveParams(Params):
     options: dict[str, Any] | None = None
 
 
-def _export(ctx: Ctx, piece: office.Piece, item: OfficeDoc, code: int, suffix: str, options: str | None) -> Path:
+def _export(ctx: Ctx, piece: office.Piece, item: OfficeDoc, code: int, suffix: str, options: str | None, extra: dict[str, object] | None = None) -> Path:
     """Editor.bin con los cambios apuntados, convertido a ``code``; devuelve el archivo de salida."""
     out = item.folder / f"salida-{secrets.token_hex(6)}{suffix}"
     has_changes = item.changes.is_file() and item.changes.stat().st_size > 0
@@ -353,6 +363,7 @@ def _export(ctx: Ctx, piece: office.Piece, item: OfficeDoc, code: int, suffix: s
     }
     if options is not None:
         fields["m_sJsonParams"] = options
+    fields.update(extra or {})
     _convert(ctx, piece, item.folder, fields)
     if not out.is_file() or out.stat().st_size == 0:
         out.unlink(missing_ok=True)
@@ -378,7 +389,8 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
     if code is None:
         raise invalid(_("Este documento no se puede guardar en ese formato."))
     ctx.progress(0, 0, _("Guardando…"))
-    out = _export(ctx, piece, item, code, suffix, _options(p.options))
+    extra = {"m_nCsvTxtEncoding": office.UTF8, "m_nCsvDelimiter": office.CSV_DELIMITERS[";" if language() == "es" else ","]} if code == office.CSV else None
+    out = _export(ctx, piece, item, code, suffix, _options(p.options), extra)
     try:
         size, _mtime = ctx.engine.host.install(out, dest)
     finally:

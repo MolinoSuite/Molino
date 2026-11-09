@@ -29,7 +29,7 @@ export const OFFICE_KINDS: OfficeKind[] = ['word', 'cell', 'slide']
 /** Extensiones que abre cada app: las que convierte el motor (engine/molino_engine/office.py, OPEN_FORMATS). */
 export const OPENS: Record<OfficeKind, string[]> = {
   word: ['.docx', '.doc', '.odt', '.rtf'],
-  cell: ['.xlsx', '.xls', '.ods'],
+  cell: ['.xlsx', '.xls', '.ods', '.csv'],
   slide: ['.pptx', '.ppt', '.odp']
 }
 
@@ -183,7 +183,7 @@ function syncShortcut(t: Target, kind: OfficeKind | 'home', wanted: boolean): vo
 
 /** Lo que se escribe en el registro depende de esto: si no cambia, no se vuelve a escribir al arrancar. */
 function marker(kind: OfficeKind): string {
-  const hash = createHash('sha256').update(`${launchCommand(kind)}|${appIcon(kind)}`).digest('hex').slice(0, 16)
+  const hash = createHash('sha256').update(`${launchCommand(kind)}|${appIcon(kind)}|${OPENS[kind].join(',')}`).digest('hex').slice(0, 16)
   return `1 ${app.getVersion()} ${lang} ${hash}`
 }
 
