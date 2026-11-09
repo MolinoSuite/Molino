@@ -216,6 +216,8 @@ try {
             $alias = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\molino-pdf.exe'
             if (-not (Test-Path $alias)) { throw 'The package did not register its command-line alias (molino-pdf).' }
             "store package: installed as $($package.PackageFamilyName)"
+            # Who may read the engine inside the package (the sandboxed engine must).
+            & "$env:SystemRoot\System32\icacls.exe" (Join-Path $package.InstallLocation 'app\resources\engine') | ForEach-Object { "  acl: $_" }
             $usual = Join-Path $env:LOCALAPPDATA 'Molino'
             $hadUsual = Test-Path $usual
             $log = Join-Path $data 'logs\molino.log'
