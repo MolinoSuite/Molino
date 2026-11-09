@@ -288,9 +288,8 @@ def delete_container(name: str = CONTAINER_NAME) -> bool:
 
 
 # «Todos los paquetes de aplicacion»: lo llevan todos los AppContainer que no
-# son de los restringidos (LPAC), como el del motor. Windows da a este grupo
-# lectura y ejecucion en las carpetas de los paquetes instalados (WindowsApps),
-# donde nadie puede cambiar los permisos: ahi, la version de la Microsoft Store.
+# son de los restringidos (LPAC), como el del motor. Si una carpeta ya da
+# lectura a este grupo, no hace falta concederla.
 _ALL_APP_PACKAGES = "S-1-15-2-1"
 _all_app_packages_sid: _P | None = None
 
@@ -319,9 +318,8 @@ def _has_read_access(path: Path, sid: int) -> bool:
 
     Valen las entradas para el propio contenedor o para «Todos los paquetes de
     aplicacion»: una que valga para la carpeta y otra que se herede a carpetas y
-    archivos (pueden ser la misma). Windows lo reparte asi en las carpetas de
-    los paquetes: una entrada para la carpeta y otra «solo para heredar» con
-    derechos genericos.
+    archivos. Pueden ser la misma, o dos (una para la carpeta y otra «solo para
+    heredar», con derechos genericos), como escribe a veces Windows.
     """
     everyone_packaged = _all_app_packages()
     dacl = _P()
@@ -397,9 +395,11 @@ def ensure_read_access(path: Path, container: Container) -> bool:
         error = _advapi32.SetNamedSecurityInfoW(str(path), _SE_FILE_OBJECT, _DACL_SECURITY_INFORMATION, None, None, new_dacl, None)
         if error == _ERROR_ACCESS_DENIED and _in_package_folder(path):
             # Version de la Microsoft Store: nadie puede cambiar los permisos de
-            # un paquete instalado, y Windows ya deja a los AppContainer leer y
-            # ejecutar sus archivos. Si no pudiera, el motor aislado no
-            # arrancaria (y la comprobacion de GitHub lo detecta).
+            # un paquete instalado (WindowsApps), y Windows deja leer y ejecutar
+            # sus archivos a los procesos que lanza el paquete, tambien en un
+            # AppContainer (no con una entrada para el contenedor: la lista solo
+            # trae SID de capacidades). Comprobado en GitHub en x64 y en ARM: el
+            # motor arranca aislado (scripts/app-check.ps1 -Msix).
             return False
         if error:
             raise SandboxError("conceder permisos", error)

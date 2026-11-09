@@ -124,7 +124,12 @@ function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $ar
         $deadline = $started.AddSeconds(60)
         do {
             Start-Sleep -Milliseconds 500
-            $packaged = Get-Process Molino -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\WindowsApps\*' } | Select-Object -First 1
+            # Electron runs several Molino.exe (window, GPU...): the main one is the
+            # one whose parent is not another Molino.exe.
+            $all = @(Get-CimInstance Win32_Process -Filter "Name = 'Molino.exe'" | Where-Object { $_.ExecutablePath -like '*\WindowsApps\*' })
+            $ids = @($all | ForEach-Object { $_.ProcessId })
+            $main = $all | Where-Object { $ids -notcontains $_.ParentProcessId } | Select-Object -First 1
+            $packaged = if ($main) { Get-Process -Id $main.ProcessId -ErrorAction SilentlyContinue } else { $null }
         } while (-not $packaged -and (Get-Date) -lt $deadline)
         if (-not $packaged) { throw 'The Store package did not start Molino PDF.' }
         $process = $packaged
