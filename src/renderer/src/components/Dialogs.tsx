@@ -468,6 +468,14 @@ function UpdatesSettings() {
         ? (status.message ?? '')
         : (UPDATE_TEXT[status.state] ?? '')
   const busy = ['unavailable', 'checking', 'downloading', 'ready'].includes(status.state)
+  // La versión de la Microsoft Store la actualiza la Store: aquí solo se dice.
+  if (status.store) {
+    return (
+      <Field label={T.label}>
+        <span className="hint">{T.store}</span>
+      </Field>
+    )
+  }
   return (
     <Field label={T.label}>
       <Checkbox checked={settings.checkUpdates} onChange={(checkUpdates) => void updateSettings({ checkUpdates })}>

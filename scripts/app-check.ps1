@@ -5,17 +5,23 @@
 #
 #   pwsh -File scripts\app-check.ps1 -Zip dist\MolinoPDF-Portable.zip [-Screenshot app.png] [-ExpectEmulated]
 #   pwsh -File scripts\app-check.ps1 -Setup dist\MolinoPDF-Setup.exe [-Screenshot app.png] [-ExpectEmulated]
+#   pwsh -File scripts\app-check.ps1 -Msix dist\MolinoPDF.appx [-ExpectEmulated]
 #
 # -Zip unzips the portable version in a new temporary folder and runs it there.
 # -Setup installs Molino PDF for the current user (silently), runs it, uninstalls it
 # and checks that nothing is left. It changes the system, so it only runs on
 # GitHub's build machines, which are thrown away after each build.
+# -Msix checks the Microsoft Store package the same way: it signs it with a
+# throwaway certificate trusted only on that machine (the Store signs the real
+# one), installs it, opens the PDF through its command-line alias, checks that the
+# data went to the package's own folder, and uninstalls it. GitHub only, too.
 # -Screenshot captures only the Molino PDF window (PrintWindow), never the rest of
 # the screen. Everything started here is closed and deleted at the end.
 # ASCII only: Windows PowerShell 5.1 reads scripts without a BOM as ANSI.
 param(
     [string] $Zip,
     [string] $Setup,
+    [string] $Msix,
     [string] $Screenshot,
     [switch] $ExpectEmulated,
     [int] $TimeoutSeconds = 180
@@ -108,10 +114,21 @@ function Stop-Molino([System.Diagnostics.Process] $process) {
 }
 
 # Starts Molino PDF with the PDF, waits for the page and checks the log. -Arguments
-# go before the PDF (for example a temporary profile).
-function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $arguments, [bool] $portable) {
+# go before the PDF (for example a temporary profile). With $store, $exe is the
+# package's command-line alias and the app is the Molino.exe that Windows starts
+# from the package folder.
+function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $arguments, [bool] $portable, [bool] $store = $false) {
     $started = Get-Date
     $process = Start-Process -FilePath $exe -ArgumentList (@($arguments) + @("`"$pdf`"")) -PassThru
+    if ($store) {
+        $deadline = $started.AddSeconds(60)
+        do {
+            Start-Sleep -Milliseconds 500
+            $packaged = Get-Process Molino -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\WindowsApps\*' } | Select-Object -First 1
+        } while (-not $packaged -and (Get-Date) -lt $deadline)
+        if (-not $packaged) { throw 'The Store package did not start Molino PDF.' }
+        $process = $packaged
+    }
     try {
         $deadline = $started.AddSeconds($TimeoutSeconds)
         while ((Get-Date) -lt $deadline -and -not $process.HasExited) {
@@ -140,9 +157,9 @@ function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $ar
     finally { Stop-Molino $process }
 }
 
-if ([bool]$Zip -eq [bool]$Setup) { throw 'Give either -Zip or -Setup.' }
-if ($Setup -and $env:GITHUB_ACTIONS -ne 'true') {
-    throw 'The installer check installs Molino PDF for the current user: it only runs on GitHub build machines.'
+if (@(@($Zip, $Setup, $Msix) | Where-Object { $_ }).Count -ne 1) { throw 'Give one of -Zip, -Setup or -Msix.' }
+if (($Setup -or $Msix) -and $env:GITHUB_ACTIONS -ne 'true') {
+    throw 'The installer and Store package checks install Molino PDF for the current user: they only run on GitHub build machines.'
 }
 if ($Screenshot) { $Screenshot = Get-FullPath $Screenshot }
 
@@ -161,6 +178,62 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Could not unzip the portable version.' }
         if (-not (Test-Path (Join-Path $app 'Molino.exe'))) { throw 'The zip has no Molino.exe.' }
         Test-Molino (Join-Path $app 'Molino.exe') $pdf (Join-Path $app 'MolinoData\logs\molino.log') @() $true
+    }
+    elseif ($Msix) {
+        $Msix = Get-FullPath $Msix
+        if (-not (Test-Path $Msix)) { throw "No Store package at $Msix." }
+        # The identity comes from the package itself: the test certificate must carry its publisher.
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $archive = [System.IO.Compression.ZipFile]::OpenRead($Msix)
+        try {
+            $reader = New-Object System.IO.StreamReader ($archive.GetEntry('AppxManifest.xml').Open())
+            [xml] $manifest = $reader.ReadToEnd()
+            $reader.Dispose()
+        }
+        finally { $archive.Dispose() }
+        $identity = $manifest.Package.Identity
+        "store package: $($identity.Name) $($identity.Version), publisher $($identity.Publisher)"
+        $cert = New-SelfSignedCertificate -Type Custom -Subject $identity.Publisher -KeyUsage DigitalSignature `
+            -FriendlyName 'Molino Store package check (throwaway)' -CertStoreLocation 'Cert:\CurrentUser\My' `
+            -TextExtension @('2.5.29.37={text}1.3.6.1.5.5.7.3.3', '2.5.29.19={text}')
+        $trusted = $null
+        $data = $null
+        $signed = Join-Path $folder 'MolinoPDF.appx'
+        Copy-Item $Msix $signed
+        try {
+            $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" -ErrorAction SilentlyContinue |
+                Sort-Object FullName -Descending | Select-Object -First 1
+            if (-not $signtool) { throw 'No signtool.exe (Windows SDK) on this machine.' }
+            & $signtool.FullName sign /q /fd SHA256 /sha1 $cert.Thumbprint /s My $signed
+            if ($LASTEXITCODE -ne 0) { throw 'Could not sign the test package.' }
+            $cer = Join-Path $folder 'check.cer'
+            Export-Certificate -Cert $cert -FilePath $cer | Out-Null
+            $trusted = Import-Certificate -FilePath $cer -CertStoreLocation 'Cert:\LocalMachine\TrustedPeople'
+            Add-AppxPackage -Path $signed
+            $package = Get-AppxPackage -Name $identity.Name
+            if (-not $package) { throw 'The Store package was not installed.' }
+            $data = Join-Path $env:LOCALAPPDATA "Packages\$($package.PackageFamilyName)\LocalState"
+            $alias = Join-Path $env:LOCALAPPDATA 'Microsoft\WindowsApps\molino-pdf.exe'
+            if (-not (Test-Path $alias)) { throw 'The package did not register its command-line alias (molino-pdf).' }
+            "store package: installed as $($package.PackageFamilyName)"
+            $usual = Join-Path $env:LOCALAPPDATA 'Molino'
+            $hadUsual = Test-Path $usual
+            $log = Join-Path $data 'logs\molino.log'
+            Test-Molino $alias $pdf $log @() $false $true
+            if ((Read-Log $log) -notmatch 'iniciado \(Microsoft Store\)') { throw 'Molino PDF did not start as the Store version.' }
+            if (-not $hadUsual -and (Test-Path $usual)) { throw 'The Store version wrote to %LOCALAPPDATA%\Molino instead of its package folder.' }
+            'store package: data in the package folder'
+        }
+        finally {
+            Get-Process Molino -ErrorAction SilentlyContinue | Where-Object { $_.Path -like '*\WindowsApps\*' } | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 1
+            Get-AppxPackage -Name $identity.Name | Remove-AppxPackage -ErrorAction SilentlyContinue
+            if ($trusted) { Remove-Item -Path "Cert:\LocalMachine\TrustedPeople\$($trusted.Thumbprint)" -ErrorAction SilentlyContinue }
+            Remove-Item -Path "Cert:\CurrentUser\My\$($cert.Thumbprint)" -ErrorAction SilentlyContinue
+        }
+        if (Get-AppxPackage -Name $identity.Name) { throw 'The Store package is still installed after removing it.' }
+        if ($data -and (Test-Path $data)) { throw 'Windows left the package data folder after uninstalling.' }
+        'store package: uninstalled, its data folder removed'
     }
     else {
         $Setup = Get-FullPath $Setup

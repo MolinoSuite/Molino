@@ -44,4 +44,9 @@ finally {
 # no hace falta: menos tamano y menos codigo de terceros dentro de la aplicacion.
 Get-ChildItem (Join-Path $root 'dist-engine\molino-engine\_internal\cv2') -Filter 'opencv_videoio_ffmpeg*.dll' -ErrorAction SilentlyContinue |
     Remove-Item -Force
+# python-docx trae, junto a su plantilla (default.docx, la que usa), la misma
+# plantilla descomprimida, de la que se armo. No se usa, y su [Content_Types].xml
+# es un nombre reservado en los paquetes MSIX: la version de la Microsoft Store no
+# se podria crear con el.
+Remove-Item -Recurse -Force (Join-Path $root 'dist-engine\molino-engine\_internal\docx\templates\default-docx-template') -ErrorAction SilentlyContinue
 Write-Host "Motor empaquetado en dist-engine\molino-engine"

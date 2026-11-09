@@ -1,0 +1,9 @@
+
+          <!-- "molino-pdf archivo.pdf" desde la linea de ordenes abre Molino PDF de la
+               Store (con su identidad de paquete). Lo usa tambien la comprobacion del
+               paquete en GitHub (scripts/app-check.ps1 -Msix). -->
+          <uap3:Extension Category="windows.appExecutionAlias" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication">
+            <uap3:AppExecutionAlias>
+              <desktop:ExecutionAlias Alias="molino-pdf.exe" />
+            </uap3:AppExecutionAlias>
+          </uap3:Extension>

@@ -95,6 +95,30 @@ nsis:
   language: "1033"
   include: build/installer.nsh
 
+# Versión de la Microsoft Store (MSIX): npm run dist:store (o, con la app ya
+# compilada, electron-builder --win appx --prepackaged dist\win-unpacked). La
+# Store firma el paquete al publicarlo. Los datos de la app van en la carpeta del
+# paquete y las versiones nuevas llegan por la Store (src/main/appx.ts).
+appx:
+  # PROVISIONALES: identityName, publisher y publisherDisplayName se copian de
+  # Partner Center (Producto → Administración del producto → Identidad del
+  # producto) antes de subirlo. Con estos solo se prueba el paquete
+  # (scripts/app-check.ps1 -Msix, en GitHub).
+  identityName: MolinoSuite.MolinoPDF
+  publisher: CN=MolinoSuite
+  publisherDisplayName: Molino
+  applicationId: MolinoPDF
+  displayName: Molino PDF
+  backgroundColor: transparent
+  languages: [es-ES, en-US]
+  minVersion: 10.0.17763.0
+  maxVersionTested: 10.0.26100.0
+  artifactName: MolinoPDF.${ext}
+  # Imágenes en build/appx (scripts/make-appx-assets.py); el manifiesto lleva
+  # además el alias «molino-pdf» para abrir PDF desde la línea de órdenes.
+  customManifestPath: appx-manifest/AppxManifest.xml
+  customExtensionsPath: build/appx-manifest/extensions.xml
+
 # Endurecimiento del binario de Electron (OWASP A02:2025 / A08:2025): no puede
 # usarse como intérprete de Node ni depurarse por línea de órdenes, y solo
 # carga el código de la aplicación desde su archivo asar verificado.
