@@ -88,5 +88,19 @@ export const main: typeof source = {
     locked: 'The scanner is locked or another program is using it.',
     coverOpen: 'The scanner lid is open.',
     lampOff: 'The scanner lamp is off.'
+  },
+  office: {
+    apps: { word: 'Molino Docs', cell: 'Molino Sheets', slide: 'Molino Slides' },
+    notInstalled: 'To open this file, add Docs, Sheets and Slides in Settings → Apps.',
+    preparing: 'Docs, Sheets and Slides are getting ready. Try again in a moment.',
+    openFailed: 'Couldn’t open “{name}”.',
+    saveFailed: 'Couldn’t save “{name}”.',
+    unsaved: 'Save the changes to “{name}”?',
+    unsavedDetail: 'If you don’t save them, they’ll be lost.',
+    save: 'Save',
+    dontSave: 'Don’t save',
+    cancel: 'Cancel',
+    removeOpen: 'Close your Docs, Sheets and Slides documents before removing them.',
+    filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' }
   }
 }

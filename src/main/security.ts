@@ -156,14 +156,25 @@ export function hardenSession(session: Session): void {
   })
 }
 
+/** Sesión de los editores de oficina (officewin.ts): solo en ella vale molino://office/. */
+let officeSession: Session | null = null
+export function setOfficeSession(session: Session): void {
+  officeSession = session
+}
+
+function allowedFor(contents: WebContents, url: string): boolean {
+  if (officeSession !== null && contents.session === officeSession) return url.startsWith(`${APP_SCHEME}://office/`)
+  return isAppUrl(url)
+}
+
 export function hardenContents(): void {
   app.on('web-contents-created', (_event, contents: WebContents) => {
     contents.setWindowOpenHandler(() => ({ action: 'deny' }))
     contents.on('will-navigate', (event, url) => {
-      if (!isAppUrl(url)) event.preventDefault()
+      if (!allowedFor(contents, url)) event.preventDefault()
     })
     contents.on('will-redirect', (event, url) => {
-      if (!isAppUrl(url)) event.preventDefault()
+      if (!allowedFor(contents, url)) event.preventDefault()
     })
     contents.on('will-attach-webview', (event) => event.preventDefault())
   })

@@ -15,7 +15,8 @@ export default defineConfig({
     resolve: { alias: { '@shared': resolve('src/shared') } },
     build: {
       rollupOptions: {
-        input: { index: resolve('src/preload/index.ts') },
+        // index: Molino PDF; office: las ventanas de los editores (officewin.ts).
+        input: { index: resolve('src/preload/index.ts'), office: resolve('src/preload/office.ts') },
         // Un preload con sandbox activado solo puede ser CommonJS.
         output: { format: 'cjs', entryFileNames: '[name].js' }
       }

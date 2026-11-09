@@ -97,5 +97,20 @@ export const main = {
     locked: 'El escáner está bloqueado o lo está usando otro programa.',
     coverOpen: 'La tapa del escáner está abierta.',
     lampOff: 'La lámpara del escáner está apagada.'
+  },
+  /** Documentos, Hojas y Presentaciones: las ventanas de los editores (officewin.ts). */
+  office: {
+    apps: { word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones' },
+    notInstalled: 'Para abrir este archivo, añade Documentos, Hojas y Presentaciones en Ajustes → Aplicaciones.',
+    preparing: 'Documentos, Hojas y Presentaciones se están preparando. Vuelve a intentarlo en un momento.',
+    openFailed: 'No se pudo abrir «{name}».',
+    saveFailed: 'No se pudo guardar «{name}».',
+    unsaved: '¿Guardar los cambios de «{name}»?',
+    unsavedDetail: 'Si no los guardas, se perderán.',
+    save: 'Guardar',
+    dontSave: 'No guardar',
+    cancel: 'Cancelar',
+    removeOpen: 'Cierra los documentos de Documentos, Hojas y Presentaciones antes de quitarlas.',
+    filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' }
   }
 }

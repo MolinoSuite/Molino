@@ -9,6 +9,7 @@ import { initLang } from './i18n'
 import { initLog, log } from './log'
 import { legacyModelsDir, migrateFromFolio } from './migrate'
 import { OfficePiece } from './office'
+import { isOfficeFile, OfficeWindows } from './officewin'
 import { portableDataDir } from './portable'
 import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
@@ -67,11 +68,11 @@ function localBase(): string {
   return app.getPath('userData')
 }
 
-/** Archivos pasados en la línea de órdenes (doble clic, «Abrir con»). */
-function filesFromArgs(argv: string[], cwd: string): string[] {
+/** Archivos pasados en la línea de órdenes (doble clic, «Abrir con»): PDF e imágenes, o de oficina. */
+function filesFromArgs(argv: string[], cwd: string, office = false): string[] {
   const out: string[] = []
   for (const arg of argv.slice(1)) {
-    if (!arg || arg.startsWith('-') || !isOpenable(arg)) continue
+    if (!arg || arg.startsWith('-') || !(office ? isOfficeFile(arg) : isOpenable(arg))) continue
     const path = isAbsolute(arg) ? arg : resolve(cwd, arg)
     try {
       if (existsSync(path) && statSync(path).isFile()) out.push(path)
@@ -85,6 +86,9 @@ function filesFromArgs(argv: string[], cwd: string): string[] {
 let workDir = ''
 /** Carpeta de los modelos de IA descargados (la lee el motor; ver aimodels.ts). */
 let modelsRoot = ''
+/** Carpeta del motor de oficina (la pieza y su índice de fuentes; ver office.ts). */
+let officeRoot = ''
+let officeWindows: OfficeWindows | null = null
 let engine: EngineClient | null = null
 let bridge: Bridge | null = null
 let updates: Updates | null = null
@@ -106,7 +110,7 @@ function engineLaunch(): EngineLaunch {
     const dir = join(process.resourcesPath, 'engine')
     return {
       command: join(dir, 'molino-engine.exe'),
-      args: ['--workdir', workDir, '--resources', join(process.resourcesPath, 'assets'), '--models', modelsRoot],
+      args: ['--workdir', workDir, '--resources', join(process.resourcesPath, 'assets'), '--models', modelsRoot, '--office', officeRoot],
       cwd: dir
     }
   }
@@ -115,7 +119,7 @@ function engineLaunch(): EngineLaunch {
     command: join(root, 'engine', '.venv', 'Scripts', 'python.exe'),
     // -E y -s: el intérprete ignora las variables PYTHON* y los paquetes del
     // perfil del usuario, de modo que el entorno no puede inyectarle código.
-    args: ['-E', '-s', '-m', 'molino_engine', '--workdir', workDir, '--resources', join(root, 'resources'), '--models', modelsRoot],
+    args: ['-E', '-s', '-m', 'molino_engine', '--workdir', workDir, '--resources', join(root, 'resources'), '--models', modelsRoot, '--office', officeRoot],
     cwd: join(root, 'engine')
   }
 }
@@ -126,6 +130,7 @@ app.on('second-instance', (_event, argv, cwd) => {
     mainWindow.focus()
   }
   void bridge?.openFromSystem(filesFromArgs(argv, cwd))
+  for (const file of filesFromArgs(argv, cwd, true)) void officeWindows?.open(file)
 })
 
 app.on('window-all-closed', () => app.quit())
@@ -169,11 +174,19 @@ void app.whenReady().then(async () => {
   // El motor de oficina (Documentos, Hojas y Presentaciones), si se ha añadido.
   const office = new OfficePiece(app.getPath('userData'), (progress) => bridge?.sendOfficeProgress(progress))
   await office.load()
+  officeRoot = office.root
   engine = new EngineClient(engineLaunch)
   const printer = new PrintService(engine)
   serveApp(join(__dirname, '../renderer'), (url) => printer.respond(url), aptosFile)
   updates = new Updates((status) => bridge?.sendUpdate(status))
   bridge = new Bridge(engine, store, printer, updates, aiModels, office)
+  // Documentos, Hojas y Presentaciones: sus ventanas, y el motor configurado con
+  // la pieza (al arrancar el motor y al añadirla o quitarla).
+  const editors = new OfficeWindows(engine, office, join(__dirname, '../renderer'))
+  officeWindows = editors
+  bridge.officeBusy = () => editors.busy
+  office.onChange = () => void editors.configure()
+  engine.on('ready', () => void editors.configure())
   // Cada vez que el motor arranca (o rearranca) recibe en memoria las fuentes
   // extra que haya en este equipo (Aptos); después la interfaz recarga la lista.
   engine.on('ready', () => void shareExtraFonts())
@@ -201,4 +214,5 @@ void app.whenReady().then(async () => {
 
   // Se abrirán cuando la interfaz avise de que ya está escuchando.
   void bridge.openFromSystem(filesFromArgs(process.argv, process.cwd()))
+  for (const file of filesFromArgs(process.argv, process.cwd(), true)) void editors.open(file)
 })

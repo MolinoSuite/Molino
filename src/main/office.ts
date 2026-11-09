@@ -97,6 +97,11 @@ const test = testPiece()
 /** La pieza en uso: la de esta versión o, en pruebas, la de prueba. */
 const PIECE: PieceFile = test ? test.piece : OFFICE_PIECE
 
+/** Versión de la pieza de esta versión de Molino (la carpeta en la que se instala). */
+export function pieceVersion(): string {
+  return PIECE.version
+}
+
 /** Solo HTTPS a las descargas de Molino en GitHub y a su red de distribución. */
 export function isOfficeHost(raw: string): boolean {
   try {
@@ -137,6 +142,8 @@ const InstalledSchema = z.object({ version: z.string().regex(/^[\w.-]{1,40}$/) }
 
 export class OfficePiece {
   readonly root: string
+  /** Se llama cuando la pieza queda instalada o se quita (para reconfigurar el motor). */
+  onChange: () => void = () => undefined
   /** Versión instalada según installed.json (puede ser una anterior). */
   private installed: string | null = null
   private running: Promise<void> | null = null
@@ -257,6 +264,7 @@ export class OfficePiece {
       await rm(partial, { recursive: true, force: true })
       await this.tidy()
       log.info(`oficina: pieza ${PIECE.version} instalada`)
+      this.onChange()
     } catch (error) {
       const reason = failureOf(error)
       if (reason !== 'cancelled') log.warn(`oficina: no se pudo añadir (${reason}${error instanceof Error && !(error instanceof OfficeError) ? `: ${error.message.slice(0, 200)}` : ''})`)
@@ -301,7 +309,8 @@ export class OfficePiece {
   /** Quita lo que no sea la versión instalada (versiones anteriores, carpetas sueltas). */
   private async tidy(): Promise<void> {
     for (const name of await readdir(this.root).catch(() => [] as string[])) {
-      if (name === 'installed.json' || name === '.partial' || name === this.installed) continue
+      // fonts: el índice de fuentes de los editores (officefonts.ts), que se rehace solo.
+      if (name === 'installed.json' || name === '.partial' || name === 'fonts' || name === this.installed) continue
       await rm(this.inside(name), { recursive: true, force: true }).catch(() => log.warn('oficina: no se pudo borrar una versión anterior'))
     }
   }
@@ -315,5 +324,6 @@ export class OfficePiece {
     this.installed = null
     if (existsSync(this.root)) await rm(this.root, { recursive: true, force: true })
     log.info('oficina: pieza quitada')
+    this.onChange()
   }
 }

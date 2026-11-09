@@ -194,6 +194,9 @@ export class Bridge {
     this.send('ai:progress', progress)
   }
 
+  /** ¿Hay documentos de oficina abiertos? Lo da officewin.ts (index.ts lo conecta). */
+  officeBusy: () => boolean = () => false
+
   /** Avance de la descarga e instalación del motor de oficina (lo emite office.ts). */
   sendOfficeProgress(progress: OfficeProgress | null): void {
     this.send('office:progress', progress)
@@ -944,6 +947,8 @@ export class Bridge {
       return true
     })
     this.handle('office:remove', z.undefined(), async () => {
+      // Con documentos abiertos, sus editores están leyendo la pieza.
+      if (this.officeBusy()) throw new EngineError({ code: 'busy', message: L.main.office.removeOpen })
       await this.office.remove()
       this.send('office:changed')
       return true
