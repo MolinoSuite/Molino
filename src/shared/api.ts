@@ -7,7 +7,7 @@
  */
 
 import type { AiDownloadError, AiDownloadProgress, AiStatus } from './ai'
-import type { OfficeFailure, OfficeProgress, OfficeStatus } from './office'
+import type { OfficeApp, OfficeFailure, OfficeProgress, OfficeStatus } from './office'
 import type { Lang } from './i18n'
 import type {
   DocDescriptor,
@@ -251,6 +251,10 @@ export interface MolinoApi {
     onProgress(listener: (progress: OfficeProgress | null) => void): () => void
     onChanged(listener: () => void): () => void
     onError(listener: (reason: OfficeFailure) => void): () => void
+    /** Abre la ventana de una app (Documentos, Hojas o Presentaciones) o «Molino», el inicio común. */
+    launch(app: OfficeApp | 'home'): Promise<Envelope<boolean>>
+    /** Abre su página en «Aplicaciones predeterminadas» de Windows. */
+    defaultApps(app: OfficeApp): Promise<Envelope<boolean>>
   }
   /** Comentarios al autor (fallos, mejoras…): por correo, a través de su servicio de comentarios. */
   feedback: {

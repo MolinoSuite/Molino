@@ -12,11 +12,9 @@ import { cn } from '@/lib/cn'
 import { APPS, type Mode, paletteEntries, type PaletteEntry, type Tool } from './apps'
 import { EditorSession, type EditorState } from './engine'
 import { env, fmt, L } from './i18n'
-import documentsIcon from './icons/documentos.svg'
-import sheetsIcon from './icons/hojas.svg'
-import slidesIcon from './icons/presentaciones.svg'
+import { ICONS } from './icons'
+import { OfficeStart } from './OfficeStart'
 
-const ICONS = { word: documentsIcon, cell: sheetsIcon, slide: slidesIcon }
 const FONTS = ['Aptos', 'Calibri', 'Arial', 'Cambria', 'Georgia', 'Times New Roman', 'Verdana', 'Segoe UI', 'Courier New', 'Carlito', 'Open Sans']
 const SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 44, 54, 72]
 const SWATCHES = ['#000000', '#545b69', '#c4505a', '#e06a1a', '#d4a72c', '#2a9358', '#2867d1', '#7a5af5', '#b4357a', '#0f766e', '#9ca3af', '#ffffff']
@@ -74,7 +72,7 @@ export function OfficeApp() {
   )
   const shortcut = useCallback(
     (key: string) => {
-      if (key === 'k') setPalette(true)
+      if (key === 'k') setPalette(Boolean(tabs?.tabs.length))
       else if (key === 's') run('save')
       else if (key === 'o') void window.molinoOffice.openDialog()
       else if (key === 'n') void window.molinoOffice.newDoc()
@@ -103,6 +101,8 @@ export function OfficeApp() {
 
   const currentMode = app.modes.find((m) => m.id === mode) ?? app.modes[0]
   const activeTab = tabs?.tabs.find((t) => t.doc === tabs.active)
+  // Sin documentos: la pantalla de inicio de la app (o «Abriendo…» si viene uno).
+  const empty = !tabs || tabs.tabs.length === 0
 
   return (
     <div className={cn('office', presenting && 'presenting')} data-app={kind}>
@@ -130,13 +130,15 @@ export function OfficeApp() {
           <FolderOpen size={16} />
         </button>
         <div className="titlebar-fill" />
-        <button className="office-search" onClick={() => setPalette(true)}>
-          <Search size={15} />
-          <span>{T.search.button}</span>
-          <kbd>Ctrl K</kbd>
-        </button>
+        {!empty && (
+          <button className="office-search" onClick={() => setPalette(true)}>
+            <Search size={15} />
+            <span>{T.search.button}</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+        )}
         <div className="titlebar-fill" />
-        <div className="office-actions">
+        <div className="office-actions" hidden={empty}>
           {app.header.map((b, i) => (
             <button
               key={b.key}
@@ -150,6 +152,16 @@ export function OfficeApp() {
         </div>
       </header>
 
+      {empty ? (
+        tabs && !tabs.opening ? (
+          <OfficeStart kind={kind} />
+        ) : (
+          <div className="office-loading office-opening">
+            <span className="spinner" />
+            {T.loading}
+          </div>
+        )
+      ) : (
       <div className="office-body">
         <nav className="rail" aria-label={T.modes.label}>
           {app.modes.map((m) => (
@@ -182,6 +194,7 @@ export function OfficeApp() {
         </div>
         {app.panel && state?.ready && <SidePanel kind={kind} state={state} run={run} />}
       </div>
+      )}
 
       <footer className="office-status">
         <span className="grow">{statusText(kind, state)}</span>
@@ -189,7 +202,7 @@ export function OfficeApp() {
         <button className="office-credit" onClick={() => setAbout(true)}>
           {T.status.basedOn}
         </button>
-        <div className="office-zoom">
+        <div className="office-zoom" hidden={empty}>
           <button className="icon-btn sm" aria-label={T.status.zoomOut} data-tip={T.status.zoomOut} onClick={() => run('zoomOut')}>
             <Minus size={14} />
           </button>

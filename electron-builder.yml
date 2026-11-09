@@ -46,6 +46,12 @@ publish:
 extraResources:
   - from: dist-engine/molino-engine
     to: engine
+  # Iconos de Documentos, Hojas y Presentaciones (y de la suite): sus accesos en el
+  # menu Inicio, sus ventanas y sus tipos de archivo apuntan a ellos (src/main/shellapps.ts).
+  - from: build/icons
+    to: icons
+    filter:
+      - "*.ico"
   - from: resources/tessdata
     to: assets/tessdata
     filter:

@@ -136,7 +136,9 @@ const api: MolinoApi = {
     remove: () => ipcRenderer.invoke('office:remove'),
     onProgress: (listener) => subscribe<OfficeProgress | null>('office:progress', listener),
     onChanged: (listener) => subscribe<void>('office:changed', () => listener()),
-    onError: (listener) => subscribe<OfficeFailure>('office:error', listener)
+    onError: (listener) => subscribe<OfficeFailure>('office:error', listener),
+    launch: (app) => ipcRenderer.invoke('office:launch', app),
+    defaultApps: (app) => ipcRenderer.invoke('office:defaultApps', app)
   },
   feedback: {
     available: () => ipcRenderer.invoke('feedback:available'),

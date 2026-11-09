@@ -38,6 +38,9 @@ const ui: OfficeUiApi = {
   closeTab: (doc) => ipcRenderer.invoke('office:closeTab', doc),
   openDialog: () => ipcRenderer.invoke('office:openDialog'),
   newDoc: () => ipcRenderer.invoke('office:new'),
+  recent: () => ipcRenderer.invoke('office:recent'),
+  openRecent: (id) => ipcRenderer.invoke('office:openRecent', id),
+  forgetRecent: (id) => ipcRenderer.invoke('office:forgetRecent', id),
   onTabs: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, tabs: OfficeTabs): void => listener(tabs)
     ipcRenderer.on('office:tabs', wrapped)

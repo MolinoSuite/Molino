@@ -15,6 +15,19 @@ export const office = {
   },
   actions: { save: 'Guardar', savePdf: 'Guardar como PDF', present: 'Presentar' },
   loading: 'Abriendo…',
+  start: {
+    subtitle: {
+      word: 'Escribe documentos y abre los de Word y OpenDocument.',
+      cell: 'Haz cuentas y tablas, y abre las hojas de Excel y OpenDocument.',
+      slide: 'Prepara presentaciones y abre las de PowerPoint y OpenDocument.'
+    },
+    new: { word: 'Documento nuevo', cell: 'Hoja de cálculo nueva', slide: 'Presentación nueva' },
+    open: 'Abrir…',
+    recent: 'Recientes',
+    noRecent: 'Aquí aparecerán los últimos que abras.',
+    remove: 'Quitar «{name}» de los recientes',
+    removeTip: 'Quitar de la lista (el archivo no se borra)'
+  },
   status: {
     saved: 'Guardado',
     unsaved: 'Sin guardar',

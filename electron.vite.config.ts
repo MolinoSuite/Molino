@@ -15,8 +15,8 @@ export default defineConfig({
     resolve: { alias: { '@shared': resolve('src/shared') } },
     build: {
       rollupOptions: {
-        // index: Molino PDF; office: las ventanas de los editores (officewin.ts).
-        input: { index: resolve('src/preload/index.ts'), office: resolve('src/preload/office.ts') },
+        // index: Molino PDF; office: las ventanas de los editores (officewin.ts); home: «Molino», el inicio común (home.ts).
+        input: { index: resolve('src/preload/index.ts'), office: resolve('src/preload/office.ts'), home: resolve('src/preload/home.ts') },
         // Un preload con sandbox activado solo puede ser CommonJS.
         output: { format: 'cjs', entryFileNames: '[name].js' }
       }
@@ -26,7 +26,7 @@ export default defineConfig({
     root: 'src/renderer',
     plugins: [react()],
     resolve: { alias: { '@': resolve('src/renderer/src'), '@shared': resolve('src/shared') } },
-    // index: Molino PDF; office: las ventanas de Documentos, Hojas y Presentaciones (officewin.ts).
-    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html'), office: resolve('src/renderer/office.html') } } }
+    // index: Molino PDF; office: las ventanas de Documentos, Hojas y Presentaciones (officewin.ts); home: «Molino», el inicio común.
+    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html'), office: resolve('src/renderer/office.html'), home: resolve('src/renderer/home.html') } } }
   }
 })

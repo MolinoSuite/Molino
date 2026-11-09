@@ -56,7 +56,11 @@ const SettingsSchema = z.object({
   language: z.enum(['auto', 'es', 'en']).default('auto'),
   // IA local: apagada hasta que el usuario la activa y descarga los modelos.
   aiTier: z.enum(['off', 'basic', 'advanced']).default('off'),
-  aiGpu: z.boolean().default(true)
+  aiGpu: z.boolean().default(true),
+  // Documentos, Hojas y Presentaciones que se ven (menú Inicio, «Abrir con»), con el motor de oficina añadido.
+  officeApps: z
+    .object({ word: z.boolean().default(true), cell: z.boolean().default(true), slide: z.boolean().default(true) })
+    .default({ word: true, cell: true, slide: true })
 })
 
 const BoundsSchema = z.object({
@@ -76,7 +80,9 @@ const RecentSchema = z.object({
 const ConfigSchema = z.object({
   settings: SettingsSchema.default(SettingsSchema.parse({})),
   window: BoundsSchema.optional(),
-  recent: z.array(RecentSchema).max(200).default([])
+  recent: z.array(RecentSchema).max(200).default([]),
+  // Los de Documentos, Hojas y Presentaciones, aparte (la pantalla inicial de Molino PDF solo abre PDF).
+  officeRecent: z.array(RecentSchema).max(200).default([])
 })
 
 type Config = z.infer<typeof ConfigSchema>
@@ -225,6 +231,25 @@ export class Store {
     this.config.recent = []
     this.persist()
     return []
+  }
+
+  // ------------------------------------- recientes de Documentos, Hojas y Presentaciones
+
+  /** Rutas completas, para el proceso principal (officewin.ts decide qué ve cada ventana). */
+  officeRecent(): { id: string; path: string; openedAt: number }[] {
+    return this.config.officeRecent.map((entry) => ({ ...entry }))
+  }
+
+  addOfficeRecent(path: string): void {
+    const key = path.toLowerCase()
+    const rest = this.config.officeRecent.filter((entry) => entry.path.toLowerCase() !== key)
+    this.config.officeRecent = [{ id: randomBytes(8).toString('hex'), path, openedAt: Date.now() }, ...rest].slice(0, MAX_RECENT)
+    this.persist()
+  }
+
+  forgetOfficeRecent(id: string): void {
+    this.config.officeRecent = this.config.officeRecent.filter((entry) => entry.id !== id)
+    this.persist()
   }
 
   // ------------------------------------------------------------- firmas

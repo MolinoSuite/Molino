@@ -18,7 +18,11 @@ export interface OfficeStatus {
   freeDisk: number
   /** Se está descargando o instalando. */
   busy: boolean
+  /** Molino pone sus apps en Windows (menú Inicio, tipos de archivo): no en la portable ni en la de la Store. */
+  shell: boolean
 }
+
+export type OfficeApp = 'word' | 'cell' | 'slide'
 
 export interface OfficeProgress {
   /** Primero se descarga (bytes) y después se instala (archivos). */

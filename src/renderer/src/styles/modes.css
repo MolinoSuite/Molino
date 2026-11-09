@@ -1551,6 +1551,18 @@ select.field-input {
   flex-direction: column;
   gap: 6px;
 }
+/* Ajustes → Aplicaciones: Documentos, Hojas y Presentaciones, una por fila. */
+.office-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.office-apps .grow {
+  min-width: 0;
+}
+.office-apps .btn {
+  flex: none;
+}
 .ai-confirm {
   display: flex;
   flex-direction: column;

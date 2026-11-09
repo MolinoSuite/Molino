@@ -233,6 +233,8 @@ export interface Settings {
   aiTier: AiTier
   /** Usar una tarjeta gráfica dedicada para la IA (si la hay). */
   aiGpu: boolean
+  /** Documentos, Hojas y Presentaciones que se ven en el menú Inicio y en «Abrir con» (con el motor de oficina añadido). */
+  officeApps: { word: boolean; cell: boolean; slide: boolean }
 }
 
 /** Una impresora instalada en Windows. */

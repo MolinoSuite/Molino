@@ -15,6 +15,19 @@ export const office: typeof es = {
     empty: 'No command has that name.'
   },
   actions: { save: 'Save', savePdf: 'Save as PDF', present: 'Present' },
+  start: {
+    subtitle: {
+      word: 'Write documents and open Word and OpenDocument files.',
+      cell: 'Work with numbers and tables, and open Excel and OpenDocument spreadsheets.',
+      slide: 'Create presentations and open PowerPoint and OpenDocument slides.'
+    },
+    new: { word: 'New document', cell: 'New spreadsheet', slide: 'New presentation' },
+    open: 'Open…',
+    recent: 'Recent',
+    noRecent: 'The files you open will appear here.',
+    remove: 'Remove “{name}” from recent files',
+    removeTip: 'Remove from the list (the file isn’t deleted)'
+  },
   loading: 'Opening…',
   status: {
     saved: 'Saved',

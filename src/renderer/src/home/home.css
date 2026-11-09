@@ -1,0 +1,267 @@
+/* «Molino», el inicio común: sobre los estilos de Molino PDF (tokens, base y shell). */
+
+/* El color de la suite: el añil del zócalo del molino (marca/colores.json). */
+:root {
+  --accent: #2f40a8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+.home {
+  height: 100%;
+  display: grid;
+  grid-template-rows: var(--titlebar-h) minmax(0, 1fr);
+  background: var(--bg-app);
+  color: var(--text);
+  font-family: var(--font-ui);
+}
+
+/* ------------------------------------------------------------- cabecera */
+
+.home-titlebar {
+  background: var(--bg-surface);
+}
+.home-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-left: 4px;
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  color: var(--accent-fg);
+}
+.home-search {
+  -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(460px, 100%);
+  height: 30px;
+  padding: 0 6px 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-subtle);
+  color: var(--text-3);
+}
+.home-search:focus-within {
+  border-color: var(--accent);
+}
+.home-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: 13px var(--font-ui);
+}
+
+/* ---------------------------------------------------------------- cuerpo */
+
+.home-body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 0;
+}
+.home-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 16px 12px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.home-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 550;
+  text-align: left;
+}
+.home-link:hover {
+  background: var(--bg-hover);
+}
+.home-link svg {
+  color: var(--accent-fg);
+}
+.home-label {
+  margin: 18px 12px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.home-nav .grow {
+  flex: 1;
+}
+.home-local {
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--accent-soft);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.home-local strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--text);
+}
+
+.home-main {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 34px 48px;
+}
+.home-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+.home-inner h1 {
+  margin: 0;
+  font-size: 32px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+.home-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.home-section h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.home-section .hint {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 13px;
+}
+
+/* «Crea algo nuevo» */
+.home-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 14px;
+}
+.home-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-sm);
+  text-align: left;
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    box-shadow var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.home-card:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.home-card > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.home-card strong {
+  font-size: 15px;
+}
+.home-card span span {
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+/* Recientes */
+.home-recent {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--bg-surface);
+}
+.home-recent-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.home-recent-item {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 260px) 120px;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  text-align: left;
+  font-size: 13px;
+}
+.home-recent-item:hover,
+.home-recent-item:focus-visible {
+  background: var(--bg-hover);
+}
+.home-recent-item strong {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-where,
+.home-when {
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.home-when {
+  text-align: right;
+}
+.home-forget {
+  opacity: 0;
+}
+.home-recent-row:hover .home-forget,
+.home-forget:focus-visible {
+  opacity: 1;
+}
+.home-empty {
+  padding: 18px 12px;
+  color: var(--text-3);
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 960px) {
+  .home-recent-item {
+    grid-template-columns: 28px minmax(0, 1fr) 110px;
+  }
+  .home-where {
+    display: none;
+  }
+}

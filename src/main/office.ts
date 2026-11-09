@@ -200,7 +200,8 @@ export class OfficePiece {
     }
   }
 
-  async status(): Promise<OfficeStatus> {
+  /** Lo que sabe la pieza; si Molino se pone en Windows lo añade ipc.ts. */
+  async status(): Promise<Omit<OfficeStatus, 'shell'>> {
     const installed = (await this.ready()) !== null
     let freeDisk = 0
     try {

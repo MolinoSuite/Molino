@@ -131,7 +131,8 @@ export const DEFAULT_SETTINGS: Settings = {
   printer: '',
   language: 'auto',
   aiTier: 'off',
-  aiGpu: true
+  aiGpu: true,
+  officeApps: { word: true, cell: true, slide: true }
 }
 
 interface AppState {

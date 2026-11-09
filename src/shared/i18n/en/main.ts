@@ -101,6 +101,17 @@ export const main: typeof source = {
     dontSave: 'Don’t save',
     cancel: 'Cancel',
     removeOpen: 'Close your Docs, Sheets and Slides documents before removing them.',
-    filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' }
+    filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' },
+    recentMissing: 'Can’t find “{name}”: it may have been moved or deleted. It’s been removed from your recent files.',
+    descriptions: {
+      word: 'Write and edit Word and OpenDocument documents.',
+      cell: 'Work with numbers and tables in Excel and OpenDocument spreadsheets.',
+      slide: 'Create and present PowerPoint and OpenDocument slides.'
+    },
+    fileTypes: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation' }
+  },
+  home: {
+    description: 'All the Molino apps, what’s new and what’s recent.',
+    allFiles: 'All files Molino opens'
   }
 }

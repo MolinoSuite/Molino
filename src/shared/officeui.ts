@@ -13,7 +13,17 @@ export interface OfficeTab {
 export interface OfficeTabs {
   kind: OfficeKind
   active: string | null
+  /** Se está abriendo algún documento (sin pestañas aún, la interfaz muestra «Abriendo…»). */
+  opening: boolean
   tabs: OfficeTab[]
+}
+
+/** Un reciente de la app, como lo ve la interfaz: el nombre y la carpeta que lo contiene, nunca la ruta. */
+export interface OfficeRecent {
+  id: string
+  name: string
+  folder: string
+  openedAt: number
 }
 
 export interface OfficeUiApi {
@@ -24,4 +34,7 @@ export interface OfficeUiApi {
   openDialog(): Promise<boolean>
   newDoc(): Promise<boolean>
   onTabs(listener: (tabs: OfficeTabs) => void): () => void
+  recent(): Promise<OfficeRecent[]>
+  openRecent(id: string): Promise<boolean>
+  forgetRecent(id: string): Promise<OfficeRecent[]>
 }

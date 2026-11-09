@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, session as sessions, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
@@ -6,6 +7,8 @@ import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
 import { log } from './log'
 import { type OfficePiece, pieceVersion } from './office'
+import type { OfficeTabs } from '@shared/officeui'
+import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
 import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontIndex, saveFontIndex } from './officefonts'
 
 /**
@@ -39,17 +42,9 @@ const HOST = 'office'
 const ORIGIN = `molino://${HOST}`
 const UI_PAGE = `${ORIGIN}/__molino__/ui/office.html`
 export type Kind = 'word' | 'cell' | 'slide'
-const KINDS: Kind[] = ['word', 'cell', 'slide']
 
-/** Extensiones que abren los editores, por app. */
-const OPENS: Record<Kind, string[]> = {
-  word: ['.docx', '.doc', '.odt', '.rtf'],
-  cell: ['.xlsx', '.xls', '.ods'],
-  slide: ['.pptx', '.ppt', '.odp']
-}
-export const OFFICE_EXTENSIONS = new Set(Object.values(OPENS).flat())
 export function isOfficeFile(path: string): boolean {
-  return OFFICE_EXTENSIONS.has(extname(path).toLowerCase())
+  return officeKindOf(path) !== null
 }
 
 // Códigos de formato de x2t con los que el editor pide guardar (ver office.py).
@@ -152,6 +147,8 @@ interface AppWindow {
   order: string[]
   active: string | null
   closing: boolean
+  /** Documentos que se están abriendo (la interfaz muestra «Abriendo…»). */
+  opening: number
 }
 
 interface Setup {
@@ -169,6 +166,12 @@ export interface OfficeOptions {
   rendererDir: string
   /** ¿Tema oscuro? (el de Ajustes de Molino). */
   dark: () => boolean
+  /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
+  recents: {
+    list(): { id: string; path: string; openedAt: number }[]
+    add(path: string): void
+    forget(id: string): void
+  }
 }
 
 export class OfficeWindows {
@@ -261,38 +264,68 @@ export class OfficeWindows {
         }
       }
     }
-    return this.load(basename(path), path, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path }, { priority: 7 }))
+    const kind = officeKindOf(path)
+    if (!kind) return false
+    return this.load(kind, basename(path), path, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path }, { priority: 7 }))
+  }
+
+  /** La ventana de una app, delante (sin documentos, con su pantalla de inicio). */
+  showApp(kind: Kind): void {
+    const win = this.windowFor(kind)
+    this.show(win, null)
   }
 
   /** Documento nuevo de una app, desde la plantilla vacía de la pieza. */
   async create(kind: Kind): Promise<boolean> {
     const name = `${L.main.office.filters[kind]}${DEFAULT_SUFFIX[kind]}`
-    return this.load(name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.new', { kind }, { priority: 7 }))
+    return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.new', { kind }, { priority: 7 }))
   }
 
   private async load(
+    kind: Kind,
     name: string,
     path: string | null,
     ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>
   ): Promise<boolean> {
-    // Al abrir desde el Explorador, el motor puede estar aún arrancando.
-    await Promise.race([this.firstConfigured, new Promise((done) => setTimeout(done, 90_000))])
-    await this.configuring
-    if (!this.setup) {
-      const installed = (await this.piece.ready()) !== null
-      void dialog.showMessageBox({ type: 'info', title: 'Molino', message: installed ? L.main.office.preparing : L.main.office.notInstalled })
-      return false
+    // La ventana de la app sale enseguida, con «Abriendo…» mientras el motor
+    // (que al abrir desde el Explorador puede estar aún arrancando) prepara el documento.
+    const win = this.windowFor(kind)
+    win.opening++
+    this.show(win, null)
+    try {
+      await Promise.race([this.firstConfigured, new Promise((done) => setTimeout(done, 90_000))])
+      await this.configuring
+      if (!this.setup) {
+        const installed = (await this.piece.ready()) !== null
+        void dialog.showMessageBox(win.window, { type: 'info', title: 'Molino', message: installed ? L.main.office.preparing : L.main.office.notInstalled })
+        return false
+      }
+      return await this.loadInto(win, name, path, ask)
+    } finally {
+      win.opening--
+      if (!win.window.isDestroyed()) this.sendTabs(win)
     }
+  }
+
+  private async loadInto(
+    win: AppWindow,
+    name: string,
+    path: string | null,
+    ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>
+  ): Promise<boolean> {
     try {
       const { result, binary } = await ask()
-      const kind = result.kind
-      if (typeof result.doc !== 'string' || !DOC_ID.test(result.doc) || !KINDS.includes(kind as Kind) || !binary?.length) {
+      if (typeof result.doc !== 'string' || !DOC_ID.test(result.doc) || result.kind !== win.kind || !binary?.length) {
         throw new Error('respuesta no válida del motor')
       }
-      const win = this.windowFor(kind as Kind)
+      if (win.window.isDestroyed()) {
+        // La ventana se cerró mientras se abría: el documento no se queda abierto en el motor.
+        this.engine.request('office.close', { doc: result.doc }, { priority: 7 }).catch(() => undefined)
+        return false
+      }
       const open: OpenDoc = {
         doc: result.doc,
-        kind: kind as Kind,
+        kind: win.kind,
         name,
         path,
         canvas: binary.toString('base64'),
@@ -303,15 +336,17 @@ export class OfficeWindows {
       win.docs.set(open.doc, open)
       win.order.push(open.doc)
       this.show(win, open.doc)
+      if (path) this.options.recents.add(path)
       return true
     } catch (error) {
       log.warn(`oficina: no se pudo abrir (${error instanceof EngineError ? error.code : error instanceof Error ? error.name : '?'})`)
-      void dialog.showMessageBox({
-        type: 'error',
-        title: 'Molino',
+      const options = {
+        type: 'error' as const,
+        title: L.main.office.apps[win.kind],
         message: fmt(L.main.office.openFailed, { name }),
         detail: error instanceof EngineError ? error.message : undefined
-      })
+      }
+      void (win.window.isDestroyed() ? dialog.showMessageBox(options) : dialog.showMessageBox(win.window, options))
       return false
     }
   }
@@ -329,7 +364,7 @@ export class OfficeWindows {
       show: false,
       title: L.main.office.apps[kind],
       backgroundColor: dark ? '#1c1d20' : '#ffffff',
-      icon: app.isPackaged ? undefined : join(app.getAppPath(), 'build', 'icon.ico'),
+      icon: appIcon(kind),
       titleBarStyle: 'hidden',
       titleBarOverlay: { color: dark ? '#1c1d20' : '#ffffff', symbolColor: dark ? '#e5e7eb' : '#1f2937', height: 40 },
       autoHideMenuBar: true,
@@ -351,7 +386,10 @@ export class OfficeWindows {
       }
     })
     window.removeMenu()
-    const win: AppWindow = { kind, window, docs: new Map(), order: [], active: null, closing: false }
+    // Cada app es un programa aparte en la barra de tareas: su grupo, su icono y,
+    // si se ancla, se vuelve a abrir esa app (officeapps.ts).
+    if (process.platform === 'win32') window.setAppDetails(windowDetails(kind))
+    const win: AppWindow = { kind, window, docs: new Map(), order: [], active: null, closing: false, opening: 0 }
     this.windows.set(kind, win)
     // El título es el de Molino (documento y app), no el de la página.
     window.on('page-title-updated', (event) => event.preventDefault())
@@ -382,10 +420,11 @@ export class OfficeWindows {
     if (win.window.isVisible()) win.window.focus()
   }
 
-  private tabs(win: AppWindow): { kind: Kind; active: string | null; tabs: { doc: string; name: string; ext: string; modified: boolean }[] } {
+  private tabs(win: AppWindow): OfficeTabs {
     return {
       kind: win.kind,
       active: win.active,
+      opening: win.opening > 0,
       tabs: win.order.flatMap((doc) => {
         const open = win.docs.get(doc)
         return open ? [{ doc, name: open.name, ext: (extname(open.name) || DEFAULT_SUFFIX[open.kind]).slice(1).toLowerCase(), modified: open.modified }] : []
@@ -464,6 +503,14 @@ export class OfficeWindows {
 
   // ================================================================ canales
 
+  private recentFor(kind: Kind): { id: string; name: string; folder: string; openedAt: number }[] {
+    return this.options.recents
+      .list()
+      .filter((r) => officeKindOf(r.path) === kind)
+      .slice(0, 50)
+      .map((r) => ({ id: r.id, name: basename(r.path), folder: basename(dirname(r.path)), openedAt: r.openedAt }))
+  }
+
   /** La ventana cuya interfaz envía el mensaje (solo desde la página de la interfaz). */
   private uiSender(event: IpcMainEvent | IpcMainInvokeEvent): AppWindow | null {
     const win = [...this.windows.values()].find((w) => !w.window.isDestroyed() && w.window.webContents === event.sender)
@@ -496,13 +543,8 @@ export class OfficeWindows {
     ipcMain.handle('office:closeTab', async (event, raw: unknown) => {
       const win = this.uiSender(event)
       if (!win || typeof raw !== 'string') return false
-      const closed = await this.closeTab(win, raw)
-      // Sin pestañas, la ventana de la app se cierra.
-      if (closed && win.docs.size === 0) {
-        win.closing = true
-        win.window.close()
-      }
-      return closed
+      // Sin pestañas, la ventana se queda con la pantalla de inicio de la app (como Molino PDF).
+      return this.closeTab(win, raw)
     })
     ipcMain.handle('office:openDialog', async (event) => {
       const win = this.uiSender(event)
@@ -517,6 +559,29 @@ export class OfficeWindows {
     ipcMain.handle('office:new', async (event) => {
       const win = this.uiSender(event)
       return win ? this.create(win.kind) : false
+    })
+    // Los recientes de la app: la interfaz ve el nombre y la carpeta que lo
+    // contiene, nunca la ruta (comparte origen con los editores).
+    ipcMain.handle('office:recent', (event) => {
+      const win = this.uiSender(event)
+      return win ? this.recentFor(win.kind) : []
+    })
+    ipcMain.handle('office:openRecent', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const entry = win && typeof raw === 'string' ? this.options.recents.list().find((r) => r.id === raw) : undefined
+      if (!win || !entry) return false
+      if (!existsSync(entry.path)) {
+        this.options.recents.forget(entry.id)
+        void dialog.showMessageBox(win.window, { type: 'info', title: L.main.office.apps[win.kind], message: fmt(L.main.office.recentMissing, { name: basename(entry.path) }) })
+        return false
+      }
+      return this.open(entry.path)
+    })
+    ipcMain.handle('office:forgetRecent', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      if (!win) return []
+      if (typeof raw === 'string') this.options.recents.forget(raw)
+      return this.recentFor(win.kind)
     })
 
     // ---- el puente de cada editor
@@ -631,6 +696,7 @@ export class OfficeWindows {
       return 2
     }
     if (!pdf) {
+      if (dest !== open.path) this.options.recents.add(dest)
       open.path = dest
       open.name = basename(dest)
       open.modified = false

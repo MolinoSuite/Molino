@@ -7,12 +7,13 @@ import { z } from 'zod'
 import type { EngineStatus, ExportOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
 import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
 import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
-import type { OfficeProgress } from '@shared/office'
+import type { OfficeApp, OfficeProgress } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
 import { EngineClient, EngineError } from './engine'
 import { fmt, L } from './i18n'
 import { log } from './log'
 import { OfficeError, type OfficePiece } from './office'
+import { openDefaultApps, shellIntegration } from './officeapps'
 import type { PrintService } from './print'
 import { isTrustedSender } from './security'
 import type { Store } from './store'
@@ -106,7 +107,7 @@ const openFilters = (): Electron.FileFilter[] => [
   { name: L.main.filters.pdfAndImages, extensions: ['pdf', 'png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'gif', 'webp'] },
   { name: 'PDF', extensions: ['pdf'] }
 ]
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'gif', 'webp']
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'gif', 'webp']
 const OPENABLE = new Set(['.pdf', ...IMAGE_EXTENSIONS.map((e) => `.${e}`)])
 const MAX_PICKED_IMAGE = 60 * 1024 * 1024
 
@@ -196,6 +197,10 @@ export class Bridge {
 
   /** ¿Hay documentos de oficina abiertos? Lo da officewin.ts (index.ts lo conecta). */
   officeBusy: () => boolean = () => false
+  /** Abre la ventana de una app de oficina (index.ts lo conecta con officewin.ts). */
+  officeLaunch: (app: OfficeApp | 'home') => void = () => undefined
+  /** Ha cambiado qué apps de oficina se ven (index.ts vuelve a ponerlas en Windows). */
+  onOfficeApps: () => void = () => undefined
 
   /** Avance de la descarga e instalación del motor de oficina (lo emite office.ts). */
   sendOfficeProgress(progress: OfficeProgress | null): void {
@@ -900,6 +905,7 @@ export class Bridge {
       const after = this.store.updateSettings(raw)
       // Cambiar el nivel de IA o la gráfica cambia lo que el motor puede cargar.
       if (after.aiTier !== before.aiTier || after.aiGpu !== before.aiGpu) void this.configureAi()
+      if (JSON.stringify(after.officeApps) !== JSON.stringify(before.officeApps)) this.onOfficeApps()
       return after
     })
 
@@ -931,7 +937,13 @@ export class Bridge {
       return true
     })
     // ---- motor de oficina (Documentos, Hojas y Presentaciones): añadirlo y quitarlo
-    this.handle('office:status', z.undefined(), () => this.office.status())
+    this.handle('office:status', z.undefined(), async () => ({ ...(await this.office.status()), shell: shellIntegration() }))
+    this.handle('office:launch', z.enum(['word', 'cell', 'slide', 'home']), async (app) => {
+      if ((await this.office.ready()) === null) return false
+      this.officeLaunch(app)
+      return true
+    })
+    this.handle('office:defaultApps', z.enum(['word', 'cell', 'slide']), (app) => openDefaultApps(app))
     this.handle('office:install', z.undefined(), () => {
       // Sigue en segundo plano; el avance llega por «office:progress» y el final
       // por «office:changed» (y «office:error» si falla).

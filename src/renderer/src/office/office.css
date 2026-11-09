@@ -440,3 +440,26 @@ body,
 .office.presenting .office-body {
   grid-template-columns: minmax(0, 1fr);
 }
+
+/* ------------------------------------------- pantalla de inicio de cada app */
+
+/* El icono, con la sombra del color de la app (la de Molino PDF es roja). */
+.office-start .start-mark {
+  filter: drop-shadow(0 10px 14px color-mix(in srgb, var(--accent) 30%, transparent));
+}
+.office-start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+.office-start .recent {
+  width: 100%;
+}
+.office-opening {
+  position: static;
+}
+.office-actions[hidden],
+.office-zoom[hidden] {
+  display: none;
+}

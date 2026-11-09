@@ -18,6 +18,7 @@ import { state } from './state'
 import { ai } from './ai'
 import { main } from './main'
 import { office } from './office'
+import { home } from './home'
 
 export const en: Messages = {
   common,
@@ -38,5 +39,6 @@ export const en: Messages = {
   state,
   main,
   ai,
-  office
+  office,
+  home
 }

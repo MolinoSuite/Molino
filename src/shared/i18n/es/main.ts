@@ -111,6 +111,19 @@ export const main = {
     dontSave: 'No guardar',
     cancel: 'Cancelar',
     removeOpen: 'Cierra los documentos de Documentos, Hojas y Presentaciones antes de quitarlas.',
-    filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' }
+    filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' },
+    recentMissing: 'No se encuentra «{name}»: puede que se haya movido o borrado. Se quita de los recientes.',
+    // En el menú Inicio y en «Aplicaciones predeterminadas» de Windows.
+    descriptions: {
+      word: 'Escribe y edita documentos de Word y OpenDocument.',
+      cell: 'Haz cuentas y tablas con hojas de Excel y OpenDocument.',
+      slide: 'Prepara y presenta diapositivas de PowerPoint y OpenDocument.'
+    },
+    // Tipo de los archivos que se abren con cada app (columna «Tipo» del Explorador).
+    fileTypes: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación' }
+  },
+  home: {
+    description: 'Todas las apps de Molino, lo nuevo y lo reciente.',
+    allFiles: 'Todos los que abre Molino'
   }
 }
