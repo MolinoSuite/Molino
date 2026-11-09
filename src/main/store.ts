@@ -82,7 +82,9 @@ const ConfigSchema = z.object({
   window: BoundsSchema.optional(),
   recent: z.array(RecentSchema).max(200).default([]),
   // Los de Documentos, Hojas y Presentaciones, aparte (la pantalla inicial de Molino PDF solo abre PDF).
-  officeRecent: z.array(RecentSchema).max(200).default([])
+  officeRecent: z.array(RecentSchema).max(200).default([]),
+  // Fuentes de las que no se vuelve a avisar al abrir un documento (en minúsculas).
+  ignoredFonts: z.array(z.string().min(1).max(64)).max(300).default([])
 })
 
 type Config = z.infer<typeof ConfigSchema>
@@ -244,6 +246,16 @@ export class Store {
     const key = path.toLowerCase()
     const rest = this.config.officeRecent.filter((entry) => entry.path.toLowerCase() !== key)
     this.config.officeRecent = [{ id: randomBytes(8).toString('hex'), path, openedAt: Date.now() }, ...rest].slice(0, MAX_RECENT)
+    this.persist()
+  }
+
+  ignoredFonts(): string[] {
+    return [...this.config.ignoredFonts]
+  }
+
+  ignoreFonts(names: string[]): void {
+    const all = new Set([...this.config.ignoredFonts, ...names.map((n) => n.toLowerCase().slice(0, 64))])
+    this.config.ignoredFonts = [...all].slice(-300)
     this.persist()
   }
 

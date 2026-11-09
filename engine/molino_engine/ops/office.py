@@ -143,7 +143,17 @@ def _new_folder(ctx: Ctx) -> tuple[str, Path]:
 
 
 def _load(
-    ctx: Ctx, piece: office.Piece, source: Path, kind: str, doc_id: str, folder: Path, extra: dict[str, object] | None = None, *, name: str = "", dirty: bool = False
+    ctx: Ctx,
+    piece: office.Piece,
+    source: Path,
+    kind: str,
+    doc_id: str,
+    folder: Path,
+    extra: dict[str, object] | None = None,
+    *,
+    name: str = "",
+    dirty: bool = False,
+    fonts: list[str] | None = None,
 ) -> Reply:
     """Convierte ``source`` a Editor.bin y deja el documento abierto (``extra``: campos de x2t, como los del CSV)."""
     item = OfficeDoc(doc_id, kind, folder, name=name, dirty=dirty)
@@ -164,7 +174,7 @@ def _load(
     ctx.engine.office_docs[doc_id] = item
     item.note()
     media = sorted(p.name for p in (item.doc / "media").iterdir() if p.is_file() and office.MEDIA_NAME.match(p.name))
-    return Reply({"doc": doc_id, "kind": kind, "media": media, "size": len(data)}, data)
+    return Reply({"doc": doc_id, "kind": kind, "media": media, "size": len(data), "fonts": fonts or []}, data)
 
 
 # ================================================================ operaciones
@@ -257,7 +267,9 @@ def office_open(ctx: Ctx, p: OfficeOpenParams) -> Reply:
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
-    return _load(ctx, piece, source, kind, doc_id, folder, extra, name=Path(p.path).name)
+    # Las fuentes que nombra, para avisar de las que no estan en el equipo (la aplicacion las compara con el indice).
+    fonts = office.used_fonts(source, suffix)
+    return _load(ctx, piece, source, kind, doc_id, folder, extra, name=Path(p.path).name, fonts=fonts)
 
 
 class OfficeNewParams(Params):

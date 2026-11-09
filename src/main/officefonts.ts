@@ -104,7 +104,7 @@ const isInt = (n: unknown, min: number, max: number): boolean => Number.isIntege
  * Devuelve el texto nuevo y la lista de archivos de fuentes (lo único que los
  * editores pueden pedir después). Si algo no encaja, lanza un error.
  */
-export function cleanFontIndex(raw: string): { text: string; files: string[] } {
+export function cleanFontIndex(raw: string): { text: string; files: string[]; families: string[] } {
   const text = raw.replace(/^\uFEFF/, '')
   const values = new Map<Key, unknown>()
   let at = 0
@@ -151,7 +151,9 @@ export function cleanFontIndex(raw: string): { text: string; files: string[] } {
     `window["__fonts_ranges"] = ${JSON.stringify(ranges)};`,
     `window["g_fonts_selection_bin"] = ${JSON.stringify(selection)};`
   ]
-  return { text: `${out.join('\n\n')}\n`, files: list }
+  // Las familias que conoce (para avisar de las que faltan en un documento).
+  const families = [...new Set((infos as [string, ...number[]][]).map((i) => i[0]))]
+  return { text: `${out.join('\n\n')}\n`, files: list, families }
 }
 
 /** Guarda el índice en ``office\fonts\<huella>`` (primero aparte; entero o nada) y borra los anteriores. */
@@ -173,7 +175,7 @@ export async function saveFontIndex(officeRoot: string, fingerprint: string, tex
 }
 
 /** El índice ya guardado para esta huella, leído y comprobado; null si no está o no vale. */
-export async function loadFontIndex(officeRoot: string, fingerprint: string): Promise<{ text: string; files: string[] } | null> {
+export async function loadFontIndex(officeRoot: string, fingerprint: string): Promise<{ text: string; files: string[]; families: string[] } | null> {
   try {
     const folder = join(officeRoot, 'fonts', fingerprint)
     await stat(join(folder, 'font_selection.bin'))

@@ -234,6 +234,27 @@ export const office = {
       resolved: 'Resuelto'
     }
   },
+  fonts: {
+    notice: 'Este documento usa fuentes que no tienes: {fonts}. Se ven con otras parecidas.',
+    more: '{fonts} y {n} más',
+    find: 'Buscar e instalar',
+    notNow: 'Ahora no',
+    title: 'Fuentes que faltan',
+    intro: 'Las libres se descargan del catálogo de Google Fonts que lleva Molino y se instalan solo para ti, sin permisos de administrador. Después, el documento se vuelve a abrir con ellas.',
+    cantInstall: 'Esta versión de Molino no instala fuentes: puedes instalarlas tú desde Windows.',
+    free: 'Libre ({license}) · {size}',
+    licenses: { ofl: 'SIL Open Font License', apache: 'Licencia Apache 2.0', ufl: 'Ubuntu Font Licence' },
+    microsoft: 'De Microsoft: no se puede descargar.',
+    substitute: 'Se usa {font}, que ocupa lo mismo: las líneas y las páginas no cambian.',
+    unknown: 'No está en el catálogo de fuentes libres.',
+    dontAsk: 'No volver a avisar de estas fuentes',
+    install: 'Instalar ({n})',
+    installing: 'Descargando e instalando…',
+    done: 'Instaladas: {fonts}. Los documentos sin cambios que las usan se han vuelto a abrir con ellas; los demás, guárdalos y vuelve a abrirlos.',
+    failed: 'No se pudieron instalar: {fonts}.',
+    cancel: 'Cancelar',
+    close: 'Cerrar'
+  },
   colors: 'Colores',
   noFill: 'Sin relleno',
   /** Las hojas nuevas se llaman así más un número (Hoja2, Hoja3…). */

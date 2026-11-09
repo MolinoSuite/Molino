@@ -10,7 +10,15 @@ export interface OfficeTab {
   modified: boolean
   /** Tiene archivo propio (no es nuevo ni recuperado): «Guardar» guarda ahí; si no, pregunta dónde. */
   hasFile: boolean
+  /** Fuentes que nombra el documento y no están en el equipo (vacío si no falta ninguna o ya se dijo «Ahora no»). */
+  missingFonts: string[]
 }
+
+/** Qué se puede hacer con una fuente que falta (src/main/fontcatalog.ts). */
+export type OfficeFontInfo =
+  | { name: string; status: 'free'; license: 'ofl' | 'apache' | 'ufl'; size: number; files: number }
+  | { name: string; status: 'microsoft'; substitute: string | null }
+  | { name: string; status: 'unknown' }
 
 export interface OfficeTabs {
   kind: OfficeKind
@@ -54,4 +62,10 @@ export interface OfficeUiApi {
   recoverable(): Promise<OfficeRecoverable[]>
   recover(id: string): Promise<boolean>
   discardRecovery(id: string): Promise<OfficeRecoverable[]>
+  /** Las fuentes que faltan en un documento y qué se puede hacer con cada una. */
+  fontsInfo(doc: string): Promise<{ canInstall: boolean; fonts: OfficeFontInfo[] }>
+  /** Instala esas (del catálogo); el documento se vuelve a abrir con ellas si no tiene cambios. */
+  installFonts(doc: string, names: string[]): Promise<{ installed: string[]; failed: string[] }>
+  /** «Ahora no» (y, con ``forever``, no volver a avisar de esas fuentes). */
+  dismissFonts(doc: string, forever: boolean): Promise<boolean>
 }

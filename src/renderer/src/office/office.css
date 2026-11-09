@@ -544,3 +544,41 @@ body,
 .office-comment .row {
   padding: 0 6px 6px;
 }
+
+/* Fuentes que faltan: el aviso, encima del documento, y el cuadro. */
+.office-fonts-notice {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  translate: -50% 0;
+  z-index: 5;
+  width: min(760px, calc(100% - 40px));
+  box-sizing: border-box;
+  align-items: center;
+  box-shadow: var(--shadow-md);
+}
+.office-fonts-notice svg {
+  flex: none;
+}
+.office-fonts p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.office-fonts-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.office-fonts-list li {
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.office-fonts-list .hint {
+  color: var(--text-2);
+  font-size: 12px;
+}

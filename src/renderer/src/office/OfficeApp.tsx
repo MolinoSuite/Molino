@@ -13,6 +13,7 @@ import { APPS, type Mode, paletteEntries, type PaletteEntry, type Tool } from '.
 import { EditorSession, type EditorState } from './engine'
 import { env, fmt, L } from './i18n'
 import { ICONS } from './icons'
+import { FontsDialog, FontsNotice } from './MissingFonts'
 import { OfficeStart } from './OfficeStart'
 
 const FONTS = ['Aptos', 'Calibri', 'Arial', 'Cambria', 'Georgia', 'Times New Roman', 'Verdana', 'Segoe UI', 'Courier New', 'Carlito', 'Open Sans']
@@ -38,6 +39,7 @@ export function OfficeApp() {
   const [palette, setPalette] = useState(false)
   const [about, setAbout] = useState(false)
   const [presenting, setPresenting] = useState(false)
+  const [fontsFor, setFontsFor] = useState<string | null>(null)
 
   useEffect(() => {
     void window.molinoOffice.tabs().then((t) => t && setTabs(t))
@@ -226,6 +228,7 @@ export function OfficeApp() {
                 onLoad={(event) => session(tab.doc).attach(event.currentTarget)}
               />
             ))}
+            {activeTab && state?.ready && <FontsNotice tab={activeTab} onFind={() => setFontsFor(activeTab.doc)} />}
             {(!state || !state.ready) && (
               <div className="office-loading">
                 <span className="spinner" />
@@ -265,6 +268,7 @@ export function OfficeApp() {
         active?.focus()
       }} />}
       {about && <AboutOffice onClose={() => setAbout(false)} />}
+      {fontsFor && <FontsDialog doc={fontsFor} onClose={() => setFontsFor(null)} />}
     </div>
   )
 }

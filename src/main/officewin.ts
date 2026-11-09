@@ -9,6 +9,7 @@ import { setOfficeSession } from './security'
 import { log } from './log'
 import { type OfficePiece, pieceVersion } from './office'
 import type { OfficeTabs } from '@shared/officeui'
+import { canInstallFonts, installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
 import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontIndex, saveFontIndex } from './officefonts'
 
@@ -146,6 +147,10 @@ interface OpenDoc {
   intent: { kind: 'saveAs' | 'print'; at: number } | null
   /** Recuperado tras un cierre inesperado: hasta que se guarde, cerrarlo pregunta. */
   recovered: boolean
+  /** Las fuentes que nombra (del motor, al abrirlo). */
+  fonts: string[]
+  /** Se dijo «Ahora no» al aviso de fuentes que faltan. */
+  fontsDismissed: boolean
 }
 
 interface AppWindow {
@@ -166,6 +171,8 @@ interface Setup {
   allFonts: string
   listed: Set<string>
   folders: string[]
+  /** Las familias del índice, en minúsculas. */
+  families: Set<string>
 }
 
 export interface OfficeOptions {
@@ -179,6 +186,10 @@ export interface OfficeOptions {
   author: () => string
   /** Imprimir: abre ese PDF (temporal) en Molino PDF con su cuadro de imprimir (index.ts). */
   print(path: string): void
+  /** Fuentes de las que no se vuelve a avisar (store.ts). */
+  ignoredFonts: { list(): string[]; add(names: string[]): void }
+  /** Carpeta donde quedan las licencias de las fuentes instaladas. */
+  fontLicenses: string
   /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
   recents: {
     list(): { id: string; path: string; openedAt: number }[]
@@ -256,6 +267,7 @@ export class OfficeWindows {
         piece: dir,
         allFonts: index.text,
         listed: new Set(index.files.map((f) => f.toLowerCase())),
+        families: new Set(index.families.map((f) => f.toLowerCase())),
         folders: [...fontFolders(), join(dir, 'fonts')]
       }
     } catch (error) {
@@ -372,7 +384,11 @@ export class OfficeWindows {
         modified: false,
         pendingSave: null,
         intent: null,
-        recovered
+        recovered,
+        fonts: Array.isArray((result as { fonts?: unknown }).fonts)
+          ? ((result as { fonts: unknown[] }).fonts.filter((f) => typeof f === 'string' && f.length > 0 && f.length <= 64) as string[]).slice(0, 60)
+          : [],
+        fontsDismissed: false
       }
       win.docs.set(open.doc, open)
       win.order.push(open.doc)
@@ -476,10 +492,53 @@ export class OfficeWindows {
       tabs: win.order.flatMap((doc) => {
         const open = win.docs.get(doc)
         return open
-          ? [{ doc, name: open.name, ext: (extname(open.name) || DEFAULT_SUFFIX[open.kind]).slice(1).toLowerCase(), modified: open.modified, hasFile: open.path !== null }]
+          ? [
+              {
+                doc,
+                name: open.name,
+                ext: (extname(open.name) || DEFAULT_SUFFIX[open.kind]).slice(1).toLowerCase(),
+                modified: open.modified,
+                hasFile: open.path !== null,
+                missingFonts: open.fontsDismissed ? [] : this.missingFonts(open)
+              }
+            ]
           : []
       })
     }
+  }
+
+  /** Las fuentes que nombra un documento y no están en el índice (ni se dijo que no se avise de ellas). */
+  private missingFonts(open: OpenDoc): string[] {
+    const families = this.setup?.families
+    if (!families) return []
+    const ignored = new Set(this.options.ignoredFonts.list())
+    return open.fonts.filter((f) => !families.has(f.toLowerCase()) && !ignored.has(f.toLowerCase()))
+  }
+
+  /**
+   * Instala fuentes que faltan en un documento (las del catálogo), rehace el
+   * índice y vuelve a abrir los documentos sin cambios que las usaban, para
+   * que se vean con ellas.
+   */
+  private async installFonts(open: OpenDoc, names: string[]): Promise<{ installed: string[]; failed: string[] }> {
+    const missing = new Set(this.missingFonts(open))
+    const wanted = names.filter((n) => missing.has(n)).slice(0, 30)
+    const result = await installFonts(wanted, this.options.fontLicenses)
+    if (result.installed.length === 0) return result
+    log.info(`fuentes: instaladas ${result.installed.length}`)
+    await this.configure()
+    const installed = new Set(result.installed.map((n) => n.toLowerCase()))
+    for (const w of this.windows.values()) {
+      for (const doc of [...w.order]) {
+        const item = w.docs.get(doc)
+        if (item && item.path && !item.modified && item.fonts.some((f) => installed.has(f.toLowerCase()))) {
+          const path = item.path
+          if (await this.closeTab(w, doc)) await this.open(path)
+        }
+      }
+      this.sendTabs(w)
+    }
+    return result
   }
 
   private sendTabs(win: AppWindow): void {
@@ -683,6 +742,29 @@ export class OfficeWindows {
         await this.engine.request('office.discardRecovery', { id: raw }, { priority: 8 }).catch(() => undefined)
       }
       return this.recoverable(win.kind)
+    })
+    // Fuentes que faltan: qué se puede hacer, instalarlas y «Ahora no».
+    ipcMain.handle('office:fontsInfo', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
+      return { canInstall: canInstallFonts(), fonts: open ? this.missingFonts(open).map(lookupFont) : [] }
+    })
+    ipcMain.handle('office:installFonts', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { doc, names } = (raw ?? {}) as { doc?: unknown; names?: unknown }
+      const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
+      if (!win || !open || !Array.isArray(names)) return { installed: [], failed: [] }
+      return this.installFonts(open, names.filter((n): n is string => typeof n === 'string'))
+    })
+    ipcMain.handle('office:dismissFonts', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { doc, forever } = (raw ?? {}) as { doc?: unknown; forever?: unknown }
+      const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
+      if (!win || !open) return false
+      if (forever === true) this.options.ignoredFonts.add(this.missingFonts(open))
+      open.fontsDismissed = true
+      this.sendTabs(win)
+      return true
     })
     ipcMain.handle('office:forgetRecent', (event, raw: unknown) => {
       const win = this.uiSender(event)

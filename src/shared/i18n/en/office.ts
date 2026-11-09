@@ -234,6 +234,27 @@ export const office: typeof es = {
       resolved: 'Resolved'
     }
   },
+  fonts: {
+    notice: 'This document uses fonts you don’t have: {fonts}. Similar ones are shown instead.',
+    more: '{fonts} and {n} more',
+    find: 'Find and install',
+    notNow: 'Not now',
+    title: 'Missing fonts',
+    intro: 'Free fonts are downloaded from the Google Fonts catalog that comes with Molino and installed just for you, without administrator rights. The document is then reopened with them.',
+    cantInstall: 'This version of Molino doesn’t install fonts: you can install them yourself from Windows.',
+    free: 'Free ({license}) · {size}',
+    licenses: { ofl: 'SIL Open Font License', apache: 'Apache License 2.0', ufl: 'Ubuntu Font Licence' },
+    microsoft: 'By Microsoft: it can’t be downloaded.',
+    substitute: '{font} is used instead and takes up the same space: lines and pages don’t move.',
+    unknown: 'It isn’t in the free font catalog.',
+    dontAsk: 'Don’t warn me about these fonts again',
+    install: 'Install ({n})',
+    installing: 'Downloading and installing…',
+    done: 'Installed: {fonts}. Unchanged documents that use them have been reopened with them; save the others and open them again.',
+    failed: 'Couldn’t install: {fonts}.',
+    cancel: 'Cancel',
+    close: 'Close'
+  },
   colors: 'Colors',
   noFill: 'No fill',
   /** New sheets are named this plus a number (Sheet2, Sheet3…). */

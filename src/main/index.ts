@@ -286,6 +286,8 @@ void app.whenReady().then(async () => {
     rendererDir: join(__dirname, '../renderer'),
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
     author: () => store.settings.author || windowsUser(),
+    ignoredFonts: { list: () => store.ignoredFonts(), add: (names) => store.ignoreFonts(names) },
+    fontLicenses: join(app.getPath('userData'), 'fonts-licenses'),
     recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
     // Imprimir un documento de oficina: con el cuadro de imprimir de Molino PDF.
     print: (path) => {

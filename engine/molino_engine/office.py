@@ -23,9 +23,11 @@ la lectura estricta del indice de fuentes y la limpieza de los PDF que escribe.
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -141,6 +143,69 @@ def csv_delimiter(text: str, fallback: str = ",") -> int:
         if best is None or score > best:
             best, best_char = score, char
     return CSV_DELIMITERS[best_char]
+
+
+# ------------------------------------------------- fuentes que usa un documento
+
+# Partes de cada formato donde se nombran las fuentes, y como.
+_FONT_PARTS = re.compile(
+    r"^(word/fontTable\.xml|word/theme/theme\d+\.xml|xl/styles\.xml|xl/theme/theme\d+\.xml"
+    r"|ppt/theme/theme\d+\.xml|ppt/slides/slide\d+\.xml|ppt/slideMasters/slideMaster\d+\.xml|ppt/slideLayouts/slideLayout\d+\.xml"
+    r"|content\.xml|styles\.xml)$"
+)
+_FONT_PATTERNS = (
+    re.compile(r'<w:font\s+w:name="([^"]{1,200})"'),
+    re.compile(r'<a:latin\s+typeface="([^"]{1,200})"'),
+    re.compile(r'<name\s+val="([^"]{1,200})"'),
+    re.compile(r'<style:font-face\b[^>]*?\bsvg:font-family="([^"]{1,200})"'),
+)
+_RTF_FONT = re.compile(r"\\f\d+(?:\\[a-z]+-?\d*\s?)*\s*([^\\;{}]{1,200});")
+MAX_FONT_PART = 32 * 1024**2
+MAX_FONTS = 60
+
+
+def _font_name(raw: str) -> str | None:
+    name = html.unescape(raw).strip().strip("'\"").strip()
+    # Las del tema («+mn-lt») no son nombres de fuente; tampoco los raros.
+    if not name or name.startswith("+") or len(name) > 64 or any(ord(c) < 32 for c in name):
+        return None
+    return name
+
+
+def used_fonts(source: Path, suffix: str) -> list[str]:
+    """Las fuentes que nombra un documento (las de su tabla, su tema, sus estilos). Sin errores: si no se puede, ninguna."""
+    found: list[str] = []
+    try:
+        if suffix == ".rtf":
+            with open(source, "rb") as handle:
+                head = handle.read(512 * 1024).decode("latin-1")
+            start = head.find("{\\fonttbl")
+            texts = [head[start : start + 64 * 1024]] if start >= 0 else []
+            patterns: tuple[re.Pattern[str], ...] = (_RTF_FONT,)
+        elif suffix in (".docx", ".xlsx", ".pptx", ".odt", ".ods", ".odp"):
+            texts = []
+            with zipfile.ZipFile(source) as archive:
+                for info in archive.infolist()[:20_000]:
+                    if not _FONT_PARTS.match(info.filename) or info.file_size > MAX_FONT_PART:
+                        continue
+                    with archive.open(info) as part:
+                        texts.append(part.read(MAX_FONT_PART).decode("utf-8", "ignore"))
+            patterns = _FONT_PATTERNS
+        else:
+            return []
+    except (OSError, zipfile.BadZipFile, RuntimeError, ValueError, EOFError):
+        return []
+    seen: set[str] = set()
+    for text in texts:
+        for pattern in patterns:
+            for match in pattern.finditer(text):
+                name = _font_name(match.group(1))
+                if name and name.lower() not in seen:
+                    seen.add(name.lower())
+                    found.append(name)
+                    if len(found) >= MAX_FONTS:
+                        return found
+    return found
 
 
 class OfficeUnavailable(Exception):

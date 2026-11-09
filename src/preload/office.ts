@@ -53,6 +53,9 @@ const ui: OfficeUiApi = {
   recoverable: () => ipcRenderer.invoke('office:recoverable'),
   recover: (id) => ipcRenderer.invoke('office:recover', id),
   discardRecovery: (id) => ipcRenderer.invoke('office:discardRecovery', id),
+  fontsInfo: (doc) => ipcRenderer.invoke('office:fontsInfo', doc),
+  installFonts: (doc, names) => ipcRenderer.invoke('office:installFonts', { doc, names }),
+  dismissFonts: (doc, forever) => ipcRenderer.invoke('office:dismissFonts', { doc, forever }),
   onTabs: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, tabs: OfficeTabs): void => listener(tabs)
     ipcRenderer.on('office:tabs', wrapped)
