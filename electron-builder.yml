@@ -100,13 +100,12 @@ nsis:
 # Store firma el paquete al publicarlo. Los datos de la app van en la carpeta del
 # paquete y las versiones nuevas llegan por la Store (src/main/appx.ts).
 appx:
-  # PROVISIONALES: identityName, publisher y publisherDisplayName se copian de
-  # Partner Center (Producto → Administración del producto → Identidad del
-  # producto) antes de subirlo. Con estos solo se prueba el paquete
-  # (scripts/app-check.ps1 -Msix, en GitHub).
-  identityName: MolinoSuite.MolinoPDF
-  publisher: CN=MolinoSuite
-  publisherDisplayName: Molino
+  # La identidad del producto en Partner Center (Producto → Administración del
+  # producto → Identidad del producto): tiene que coincidir tal cual, o la
+  # Store rechaza el paquete.
+  identityName: CuevasTech.MolinoPDF
+  publisher: CN=7B14860F-70FA-44EA-98D2-54F99AD6920A
+  publisherDisplayName: Cuevas Tech
   applicationId: MolinoPDF
   displayName: Molino PDF
   backgroundColor: transparent
