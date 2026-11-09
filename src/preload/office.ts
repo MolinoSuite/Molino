@@ -31,7 +31,14 @@ const ui: OfficeUiApi = {
     locale: LOCALE_RE.test(localeArg) ? localeArg : lang === 'en' ? 'en-US' : 'es-ES',
     dark: argValue('molino-theme') === 'dark',
     kind: kindArg === 'cell' || kindArg === 'slide' ? kindArg : 'word',
-    version: /^\d{1,4}\.\d{1,4}\.\d{1,6}/.test(argValue('molino-version')) ? argValue('molino-version') : ''
+    version: /^\d{1,4}\.\d{1,4}\.\d{1,6}/.test(argValue('molino-version')) ? argValue('molino-version') : '',
+    author: (() => {
+      try {
+        return decodeURIComponent(argValue('molino-author')).slice(0, 100)
+      } catch {
+        return ''
+      }
+    })()
   },
   tabs: () => ipcRenderer.invoke('office:tabs'),
   activate: (doc) => ipcRenderer.invoke('office:activate', doc),

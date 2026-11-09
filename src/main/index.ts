@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, statSync } from 'node:fs'
+import { userInfo } from 'node:os'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
 import { app, BrowserWindow, dialog, nativeTheme, session } from 'electron'
@@ -134,6 +135,15 @@ function engineLaunch(): EngineLaunch {
     // perfil del usuario, de modo que el entorno no puede inyectarle código.
     args: ['-E', '-s', '-m', 'molino_engine', '--workdir', workDir, '--resources', join(root, 'resources'), '--models', modelsRoot, '--office', officeRoot],
     cwd: join(root, 'engine')
+  }
+}
+
+/** El nombre del usuario de Windows (para firmar comentarios si no hay otro en Ajustes). */
+function windowsUser(): string {
+  try {
+    return userInfo().username
+  } catch {
+    return ''
   }
 }
 
@@ -275,6 +285,7 @@ void app.whenReady().then(async () => {
     piece: office,
     rendererDir: join(__dirname, '../renderer'),
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
+    author: () => store.settings.author || windowsUser(),
     recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
     // Imprimir un documento de oficina: con el cuadro de imprimir de Molino PDF.
     print: (path) => {

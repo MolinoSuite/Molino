@@ -36,7 +36,7 @@ export interface OfficeRecoverable {
 }
 
 export interface OfficeUiApi {
-  env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string }
+  env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; author: string }
   tabs(): Promise<OfficeTabs | null>
   activate(doc: string): Promise<boolean>
   closeTab(doc: string): Promise<boolean>

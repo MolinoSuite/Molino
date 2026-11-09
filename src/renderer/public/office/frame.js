@@ -24,7 +24,8 @@
       lang: q.get('lang') === 'en' ? 'en' : 'es',
       createUrl: 'desktop://create.new',
       customization: { uiTheme: q.get('dark') === '1' ? 'theme-dark' : 'theme-light' },
-      user: { id: '1', name: 'Molino' }
+      // Quien firma los comentarios y los cambios: el nombre de Ajustes de Molino o el usuario de Windows.
+      user: { id: '1', name: (q.get('author') || '').slice(0, 100) || 'Molino' }
     }
   })
 })()

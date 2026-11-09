@@ -17,6 +17,19 @@ type Api = any
 
 export type Align = 'left' | 'center' | 'right' | 'justify'
 
+/** Un comentario del documento, como lo enseña Molino. */
+export interface CommentInfo {
+  id: string
+  author: string
+  /** Fecha ya escrita en el idioma del editor. */
+  date: string
+  /** El texto comentado (vacío si es de todo el documento). */
+  quote: string
+  text: string
+  resolved: boolean
+  replies: { author: string; date: string; text: string }[]
+}
+
 export interface EditorState {
   ready: boolean
   modified: boolean
@@ -51,6 +64,10 @@ export interface EditorState {
   themes: { id: number; name: string }[]
   activeTheme: number
   layouts: { index: number; name: string; image: string }[]
+  // Revisar
+  comments: CommentInfo[]
+  /** Control de cambios encendido (solo Documentos). */
+  track: boolean
 }
 
 function initialState(): EditorState {
@@ -84,7 +101,9 @@ function initialState(): EditorState {
     activeSheet: 0,
     themes: [],
     activeTheme: -1,
-    layouts: []
+    layouts: [],
+    comments: [],
+    track: false
   }
 }
 
@@ -103,6 +122,7 @@ export class EditorSession {
   private pending = 0
   private disposed = false
   private attached = false
+  private watching = false
 
   constructor(
     readonly kind: OfficeKind,
@@ -323,6 +343,59 @@ export class EditorSession {
     }
   }
 
+  /** El controlador de comentarios de la interfaz del editor (oculta, pero cargada): tiene la lista. */
+  private commentsController(): Api {
+    try {
+      const editorApp = this.ew.DE || this.ew.SSE || this.ew.PE
+      return editorApp ? editorApp.getController('Common.Controllers.Comments') : null
+    } catch {
+      return null
+    }
+  }
+
+  private review(): Record<string, (value?: string) => void> {
+    const api = this.api
+    const ew = this.ew
+    const comments: Record<string, (value?: string) => void> = {
+      comment: (text) => {
+        const value = String(text || '').trim()
+        if (!value) return
+        const ctrl = this.commentsController()
+        const Data = ew.Asc.asc_CCommentDataWord || ew.Asc.asc_CCommentData
+        const data = new Data(null)
+        const now = new Date()
+        data.asc_putText(value.slice(0, 10_000))
+        data.asc_putTime(ctrl ? ctrl.utcDateToString(now) : String(now.getTime() + now.getTimezoneOffset() * 60_000))
+        data.asc_putOnlyOfficeTime(String(now.getTime()))
+        data.asc_putUserId(ctrl && ctrl.currentUserId ? ctrl.currentUserId : '1')
+        data.asc_putUserName(ew.AscCommon.UserInfoParser.getCurrentName())
+        data.asc_putSolved(false)
+        api.asc_addComment(data)
+      },
+      resolveComment: (id) => {
+        const ctrl = this.commentsController()
+        if (id && ctrl) ctrl.onResolveComment(id)
+      },
+      removeComment: (id) => id && api.asc_removeComment(id),
+      showComment: (id) => {
+        if (!id) return
+        api.asc_selectComment(id)
+        api.asc_showComment(id, false)
+      }
+    }
+    if (this.kind !== 'word') return comments
+    return {
+      ...comments,
+      track: () => api.asc_SetTrackRevisions(!this.state.track),
+      prevChange: () => api.asc_GetPrevRevisionsChange(),
+      nextChange: () => api.asc_GetNextRevisionsChange(),
+      acceptChange: () => api.asc_AcceptChangesBySelection(true),
+      rejectChange: () => api.asc_RejectChangesBySelection(true),
+      acceptAll: () => api.asc_AcceptAllChanges(),
+      rejectAll: () => api.asc_RejectAllChanges()
+    }
+  }
+
   private common(): Record<string, () => void> {
     return {
       save: () => this.api.asc_Save(false),
@@ -333,13 +406,13 @@ export class EditorSession {
   /** ¿Tiene esta app la orden? */
   can(command: string): boolean {
     if (!this.api) return false
-    return command in this.commands() || command in this.common()
+    return command in this.commands() || command in this.review() || command in this.common()
   }
 
   /** Hace una orden; devuelve si se pudo. El teclado vuelve después al documento. */
   run(command: string, value?: string): boolean {
     if (!this.api) return false
-    const fn = this.commands()[command] ?? this.common()[command]
+    const fn = this.commands()[command] ?? this.review()[command] ?? this.common()[command]
     if (!fn) return false
     try {
       fn(value)
@@ -478,11 +551,48 @@ export class EditorSession {
       on('asc_onActiveSheetChanged', () => readSheets())
     }
 
+    if (this.kind === 'word') on('asc_onOnTrackRevisionsChange', (v) => (s.track = !!v))
+    // Los comentarios: los lleva el controlador de la interfaz del editor, que
+    // también recibe los que trae el documento al abrirse.
+    const readComments = (): void => {
+      const ctrl = this.commentsController()
+      const models: Api[] = (ctrl && ctrl.collection && ctrl.collection.models) || []
+      const text = (v: unknown): string => (typeof v === 'string' ? v : '')
+      s.comments = models
+        .filter((m) => !m.get('hide'))
+        .map((m) => ({
+          id: text(m.get('uid')),
+          author: text(m.get('username')),
+          date: text(m.get('date')),
+          quote: text(m.get('quote')),
+          text: text(m.get('comment')),
+          resolved: !!m.get('resolved'),
+          replies: ((m.get('replys') as Api[]) || []).map((r) => ({ author: text(r.get('username')), date: text(r.get('date')), text: text(r.get('reply')) }))
+        }))
+        .filter((c) => c.id)
+    }
+    const watchComments = (): void => {
+      const ctrl = this.commentsController()
+      if (!ctrl || !ctrl.collection || this.watching) return
+      this.watching = true
+      ctrl.collection.on('add remove change reset', () => {
+        readComments()
+        this.changed()
+      })
+      readComments()
+    }
+
     const whenReady = (): void => {
       if (s.ready) return
       s.ready = true
       modified()
       readFonts()
+      watchComments()
+      try {
+        if (this.kind === 'word') s.track = !!api.asc_IsTrackRevisions()
+      } catch {
+        /* sin control de cambios */
+      }
       if (this.kind === 'cell') {
         readSheets()
         readCell(api.asc_getCellInfo())

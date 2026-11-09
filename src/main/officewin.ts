@@ -175,6 +175,8 @@ export interface OfficeOptions {
   rendererDir: string
   /** ¿Tema oscuro? (el de Ajustes de Molino). */
   dark: () => boolean
+  /** Quien firma los comentarios y los cambios (Ajustes de Molino o el usuario de Windows). */
+  author: () => string
   /** Imprimir: abre ese PDF (temporal) en Molino PDF con su cuadro de imprimir (index.ts). */
   print(path: string): void
   /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
@@ -421,7 +423,14 @@ export class OfficeWindows {
         spellcheck: false,
         navigateOnDragDrop: false,
         devTools: !app.isPackaged,
-        additionalArguments: [`--molino-lang=${lang}`, `--molino-locale=${locale}`, `--molino-theme=${dark ? 'dark' : 'light'}`, `--molino-kind=${kind}`, `--molino-version=${app.getVersion()}`]
+        additionalArguments: [
+          `--molino-lang=${lang}`,
+          `--molino-locale=${locale}`,
+          `--molino-theme=${dark ? 'dark' : 'light'}`,
+          `--molino-kind=${kind}`,
+          `--molino-version=${app.getVersion()}`,
+          `--molino-author=${encodeURIComponent(this.options.author().replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100))}`
+        ]
       }
     })
     window.removeMenu()

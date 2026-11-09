@@ -61,7 +61,8 @@ export const office = {
     data: 'Datos',
     format: 'Formato',
     slides: 'Diapositivas',
-    present: 'Presentar'
+    present: 'Presentar',
+    review: 'Revisar'
   },
   tools: {
     label: 'Herramientas',
@@ -120,6 +121,14 @@ export const office = {
     savePdf: 'Guardar como PDF',
     saveAs: 'Guardar como… (Ctrl+Mayús+S)',
     print: 'Imprimir (Ctrl+P)',
+    comment: 'Comentario',
+    track: 'Control de cambios',
+    prevChange: 'Cambio anterior',
+    nextChange: 'Cambio siguiente',
+    acceptChange: 'Aceptar',
+    rejectChange: 'Rechazar',
+    acceptAll: 'Aceptar todos los cambios',
+    rejectAll: 'Rechazar todos los cambios',
     table2: 'Tabla de 2 × 2',
     table3: 'Tabla de 3 × 3',
     table4: 'Tabla de 4 × 4'
@@ -143,6 +152,14 @@ export const office = {
     savePdf: 'pdf exportar enviar imprimir',
     saveAs: 'guardar como copia otro nombre carpeta formato',
     print: 'imprimir impresora papel',
+    comment: 'comentario nota revisar anotar',
+    track: 'control de cambios revisar marcar seguimiento',
+    prevChange: 'cambio anterior revisar',
+    nextChange: 'cambio siguiente revisar',
+    acceptChange: 'aceptar cambio revisar',
+    rejectChange: 'rechazar cambio revisar',
+    acceptAll: 'aceptar todos cambios revisar',
+    rejectAll: 'rechazar todos cambios revisar',
     bullets: 'lista puntos vinetas',
     numbers: 'lista numeros enumerar',
     clearFormat: 'limpiar quitar formato',
@@ -204,7 +221,18 @@ export const office = {
     pie: 'Circular',
     theme: 'Tema',
     layout: 'Diseño de la diapositiva',
-    loadingThemes: 'Cargando temas…'
+    loadingThemes: 'Cargando temas…',
+    comments: {
+      title: 'Comentarios',
+      placeholder: 'Escribe un comentario sobre lo seleccionado…',
+      add: 'Comentar',
+      hint: 'Ctrl+Intro para comentar',
+      empty: 'No hay comentarios. Selecciona algo y escribe uno.',
+      resolve: 'Resolver',
+      reopen: 'Reabrir',
+      remove: 'Borrar',
+      resolved: 'Resuelto'
+    }
   },
   colors: 'Colores',
   noFill: 'Sin relleno',

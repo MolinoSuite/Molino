@@ -6,6 +6,14 @@
  */
 import {
   AlignCenter,
+  Check,
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  FileDiff,
+  ListX,
+  MessageSquarePlus,
+  X,
   AlignJustify,
   AlignLeft,
   AlignRight,
@@ -131,6 +139,29 @@ const LISTS: Tool[] = [
   B('bullets', 'bullets', { icon: <List size={ICON} />, active: (s) => s.list === 'bullets' }),
   B('numbers', 'numbers', { icon: <ListOrdered size={ICON} />, active: (s) => s.list === 'numbers' })
 ]
+
+/** Revisar: comentarios en las tres apps; control de cambios, en Documentos. */
+const COMMENT: Tool = B('comment', 'focusComment', { icon: <MessageSquarePlus size={ICON} />, caption: true })
+function reviewMode(track: boolean): Mode {
+  return {
+    id: 'review',
+    label: L.office.modes.review,
+    icon: <MessageSquarePlus size={19} />,
+    groups: track
+      ? [
+          [COMMENT],
+          [B('track', 'track', { icon: <FileDiff size={ICON} />, caption: true, active: (s) => s.track })],
+          [
+            B('prevChange', 'prevChange', { icon: <ChevronLeft size={ICON} /> }),
+            B('nextChange', 'nextChange', { icon: <ChevronRight size={ICON} /> }),
+            B('acceptChange', 'acceptChange', { icon: <Check size={ICON} />, caption: true }),
+            B('rejectChange', 'rejectChange', { icon: <X size={ICON} />, caption: true })
+          ],
+          [B('acceptAll', 'acceptAll', { icon: <CheckCheck size={ICON} /> }), B('rejectAll', 'rejectAll', { icon: <ListX size={ICON} /> })]
+        ]
+      : [[COMMENT]]
+  }
+}
 
 const M = L.office.modes
 const G = L.office.groups
@@ -312,6 +343,10 @@ const slide: AppConfig = {
     { label: T.fit, group: G.view, keywords: L.office.keywords.fit, command: 'fit' }
   ]
 }
+
+word.modes.push(reviewMode(true))
+cell.modes.push(reviewMode(false))
+slide.modes.push(reviewMode(false))
 
 export const APPS: Record<OfficeKind, AppConfig> = { word, cell, slide }
 

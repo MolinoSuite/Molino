@@ -68,6 +68,12 @@ export function OfficeApp() {
   const activeHasFile = tabs?.tabs.find((t) => t.doc === tabs.active)?.hasFile ?? true
   const run = useCallback(
     (command: string, value?: string) => {
+      // «Comentario»: se escribe en el panel de comentarios, que está en el modo Revisar.
+      if (command === 'focusComment') {
+        setMode('review')
+        setTimeout(() => document.getElementById('office-comment-input')?.focus(), 50)
+        return true
+      }
       // Sin archivo propio (nuevo o recuperado), guardar es «Guardar como»: el editor
       // no guarda lo que cree que no ha cambiado.
       const host = HOST_COMMANDS[command === 'save' && !activeHasFile ? 'saveAs' : command]
@@ -216,7 +222,7 @@ export function OfficeApp() {
                 key={tab.doc}
                 className={cn('office-frame', tab.doc === tabs.active && 'on')}
                 title={tab.name}
-                src={`/__molino__/frame.html?${new URLSearchParams({ doc: tab.doc, kind, name: tab.name, ext: tab.ext, lang: env.lang, dark: env.dark ? '1' : '0' })}`}
+                src={`/__molino__/frame.html?${new URLSearchParams({ doc: tab.doc, kind, name: tab.name, ext: tab.ext, lang: env.lang, dark: env.dark ? '1' : '0', author: env.author })}`}
                 onLoad={(event) => session(tab.doc).attach(event.currentTarget)}
               />
             ))}
@@ -229,7 +235,11 @@ export function OfficeApp() {
           </main>
           {app.sheetTabs && state?.ready && <SheetTabs state={state} run={run} />}
         </div>
-        {app.panel && state?.ready && <SidePanel kind={kind} state={state} run={run} />}
+        {currentMode.id === 'review' && state?.ready ? (
+          <CommentsPanel state={state} run={run} />
+        ) : (
+          app.panel && state?.ready && <SidePanel kind={kind} state={state} run={run} />
+        )}
       </div>
       )}
 
@@ -484,6 +494,73 @@ function SidePanel({ kind, state, run }: { kind: string; state: EditorState; run
             </button>
           ))}
         </div>
+      </section>
+    </aside>
+  )
+}
+
+function CommentsPanel({ state, run }: { state: EditorState; run: (command: string, value?: string) => void }) {
+  const C = T.panel.comments
+  const [text, setText] = useState('')
+  const send = (): void => {
+    if (!text.trim()) return
+    run('comment', text)
+    setText('')
+  }
+  return (
+    <aside className="office-panel office-comments" aria-label={C.title}>
+      <section>
+        <h3>{C.title}</h3>
+        <textarea
+          id="office-comment-input"
+          className="office-comment-input"
+          value={text}
+          rows={3}
+          maxLength={10_000}
+          placeholder={C.placeholder}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              e.preventDefault()
+              send()
+            }
+          }}
+        />
+        <div className="row">
+          <span className="hint grow">{C.hint}</span>
+          <button className="btn sm primary" disabled={!text.trim()} onClick={send}>
+            {C.add}
+          </button>
+        </div>
+      </section>
+      <section className="office-comment-list">
+        {state.comments.length === 0 && <p className="hint">{C.empty}</p>}
+        {state.comments.map((c) => (
+          <article key={c.id} className={cn('office-comment', c.resolved && 'resolved')}>
+            <button className="office-comment-body" onClick={() => run('showComment', c.id)}>
+              <span className="who">
+                {c.author}
+                {c.date && <span className="hint"> · {c.date}</span>}
+                {c.resolved && <span className="hint"> · {C.resolved}</span>}
+              </span>
+              {c.quote && <span className="quote">{c.quote}</span>}
+              <span className="text">{c.text}</span>
+              {c.replies.map((r, i) => (
+                <span key={i} className="reply">
+                  <b>{r.author}</b> {r.text}
+                </span>
+              ))}
+            </button>
+            <div className="row">
+              <button className="btn sm ghost" onClick={() => run('resolveComment', c.id)}>
+                {c.resolved ? C.reopen : C.resolve}
+              </button>
+              <button className="btn sm ghost" onClick={() => run('removeComment', c.id)}>
+                {C.remove}
+              </button>
+            </div>
+          </article>
+        ))}
       </section>
     </aside>
   )

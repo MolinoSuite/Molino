@@ -62,7 +62,8 @@ export const office: typeof es = {
     data: 'Data',
     format: 'Format',
     slides: 'Slides',
-    present: 'Present'
+    present: 'Present',
+    review: 'Review'
   },
   tools: {
     label: 'Tools',
@@ -121,6 +122,14 @@ export const office: typeof es = {
     savePdf: 'Save as PDF',
     saveAs: 'Save as… (Ctrl+Shift+S)',
     print: 'Print (Ctrl+P)',
+    comment: 'Comment',
+    track: 'Track changes',
+    prevChange: 'Previous change',
+    nextChange: 'Next change',
+    acceptChange: 'Accept',
+    rejectChange: 'Reject',
+    acceptAll: 'Accept all changes',
+    rejectAll: 'Reject all changes',
     table2: '2 × 2 table',
     table3: '3 × 3 table',
     table4: '4 × 4 table'
@@ -143,6 +152,14 @@ export const office: typeof es = {
     savePdf: 'pdf export send print',
     saveAs: 'save as copy another name folder format',
     print: 'print printer paper',
+    comment: 'comment note review annotate',
+    track: 'track changes review revisions',
+    prevChange: 'previous change review',
+    nextChange: 'next change review',
+    acceptChange: 'accept change review',
+    rejectChange: 'reject change review',
+    acceptAll: 'accept all changes review',
+    rejectAll: 'reject all changes review',
     bullets: 'list bullets dots',
     numbers: 'list numbers numbering',
     clearFormat: 'clear remove formatting',
@@ -204,7 +221,18 @@ export const office: typeof es = {
     pie: 'Pie',
     theme: 'Theme',
     layout: 'Slide layout',
-    loadingThemes: 'Loading themes…'
+    loadingThemes: 'Loading themes…',
+    comments: {
+      title: 'Comments',
+      placeholder: 'Write a comment on the selection…',
+      add: 'Comment',
+      hint: 'Ctrl+Enter to comment',
+      empty: 'No comments. Select something and write one.',
+      resolve: 'Resolve',
+      reopen: 'Reopen',
+      remove: 'Delete',
+      resolved: 'Resolved'
+    }
   },
   colors: 'Colors',
   noFill: 'No fill',
