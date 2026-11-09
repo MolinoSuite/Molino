@@ -1,37 +1,61 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { Lang } from '@shared/i18n'
+import type { OfficeTabs, OfficeUiApi } from '@shared/officeui'
 
 /**
- * Lo único que ven las páginas de los editores (Documentos, Hojas y
- * Presentaciones) de este lado: el documento de su ventana. Corre en todos los
- * marcos, porque el editor vive en un iframe; el puente (office/bridge.js) lo
- * usa para hacer de «app de escritorio» de ONLYOFFICE.
+ * Lo único que ven las páginas de Documentos, Hojas y Presentaciones de este
+ * lado. Corre en todos los marcos de la ventana (la interfaz, cada pestaña y
+ * su editor), sin Node y con canales fijos:
  *
- * Nada de rutas ni de módulos de Node: canales fijos, y el proceso principal
- * comprueba en cada mensaje que viene de una ventana de editor y de
- * molino://office (officewin.ts).
+ * - ``molinoOffice``: la interfaz de Molino (pestañas, abrir, documento nuevo).
+ *   El proceso principal solo lo atiende desde la página de la interfaz.
+ * - ``molinoHost``: el puente de cada editor (office/bridge.js), que hace de
+ *   «app de escritorio» de ONLYOFFICE. Cada llamada lleva su documento y el
+ *   proceso principal solo la atiende desde un editor y para los documentos
+ *   de esa ventana (officewin.ts).
  */
 
-interface DocInfo {
-  doc: string
-  name: string
-  kind: 'word' | 'cell' | 'slide'
-}
+// La misma forma que LOCALE_RE de @shared/i18n, copiada: un preload con sandbox es un
+// solo archivo, y lo que comparte con el de Molino PDF acabaria en un trozo aparte
+// que no podria cargar.
+const LOCALE_RE = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,3}$/
 
-// Una sola consulta síncrona al cargar: el puente necesita el nombre y el tipo
-// antes de que el editor pregunte por ellos.
-const info = ipcRenderer.sendSync('office:info') as DocInfo | null
+const argValue = (name: string): string => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.split('=')[1] ?? ''
+const lang: Lang = argValue('molino-lang') === 'en' ? 'en' : 'es'
+const localeArg = argValue('molino-locale')
+const kindArg = argValue('molino-kind')
+
+const ui: OfficeUiApi = {
+  env: {
+    lang,
+    locale: LOCALE_RE.test(localeArg) ? localeArg : lang === 'en' ? 'en-US' : 'es-ES',
+    dark: argValue('molino-theme') === 'dark',
+    kind: kindArg === 'cell' || kindArg === 'slide' ? kindArg : 'word',
+    version: /^\d{1,4}\.\d{1,4}\.\d{1,6}/.test(argValue('molino-version')) ? argValue('molino-version') : ''
+  },
+  tabs: () => ipcRenderer.invoke('office:tabs'),
+  activate: (doc) => ipcRenderer.invoke('office:activate', doc),
+  closeTab: (doc) => ipcRenderer.invoke('office:closeTab', doc),
+  openDialog: () => ipcRenderer.invoke('office:openDialog'),
+  newDoc: () => ipcRenderer.invoke('office:new'),
+  onTabs: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, tabs: OfficeTabs): void => listener(tabs)
+    ipcRenderer.on('office:tabs', wrapped)
+    return () => ipcRenderer.removeListener('office:tabs', wrapped)
+  }
+}
+contextBridge.exposeInMainWorld('molinoOffice', ui)
 
 contextBridge.exposeInMainWorld('molinoHost', {
-  info,
   /** Editor.bin del documento, en base64 (se entrega una vez). */
-  canvas: () => ipcRenderer.invoke('office:canvas'),
+  canvas: (doc: unknown) => ipcRenderer.invoke('office:canvas', doc),
   /** Una tanda de cambios del editor; ``index``: cuántos había cuando se hizo. */
-  changes: (list: unknown, index: unknown) => ipcRenderer.invoke('office:changes', { list, index }),
-  save: (options: unknown) => ipcRenderer.invoke('office:save', options),
+  changes: (doc: unknown, list: unknown, index: unknown) => ipcRenderer.invoke('office:changes', { doc, list, index }),
+  save: (doc: unknown, options: Record<string, unknown>) => ipcRenderer.invoke('office:save', { ...options, doc }),
   /** Elegir una imagen para insertar: devuelve su nombre dentro del documento. */
-  pickImage: () => ipcRenderer.invoke('office:pickImage'),
-  modified: (value: unknown) => ipcRenderer.send('office:modified', value === true),
-  ready: () => ipcRenderer.send('office:ready'),
-  fullscreen: (value: unknown) => ipcRenderer.send('office:fullscreen', value === true),
+  pickImage: (doc: unknown) => ipcRenderer.invoke('office:pickImage', doc),
+  modified: (doc: unknown, value: unknown) => ipcRenderer.send('office:modified', { doc, value: value === true }),
+  ready: (doc: unknown) => ipcRenderer.send('office:ready', doc),
+  fullscreen: (doc: unknown, value: unknown) => ipcRenderer.send('office:fullscreen', { doc, value: value === true }),
   log: (text: unknown) => ipcRenderer.send('office:log', String(text).slice(0, 500))
 })

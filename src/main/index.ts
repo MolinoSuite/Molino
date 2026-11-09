@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
-import { app, BrowserWindow, session } from 'electron'
+import { app, BrowserWindow, nativeTheme, session } from 'electron'
 import { AiModels } from './aimodels'
 import { EngineClient, type EngineLaunch } from './engine'
 import { Bridge, isOpenable } from './ipc'
@@ -186,7 +186,12 @@ void app.whenReady().then(async () => {
   bridge = new Bridge(engine, store, printer, updates, aiModels, office)
   // Documentos, Hojas y Presentaciones: sus ventanas, y el motor configurado con
   // la pieza (al arrancar el motor y al añadirla o quitarla).
-  const editors = new OfficeWindows(engine, office, join(__dirname, '../renderer'))
+  const editors = new OfficeWindows({
+    engine,
+    piece: office,
+    rendererDir: join(__dirname, '../renderer'),
+    dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors)
+  })
   officeWindows = editors
   bridge.officeBusy = () => editors.busy
   office.onChange = () => void editors.configure()

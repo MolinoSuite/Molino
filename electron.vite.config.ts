@@ -26,6 +26,7 @@ export default defineConfig({
     root: 'src/renderer',
     plugins: [react()],
     resolve: { alias: { '@': resolve('src/renderer/src'), '@shared': resolve('src/shared') } },
-    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html') } } }
+    // index: Molino PDF; office: las ventanas de Documentos, Hojas y Presentaciones (officewin.ts).
+    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html'), office: resolve('src/renderer/office.html') } } }
   }
 })

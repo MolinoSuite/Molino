@@ -4,7 +4,8 @@
 // nativo. En Molino es este archivo: lo sirve molino://office/ y se carga el
 // primero en cada página de los editores (src/main/officewin.ts lo añade). Habla
 // con el proceso principal por window.molinoHost (src/preload/office.ts), que
-// solo da acceso al documento de esta ventana.
+// solo da acceso a los documentos de esta ventana. Cada pestaña es un marco
+// (frame.html) con su documento en la dirección: de ahí sale el de este editor.
 //
 // Los métodos que Molino no tiene no existen: el editor comprueba si están
 // antes de usarlos, y fingir que existen cambia lo que hace.
@@ -14,12 +15,59 @@
   const host = w.molinoHost
   if (!host || w.AscDesktopEditor) return
 
-  const where = w.top === w ? 'exterior' : 'editor'
+  // El documento de esta pestaña: en la dirección de su frame.html (este marco o su padre).
+  const tabParams = (() => {
+    const FRAME = '/__molino__/frame.html'
+    if (location.pathname === FRAME) return new URLSearchParams(location.search)
+    try {
+      if (w.parent !== w && w.parent.location.pathname === FRAME) return new URLSearchParams(w.parent.location.search)
+    } catch {
+      /* no es de esta ventana */
+    }
+    return null
+  })()
+  if (!tabParams || !/^o[0-9a-f]{16}$/.test(tabParams.get('doc') || '')) return
+  const info = { doc: tabParams.get('doc'), name: tabParams.get('name') || '', kind: tabParams.get('kind') || 'word' }
+
+  const isEditor = /\/apps\/\w+editor\/main\/index\.html$/.test(location.pathname)
+  const where = isEditor ? 'editor' : 'pestaña'
   const log = (...parts) => host.log(`[${where}] ${parts.join(' ')}`)
   w.addEventListener('error', (e) => log('error:', e.message, e.lineno || ''))
   w.addEventListener('unhandledrejection', (e) => log('promesa:', String(e.reason).slice(0, 200)))
 
-  const info = host.info
+  // -- la interfaz de Molino ----------------------------------------------------
+  // Si la ventana es la de Molino (data-molino="interfaz"), la interfaz del editor
+  // se oculta: solo queda el documento. Y los atajos de la ventana (buscador de
+  // órdenes, pestañas, abrir…) llegan a Molino aunque el teclado esté en el documento.
+  const molinoUi = (() => {
+    try {
+      return isEditor && w.top.document.documentElement.dataset.molino === 'interfaz'
+    } catch {
+      return false
+    }
+  })()
+  if (molinoUi) {
+    const css = w.document.createElement('style')
+    // En Hojas se queda la barra de fórmulas del editor (#cell-editing-box), unida a su editor de celdas.
+    css.textContent =
+      '#app-title,#toolbar,#left-menu,#right-menu,#statusbar,#left-panel-history,#file-menu-panel,#header-logo{display:none!important}' +
+      '#cell-editing-box,#cell-editing-box *{font-family:"Inter Variable","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}'
+    ;(w.document.head || w.document.documentElement).appendChild(css)
+    w.addEventListener(
+      'keydown',
+      (e) => {
+        const key = e.key.toLowerCase()
+        const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey
+        const shortcut = ctrl && (['k', 'o', 'n', 'w'].includes(key) && !e.shiftKey ? key : key === 'tab' ? (e.shiftKey ? 'prevTab' : 'nextTab') : null)
+        if (shortcut && typeof w.top.molinoShortcut === 'function') {
+          e.preventDefault()
+          e.stopImmediatePropagation()
+          w.top.molinoShortcut(shortcut)
+        }
+      },
+      true
+    )
+  }
   const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$/i
 
   // -- imágenes del documento -------------------------------------------------
@@ -49,7 +97,9 @@
     return xhrOpen.apply(this, arguments)
   }
 
-  w.RendererProcessVariable = { theme: { id: 'theme-light', type: 'light', system: 'light' }, rtl: false }
+  // El tema de Molino (claro u oscuro), que llega en la dirección de la pestaña.
+  const dark = tabParams.get('dark') === '1'
+  w.RendererProcessVariable = { theme: { id: dark ? 'theme-dark' : 'theme-light', type: dark ? 'dark' : 'light', system: dark ? 'dark' : 'light' }, rtl: false }
 
   const editor = () => (w.Asc && w.Asc.editor) || w.editor
   let saved = true
@@ -63,7 +113,7 @@
       if (delivered) return
       delivered = true
       host
-        .canvas()
+        .canvas(info.doc)
         .then((canvas) => {
           if (!canvas || !canvas.b64) {
             log('error: no hay documento convertido')
@@ -79,11 +129,11 @@
     SetDocumentName: () => {},
     onDocumentContentReady() {
       w.molinoReady = true
-      host.ready()
+      host.ready(info.doc)
     },
     onDocumentModifiedChanged(modified) {
       saved = !modified
-      host.modified(!!modified)
+      host.modified(info.doc, !!modified)
     },
 
     // --- editar: cada tanda de cambios va al motor (en orden)
@@ -94,7 +144,7 @@
       if ((count | 0) !== list.length) log('aviso: la tanda dice', count | 0, 'cambios y trae', list.length)
       if (from !== null && from < applied) applied = from
       applied += list.length
-      host.changes(list, from).catch((e) => log('error: el motor no aceptó una tanda de cambios:', String(e).slice(0, 200)))
+      host.changes(info.doc, list, from).catch((e) => log('error: el motor no aceptó una tanda de cambios:', String(e).slice(0, 200)))
     },
     LocalFileGetOpenChangesCount: () => 0,
     LocalFileSetOpenChangesCount: () => {},
@@ -107,7 +157,7 @@
     },
     LocalFileSave(params, key, _docinfo, type, options) {
       host
-        .save({
+        .save(info.doc, {
           saveAs: String(params || '').includes('saveas=true'),
           format: type | 0,
           options: typeof options === 'string' ? options : ''
@@ -135,7 +185,7 @@
     LocalFileGetImageUrl: (p) => (MEDIA_NAME.test(String(p || '')) ? String(p) : ''),
     OpenFilenameDialog(filter, multiple, done) {
       const images = /image/i.test(String(filter || ''))
-      const answer = images ? host.pickImage() : Promise.resolve({ name: '' })
+      const answer = images ? host.pickImage(info.doc) : Promise.resolve({ name: '' })
       answer
         .then((r) => {
           const name = (r && r.name) || ''
@@ -194,7 +244,10 @@
     sendFromReporter: () => undefined,
     PluginUninstall: () => false,
     IsCachedPdfCloudPrintFileInfo: () => false,
-    SetFullscreen: (on) => host.fullscreen(!!on),
+    SetFullscreen: (on) => {
+      host.fullscreen(info.doc, !!on)
+      if (molinoUi && typeof w.top.molinoFullscreen === 'function') w.top.molinoFullscreen(!!on)
+    },
     // Sin corrector por ahora (paso 7): el editor no subraya nada.
     SpellCheck: () => {},
     SetAdvancedOptions: () => {},

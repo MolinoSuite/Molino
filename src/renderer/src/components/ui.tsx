@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react'
 import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { cn } from '@/lib/util'
+import { cn } from '@/lib/cn'
 
 /**
  * Marca de la aplicación: el icono de Molino PDF, un folio cerrado con su sello
