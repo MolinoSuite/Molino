@@ -61,7 +61,7 @@ For 64-bit Windows 10 and 11, including Windows 11 on Arm laptops. In English an
 2. Open it and follow the steps. You don’t need to be an administrator.
 3. Done. When there’s a new version, Molino PDF will let you know.
 
-**Portable version:** download [MolinoPDF-Portable.zip](https://github.com/MolinoSuite/Molino/releases/latest/download/MolinoPDF-Portable.zip), unzip it in any folder and open `MolinoPDF.exe`. It keeps its settings in that folder and changes nothing in Windows.
+**Portable version:** download [MolinoPDF-Portable.zip](https://github.com/MolinoSuite/Molino/releases/latest/download/MolinoPDF-Portable.zip), unzip it in any folder and open `Molino.exe`. It keeps its settings in that folder and changes nothing in Windows.
 
 ## 💬 Ideas or something not working?
 

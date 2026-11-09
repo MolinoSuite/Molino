@@ -2,7 +2,7 @@
 //
 // Zips the app that electron-builder leaves in dist\win-unpacked, adds
 // build\portable.txt (which makes Molino PDF keep its data in MolinoData, next to
-// MolinoPDF.exe; see src/main/portable.ts) and writes dist\MolinoPDF-Portable.zip.
+// Molino.exe; see src/main/portable.ts) and writes dist\MolinoPDF-Portable.zip.
 // The files go at the root of the zip, so unzipping a new version over the old
 // folder updates it and keeps MolinoData.
 //
@@ -23,7 +23,7 @@ function fail(message) {
   process.exit(1)
 }
 
-if (!existsSync(join(unpacked, 'MolinoPDF.exe'))) fail('dist\\win-unpacked\\MolinoPDF.exe is missing: run npm run dist first.')
+if (!existsSync(join(unpacked, 'Molino.exe'))) fail('dist\\win-unpacked\\Molino.exe is missing: run npm run dist first.')
 if (!existsSync(marker)) fail('build\\portable.txt is missing.')
 if (!existsSync(tar)) fail('Windows tar was not found.')
 // A portable.txt inside win-unpacked would turn the installed app into a portable one.

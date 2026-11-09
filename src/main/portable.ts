@@ -5,7 +5,7 @@ import { app } from 'electron'
 /**
  * Versión portable (el zip, sin instalar).
  *
- * Se reconoce por el archivo portable.txt junto a MolinoPDF.exe (lo pone
+ * Se reconoce por el archivo portable.txt junto a Molino.exe (lo pone
  * scripts/make-portable.mjs). Entonces todo lo suyo (ajustes, registro, copias
  * de trabajo y modelos de la IA) va a la carpeta MolinoData de al lado, Molino PDF no
  * se registra en Windows y las versiones nuevas se descargan desde el

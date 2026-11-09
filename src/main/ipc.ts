@@ -25,7 +25,7 @@ export const SOURCE_URL = 'https://github.com/MolinoSuite/Molino'
 /** Donativos voluntarios: dirección fija aquí, nunca recibida de la interfaz. */
 const SPONSORS_URL = 'https://github.com/sponsors/CuevasTech'
 
-/** Licencia y avisos de terceros: junto a MolinoPDF.exe una vez instalado; en desarrollo, en el proyecto. */
+/** Licencia y avisos de terceros: junto a Molino.exe una vez instalado; en desarrollo, en el proyecto. */
 function legalFile(what: 'license' | 'notices'): string | null {
   const base = app.isPackaged ? dirname(process.execPath) : app.getAppPath()
   const name =

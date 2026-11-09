@@ -159,22 +159,22 @@ try {
         # Windows' own tar, fixed arguments, no shell.
         & "$env:SystemRoot\System32\tar.exe" -x -f $Zip -C $app
         if ($LASTEXITCODE -ne 0) { throw 'Could not unzip the portable version.' }
-        if (-not (Test-Path (Join-Path $app 'MolinoPDF.exe'))) { throw 'The zip has no MolinoPDF.exe.' }
-        Test-Molino (Join-Path $app 'MolinoPDF.exe') $pdf (Join-Path $app 'MolinoData\logs\molino.log') @() $true
+        if (-not (Test-Path (Join-Path $app 'Molino.exe'))) { throw 'The zip has no Molino.exe.' }
+        Test-Molino (Join-Path $app 'Molino.exe') $pdf (Join-Path $app 'MolinoData\logs\molino.log') @() $true
     }
     else {
         $Setup = Get-FullPath $Setup
         if (-not (Test-Path $Setup)) { throw "No installer at $Setup." }
         # electron-builder names the folder after the executable (executableName).
-        $installed = Join-Path $env:LOCALAPPDATA 'Programs\MolinoPDF'
+        $installed = Join-Path $env:LOCALAPPDATA 'Programs\Molino'
         $setupRun = Start-Process -FilePath $Setup -ArgumentList @('/S', '/currentuser') -Wait -PassThru
         if ($setupRun.ExitCode -ne 0) { throw "The installer failed (exit code $($setupRun.ExitCode))." }
-        $exe = Join-Path $installed 'MolinoPDF.exe'
+        $exe = Join-Path $installed 'Molino.exe'
         if (-not (Test-Path $exe)) { throw "Molino PDF was not installed in $installed." }
         $registered = Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -Name 'Molino PDF' -ErrorAction SilentlyContinue
         if (-not $registered) { throw 'The installer did not register Molino PDF as a PDF app.' }
         "installer: installed in $installed and registered"
-        $stray = { Get-Process MolinoPDF -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$installed\*" } | Stop-Process -Force }
+        $stray = { Get-Process Molino -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$installed\*" } | Stop-Process -Force }
         & $stray  # in case the installer opened Molino PDF itself
 
         # A temporary profile: the check never reads or writes Molino PDF's usual one.
@@ -183,7 +183,7 @@ try {
 
         & $stray
         Start-Sleep -Seconds 1
-        $uninstaller = Join-Path $installed 'Uninstall MolinoPDF.exe'
+        $uninstaller = Join-Path $installed 'Uninstall Molino.exe'
         $removeRun = Start-Process -FilePath $uninstaller -ArgumentList @('/S', '/currentuser') -Wait -PassThru
         if ($removeRun.ExitCode -ne 0) { throw "The uninstaller failed (exit code $($removeRun.ExitCode))." }
         # The uninstaller copies itself to a temporary folder and goes on from there.

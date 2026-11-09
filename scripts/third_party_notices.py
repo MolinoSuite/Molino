@@ -14,7 +14,7 @@ Recoge lo que se distribuye dentro del instalador:
 
 Electron anade sus propias licencias (LICENSE.electron.txt y
 LICENSES.chromium.html) al empaquetar. El resultado va a
-build/THIRD-PARTY-NOTICES.txt y el instalador lo copia junto a MolinoPDF.exe.
+build/THIRD-PARTY-NOTICES.txt y el instalador lo copia junto a Molino.exe.
 """
 
 from __future__ import annotations

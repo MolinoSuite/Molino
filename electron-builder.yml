@@ -3,9 +3,12 @@
 # sola, sin cambiar de identidad.
 appId: org.molinosuite.molino
 productName: Molino PDF
-# Sin espacio: así se llaman el programa (MolinoPDF.exe) y su carpeta
-# (%LOCALAPPDATA%\Programs\MolinoPDF), y los scripts no necesitan comillas.
-executableName: MolinoPDF
+# El programa y su carpeta llevan el nombre de la suite (Molino.exe en
+# %LOCALAPPDATA%\Programs\Molino): Documentos, Hojas y Presentaciones se añaden
+# a esta misma instalación (..\PLAN-SUITE.md). Lo que se ve (accesos, «Aplicaciones
+# instaladas») sigue diciendo Molino PDF mientras sea la única app. Sin espacio:
+# los scripts no necesitan comillas.
+executableName: Molino
 copyright: Copyright © 2026 CuevasTech · AGPL-3.0-or-later
 
 directories:
@@ -19,7 +22,7 @@ files:
 
 asar: true
 
-# Licencias de los componentes de terceros (scripts/third_party_notices.py), junto a MolinoPDF.exe.
+# Licencias de los componentes de terceros (scripts/third_party_notices.py), junto a Molino.exe.
 extraFiles:
   - from: build/THIRD-PARTY-NOTICES.txt
     to: THIRD-PARTY-NOTICES.txt

@@ -40,7 +40,7 @@ app.setAppUserModelId('org.molinosuite.molino')
 // documentos) van a una carpeta local y privada del usuario, no a la itinerante.
 // Es la carpeta de la suite (%LOCALAPPDATA%\Molino): las apps que vengan
 // compartirán ajustes y modelos de IA. En la versión portable, a MolinoData,
-// junto a MolinoPDF.exe (ver portable.ts).
+// junto a Molino.exe (ver portable.ts).
 if (!app.commandLine.hasSwitch('user-data-dir')) {
   const portable = portableDataDir()
   if (portable) app.setPath('userData', portable)
