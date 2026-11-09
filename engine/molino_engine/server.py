@@ -76,6 +76,10 @@ class Engine:
         self.sessions: dict[str, DocSession] = {}
         # Digitalizaciones en curso (ops/scan.py): fotos a la espera de ser PDF.
         self.scans: dict[str, Any] = {}
+        # Documentos, Hojas y Presentaciones (ops/office.py): la pieza
+        # configurada por la aplicacion y los documentos abiertos.
+        self.office: Any = None
+        self.office_docs: dict[str, Any] = {}
 
     def session(self, doc_id: str) -> DocSession:
         try:
@@ -93,6 +97,10 @@ class Engine:
         for job in list(self.scans.values()):
             job.discard()
         self.scans.clear()
+        # Los documentos de oficina no se recuperan aun: su carpeta se borra.
+        for item in list(self.office_docs.values()):
+            item.remove()
+        self.office_docs.clear()
 
     def checkpoint(self) -> None:
         """Pone al dia la ficha de recuperacion de los documentos que han cambiado (recovery.py)."""

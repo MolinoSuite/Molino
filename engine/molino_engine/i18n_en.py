@@ -727,4 +727,18 @@ CATALOG: dict[str, str] = {
     'Uniendo el resumen…': 'Putting the summary together…',
     'IA de Molino PDF': 'Molino PDF AI',
     'Generado con IA (Molino PDF)': 'AI-generated (Molino PDF)',
+    # ---------------------------------- Documentos, Hojas y Presentaciones
+    "Documentos, Hojas y Presentaciones no están instalados.": "Docs, Sheets and Slides aren’t installed.",
+    "Las fuentes del equipo aún no están preparadas. Inténtalo dentro de un momento.": "This computer’s fonts aren’t ready yet. Try again in a moment.",
+    "Este documento está protegido con contraseña y Molino aún no puede abrirlo.": "This document is password-protected and Molino can’t open it yet.",
+    "No se pudo convertir el documento.": "Couldn’t convert the document.",
+    "La conversión tarda demasiado y se ha detenido.": "The conversion is taking too long and was stopped.",
+    "Abriendo el documento…": "Opening the document…",
+    "Preparando las fuentes del equipo…": "Preparing this computer’s fonts…",
+    "No se pudieron preparar las fuentes del equipo.": "Couldn’t prepare this computer’s fonts.",
+    "Este tipo de archivo no es compatible.": "This file type isn’t supported.",
+    "El archivo está dañado o no es del tipo que indica su nombre.": "The file is damaged or isn’t the type its name says.",
+    "Esa imagen no se puede usar.": "That image can’t be used.",
+    "Este documento no se puede guardar en ese formato.": "This document can’t be saved in that format.",
+    "Exportando a PDF…": "Exporting to PDF…",
 }

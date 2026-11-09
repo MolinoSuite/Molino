@@ -140,6 +140,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--resources", default=None)
     # Carpeta de los modelos de IA que descargo la aplicacion (solo la usa el intermediario).
     parser.add_argument("--models", default=None)
+    # Carpeta del motor de oficina (Documentos, Hojas y Presentaciones), si la hay (ver office.py).
+    parser.add_argument("--office", default=None)
     parser.add_argument("--log-level", default="info", choices=("debug", "info", "warning", "error"))
     args = parser.parse_args(arguments)
 
@@ -175,7 +177,10 @@ def main(argv: list[str] | None = None) -> int:
         models = Path(args.models) if args.models else None
         if models is not None and not models.is_absolute():
             models = None
-        return run(rfile, wfile, work_root, resources, sandbox=not args.no_sandbox, models=models)
+        office_root = Path(args.office) if args.office else None
+        if office_root is not None and not office_root.is_absolute():
+            office_root = None
+        return run(rfile, wfile, work_root, resources, sandbox=not args.no_sandbox, models=models, office_root=office_root)
 
     if args.worker:
         from . import recovery, winsandbox
