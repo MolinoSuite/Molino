@@ -273,6 +273,8 @@ export interface UpdateStatus {
   message?: string
   /** Versión portable: la nueva se descarga en el navegador (no se instala desde Molino PDF). */
   portable?: boolean
+  /** Versión de la Microsoft Store: las nuevas llegan por la Store. */
+  store?: boolean
 }
 
 export interface RecentFile {

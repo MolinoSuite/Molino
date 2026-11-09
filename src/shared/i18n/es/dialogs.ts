@@ -91,6 +91,7 @@ export const dialogs = {
       check: 'Avisarme al abrir Molino PDF si hay una versión nueva (no se descarga nada sin preguntarte)',
       checkNow: 'Buscar ahora',
       unavailable: 'Esta copia de Molino PDF no se actualiza sola.',
+      store: 'Las versiones nuevas llegan por la Microsoft Store.',
       checking: 'Buscando…',
       current: 'Tienes la versión más reciente.',
       downloading: 'Descargando la versión nueva…',

@@ -5,6 +5,7 @@ import { autoUpdater } from 'electron-updater'
 import type { UpdateStatus } from '@shared/types'
 import { L } from './i18n'
 import { log } from './log'
+import { isStoreApp } from './appx'
 import { isPortable } from './portable'
 
 /**
@@ -84,8 +85,14 @@ export class Updates {
 
   constructor(private readonly notify: (status: UpdateStatus) => void) {
     const feed = testFeed(process.env.MOLINO_TEST_UPDATES)
-    this.active = app.isPackaged || feed !== null
-    this.status = { state: this.active ? 'idle' : 'unavailable', ...(this.portable ? { portable: true } : {}) }
+    // La versión de la Microsoft Store la actualiza la propia Store.
+    const store = isStoreApp()
+    this.active = (app.isPackaged && !store) || feed !== null
+    this.status = {
+      state: this.active ? 'idle' : 'unavailable',
+      ...(this.portable ? { portable: true } : {}),
+      ...(store ? { store: true } : {})
+    }
     if (!this.active) return
 
     hardenUpdateSession(session.fromPartition(NET_SESSION, { cache: false }), feed)

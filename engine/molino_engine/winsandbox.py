@@ -66,6 +66,7 @@ _bind(_userenv, "DeriveAppContainerSidFromAppContainerName", [wt.LPCWSTR, ctypes
 _bind(_userenv, "DeleteAppContainerProfile", [wt.LPCWSTR], ctypes.c_long)
 _bind(_userenv, "GetAppContainerFolderPath", [wt.LPCWSTR, ctypes.POINTER(_P)], ctypes.c_long)
 _bind(_advapi32, "ConvertSidToStringSidW", [_P, ctypes.POINTER(_P)], wt.BOOL)
+_bind(_advapi32, "ConvertStringSidToSidW", [wt.LPCWSTR, ctypes.POINTER(_P)], wt.BOOL)
 _bind(_advapi32, "FreeSid", [_P], _P)
 _bind(_advapi32, "EqualSid", [_P, _P], wt.BOOL)
 _bind(_advapi32, "OpenProcessToken", [wt.HANDLE, wt.DWORD, ctypes.POINTER(wt.HANDLE)], wt.BOOL)
@@ -286,7 +287,41 @@ def delete_container(name: str = CONTAINER_NAME) -> bool:
     return _userenv.DeleteAppContainerProfile(name) >= 0
 
 
+# «Todos los paquetes de aplicacion»: lo llevan todos los AppContainer que no
+# son de los restringidos (LPAC), como el del motor. Si una carpeta ya da
+# lectura a este grupo, no hace falta concederla.
+_ALL_APP_PACKAGES = "S-1-15-2-1"
+_all_app_packages_sid: _P | None = None
+
+
+def _all_app_packages() -> _P:
+    global _all_app_packages_sid
+    if _all_app_packages_sid is None:
+        sid = _P()
+        if not _advapi32.ConvertStringSidToSidW(_ALL_APP_PACKAGES, ctypes.byref(sid)):
+            raise SandboxError("leer permisos", ctypes.get_last_error())
+        _all_app_packages_sid = sid  # vive lo que el proceso
+    return _all_app_packages_sid
+
+
+_GENERIC_READ_EXECUTE = 0x80000000 | 0x20000000
+_INHERIT_ONLY = 0x08
+_ERROR_ACCESS_DENIED = 5
+
+
+def _grants_read(mask: int) -> bool:
+    return mask & _READ_EXECUTE == _READ_EXECUTE or mask & _GENERIC_READ_EXECUTE == _GENERIC_READ_EXECUTE
+
+
 def _has_read_access(path: Path, sid: int) -> bool:
+    """¿Puede el contenedor ``sid`` leer y ejecutar ``path`` y lo que contiene?
+
+    Valen las entradas para el propio contenedor o para «Todos los paquetes de
+    aplicacion»: una que valga para la carpeta y otra que se herede a carpetas y
+    archivos. Pueden ser la misma, o dos (una para la carpeta y otra «solo para
+    heredar», con derechos genericos), como escribe a veces Windows.
+    """
+    everyone_packaged = _all_app_packages()
     dacl = _P()
     descriptor = _P()
     error = _advapi32.GetNamedSecurityInfoW(
@@ -300,22 +335,33 @@ def _has_read_access(path: Path, sid: int) -> bool:
         size = _ACL_SIZE_INFORMATION()
         if not _advapi32.GetAclInformation(dacl, ctypes.byref(size), ctypes.sizeof(size), 2):
             raise SandboxError("leer permisos", ctypes.get_last_error())
+        here = below = False
         for index in range(size.AceCount):
             ace = _P()
             if not _advapi32.GetAce(dacl, index, ctypes.byref(ace)):
                 continue
             entry = _ACCESS_ALLOWED_ACE.from_address(ace.value)
-            if entry.AceType != 0:  # solo entradas que conceden
+            if entry.AceType != 0 or not _grants_read(entry.Mask):  # solo entradas que conceden leer
                 continue
-            if entry.AceFlags & _OBJECT_AND_CONTAINER_INHERIT != _OBJECT_AND_CONTAINER_INHERIT:
+            ace_sid = ace.value + _ACCESS_ALLOWED_ACE.SidStart.offset
+            if not (_advapi32.EqualSid(ace_sid, sid) or _advapi32.EqualSid(ace_sid, everyone_packaged)):
                 continue
-            if entry.Mask & _READ_EXECUTE != _READ_EXECUTE:
-                continue
-            if _advapi32.EqualSid(ace.value + _ACCESS_ALLOWED_ACE.SidStart.offset, sid):
+            here = here or not entry.AceFlags & _INHERIT_ONLY
+            below = below or entry.AceFlags & _OBJECT_AND_CONTAINER_INHERIT == _OBJECT_AND_CONTAINER_INHERIT
+            if here and below:
                 return True
         return False
     finally:
         _kernel32.LocalFree(descriptor)
+
+
+def _in_package_folder(path: Path) -> bool:
+    """¿Esta ``path`` dentro de un paquete instalado (WindowsApps)?"""
+    try:
+        parts = [p.lower() for p in Path(path).resolve().parts]
+    except OSError:
+        return False
+    return "windowsapps" in parts[:-1]
 
 
 def ensure_read_access(path: Path, container: Container) -> bool:
@@ -347,6 +393,14 @@ def ensure_read_access(path: Path, container: Container) -> bool:
         if error:
             raise SandboxError("preparar permisos", error)
         error = _advapi32.SetNamedSecurityInfoW(str(path), _SE_FILE_OBJECT, _DACL_SECURITY_INFORMATION, None, None, new_dacl, None)
+        if error == _ERROR_ACCESS_DENIED and _in_package_folder(path):
+            # Version de la Microsoft Store: nadie puede cambiar los permisos de
+            # un paquete instalado (WindowsApps), y Windows deja leer y ejecutar
+            # sus archivos a los procesos que lanza el paquete, tambien en un
+            # AppContainer (no con una entrada para el contenedor: la lista solo
+            # trae SID de capacidades). Comprobado en GitHub en x64 y en ARM: el
+            # motor arranca aislado (scripts/app-check.ps1 -Msix).
+            return False
         if error:
             raise SandboxError("conceder permisos", error)
     finally:

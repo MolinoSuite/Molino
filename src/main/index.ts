@@ -11,6 +11,7 @@ import { legacyModelsDir, migrateFromFolio } from './migrate'
 import { OfficePiece } from './office'
 import { isOfficeFile, OfficeWindows } from './officewin'
 import { portableDataDir } from './portable'
+import { isStoreApp, storeDataDir } from './appx'
 import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
 import { Store } from './store'
@@ -42,10 +43,13 @@ app.setAppUserModelId('org.molinosuite.molino')
 // documentos) van a una carpeta local y privada del usuario, no a la itinerante.
 // Es la carpeta de la suite (%LOCALAPPDATA%\Molino): las apps que vengan
 // compartirán ajustes y modelos de IA. En la versión portable, a MolinoData,
-// junto a Molino.exe (ver portable.ts).
+// junto a Molino.exe (ver portable.ts). En la versión de la Microsoft Store, a la
+// carpeta del propio paquete (ver appx.ts).
 if (!app.commandLine.hasSwitch('user-data-dir')) {
   const portable = portableDataDir()
+  const store = portable ? null : storeDataDir()
   if (portable) app.setPath('userData', portable)
+  else if (store) app.setPath('userData', store)
   else if (process.env.LOCALAPPDATA) app.setPath('userData', join(process.env.LOCALAPPDATA, 'Molino'))
 }
 
@@ -153,7 +157,7 @@ app.on('before-quit', (event) => {
 
 void app.whenReady().then(async () => {
   initLog(join(localBase(), 'logs'))
-  log.info(`Molino PDF ${app.getVersion()} iniciado${portableDataDir() ? ' (portable)' : ''}`)
+  log.info(`Molino PDF ${app.getVersion()} iniciado${portableDataDir() ? ' (portable)' : isStoreApp() ? ' (Microsoft Store)' : ''}`)
   // Sin rutas en el registro: solo qué archivos se trajeron.
   if (fromFolio) {
     log.info(`datos traídos de Folio: ${fromFolio.copied.join(', ') || 'ninguno'}${fromFolio.signaturesSkipped ? `; firmas no (${fromFolio.signaturesSkipped})` : ''}`)

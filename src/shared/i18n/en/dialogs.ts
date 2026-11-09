@@ -89,6 +89,7 @@ export const dialogs: typeof source = {
       check: 'Let me know when Molino PDF opens if a new version is available (nothing is downloaded without asking you)',
       checkNow: 'Check now',
       unavailable: 'This copy of Molino PDF doesn’t update itself.',
+      store: 'New versions come through the Microsoft Store.',
       checking: 'Checking…',
       current: 'You have the latest version.',
       downloading: 'Downloading the new version…',
