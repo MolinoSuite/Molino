@@ -66,6 +66,7 @@ _bind(_userenv, "DeriveAppContainerSidFromAppContainerName", [wt.LPCWSTR, ctypes
 _bind(_userenv, "DeleteAppContainerProfile", [wt.LPCWSTR], ctypes.c_long)
 _bind(_userenv, "GetAppContainerFolderPath", [wt.LPCWSTR, ctypes.POINTER(_P)], ctypes.c_long)
 _bind(_advapi32, "ConvertSidToStringSidW", [_P, ctypes.POINTER(_P)], wt.BOOL)
+_bind(_advapi32, "ConvertStringSidToSidW", [wt.LPCWSTR, ctypes.POINTER(_P)], wt.BOOL)
 _bind(_advapi32, "FreeSid", [_P], _P)
 _bind(_advapi32, "EqualSid", [_P, _P], wt.BOOL)
 _bind(_advapi32, "OpenProcessToken", [wt.HANDLE, wt.DWORD, ctypes.POINTER(wt.HANDLE)], wt.BOOL)
@@ -286,7 +287,31 @@ def delete_container(name: str = CONTAINER_NAME) -> bool:
     return _userenv.DeleteAppContainerProfile(name) >= 0
 
 
+# «Todos los paquetes de aplicacion»: lo llevan todos los AppContainer que no
+# son de los restringidos (LPAC), como el del motor. Windows da a este grupo
+# lectura y ejecucion en las carpetas de los paquetes instalados (WindowsApps),
+# donde nadie puede cambiar los permisos: ahi, la version de la Microsoft Store.
+_ALL_APP_PACKAGES = "S-1-15-2-1"
+_all_app_packages_sid: _P | None = None
+
+
+def _all_app_packages() -> _P:
+    global _all_app_packages_sid
+    if _all_app_packages_sid is None:
+        sid = _P()
+        if not _advapi32.ConvertStringSidToSidW(_ALL_APP_PACKAGES, ctypes.byref(sid)):
+            raise SandboxError("leer permisos", ctypes.get_last_error())
+        _all_app_packages_sid = sid  # vive lo que el proceso
+    return _all_app_packages_sid
+
+
 def _has_read_access(path: Path, sid: int) -> bool:
+    """¿Puede el contenedor ``sid`` leer y ejecutar ``path`` y lo que contiene?
+
+    Vale una entrada para el propio contenedor o para «Todos los paquetes de
+    aplicacion», heredable a carpetas y archivos.
+    """
+    everyone_packaged = _all_app_packages()
     dacl = _P()
     descriptor = _P()
     error = _advapi32.GetNamedSecurityInfoW(
@@ -311,7 +336,8 @@ def _has_read_access(path: Path, sid: int) -> bool:
                 continue
             if entry.Mask & _READ_EXECUTE != _READ_EXECUTE:
                 continue
-            if _advapi32.EqualSid(ace.value + _ACCESS_ALLOWED_ACE.SidStart.offset, sid):
+            ace_sid = ace.value + _ACCESS_ALLOWED_ACE.SidStart.offset
+            if _advapi32.EqualSid(ace_sid, sid) or _advapi32.EqualSid(ace_sid, everyone_packaged):
                 return True
         return False
     finally:
