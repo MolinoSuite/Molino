@@ -65,13 +65,16 @@ export function OfficeApp() {
   }
   const active = tabs?.active ? session(tabs.active) : null
   const state = useSessionState(active)
+  const activeHasFile = tabs?.tabs.find((t) => t.doc === tabs.active)?.hasFile ?? true
   const run = useCallback(
     (command: string, value?: string) => {
-      const host = HOST_COMMANDS[command]
+      // Sin archivo propio (nuevo o recuperado), guardar es «Guardar como»: el editor
+      // no guarda lo que cree que no ha cambiado.
+      const host = HOST_COMMANDS[command === 'save' && !activeHasFile ? 'saveAs' : command]
       if (host) return tabs?.active ? (host(tabs.active), true) : false
       return active?.run(command, value)
     },
-    [active, tabs?.active]
+    [active, tabs?.active, activeHasFile]
   )
 
   const step = useCallback(
@@ -102,6 +105,7 @@ export function OfficeApp() {
   useEffect(() => {
     window.molinoShortcut = shortcut
     window.molinoFullscreen = setPresenting
+    window.molinoNeedsSaveAs = () => !activeHasFile
     const onKey = (event: globalThis.KeyboardEvent): void => {
       const key = event.key.toLowerCase()
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return
@@ -121,7 +125,7 @@ export function OfficeApp() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [shortcut])
+  }, [shortcut, activeHasFile])
 
   const currentMode = app.modes.find((m) => m.id === mode) ?? app.modes[0]
   const activeTab = tabs?.tabs.find((t) => t.doc === tabs.active)

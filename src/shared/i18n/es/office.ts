@@ -23,6 +23,12 @@ export const office = {
     },
     new: { word: 'Documento nuevo', cell: 'Hoja de cálculo nueva', slide: 'Presentación nueva' },
     open: 'Abrir…',
+    recover: {
+      title: 'Sin guardar',
+      text: 'Molino se cerró antes de que se guardaran los cambios de estos documentos. Puedes recuperarlos.',
+      open: 'Recuperar',
+      discard: 'Descartar'
+    },
     recent: 'Recientes',
     noRecent: 'Aquí aparecerán los últimos que abras.',
     remove: 'Quitar «{name}» de los recientes',

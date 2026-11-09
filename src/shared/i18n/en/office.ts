@@ -23,6 +23,12 @@ export const office: typeof es = {
     },
     new: { word: 'New document', cell: 'New spreadsheet', slide: 'New presentation' },
     open: 'Open…',
+    recover: {
+      title: 'Not saved',
+      text: 'Molino closed before the changes to these documents were saved. You can recover them.',
+      open: 'Recover',
+      discard: 'Discard'
+    },
     recent: 'Recent',
     noRecent: 'The files you open will appear here.',
     remove: 'Remove “{name}” from recent files',

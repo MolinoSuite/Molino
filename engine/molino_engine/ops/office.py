@@ -17,6 +17,7 @@ en cuanto x2t la ha convertido. Cada conversion va en una subcarpeta propia
 from __future__ import annotations
 
 import logging
+import os
 import secrets
 import shutil
 from dataclasses import dataclass, field
@@ -25,7 +26,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import Field, StringConstraints
 
-from .. import office
+from .. import office, recovery
 from ..errors import EngineError, invalid, not_found, unsupported
 from ..i18n import _, language
 from ..models import Params, PathStr
@@ -58,6 +59,13 @@ class OfficeDoc:
     folder: Path
     # Donde empieza cada cambio apuntado en changes0.json (para deshacer un tramo).
     offsets: list[int] = field(default_factory=list)
+    # Para recuperarlo tras un cierre inesperado (recovery.py): su nombre y si
+    # tiene cambios que no se han guardado.
+    name: str = ""
+    dirty: bool = False
+
+    def note(self) -> None:
+        recovery.note_office(self.folder, self.name or "?", self.kind, self.dirty)
 
     @property
     def doc(self) -> Path:
@@ -134,9 +142,11 @@ def _new_folder(ctx: Ctx) -> tuple[str, Path]:
     return doc_id, folder
 
 
-def _load(ctx: Ctx, piece: office.Piece, source: Path, kind: str, doc_id: str, folder: Path, extra: dict[str, object] | None = None) -> Reply:
+def _load(
+    ctx: Ctx, piece: office.Piece, source: Path, kind: str, doc_id: str, folder: Path, extra: dict[str, object] | None = None, *, name: str = "", dirty: bool = False
+) -> Reply:
     """Convierte ``source`` a Editor.bin y deja el documento abierto (``extra``: campos de x2t, como los del CSV)."""
-    item = OfficeDoc(doc_id, kind, folder)
+    item = OfficeDoc(doc_id, kind, folder, name=name, dirty=dirty)
     try:
         (item.doc / "media").mkdir(parents=True, exist_ok=True)
         (item.doc / "changes").mkdir(exist_ok=True)
@@ -152,6 +162,7 @@ def _load(ctx: Ctx, piece: office.Piece, source: Path, kind: str, doc_id: str, f
     finally:
         source.unlink(missing_ok=True)
     ctx.engine.office_docs[doc_id] = item
+    item.note()
     media = sorted(p.name for p in (item.doc / "media").iterdir() if p.is_file() and office.MEDIA_NAME.match(p.name))
     return Reply({"doc": doc_id, "kind": kind, "media": media, "size": len(data)}, data)
 
@@ -246,7 +257,7 @@ def office_open(ctx: Ctx, p: OfficeOpenParams) -> Reply:
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
         raise
-    return _load(ctx, piece, source, kind, doc_id, folder, extra)
+    return _load(ctx, piece, source, kind, doc_id, folder, extra, name=Path(p.path).name)
 
 
 class OfficeNewParams(Params):
@@ -264,12 +275,13 @@ def office_new(ctx: Ctx, p: OfficeNewParams) -> Reply:
         template = empty / "default" / office.NEW_FILES[p.kind]
     doc_id, folder = _new_folder(ctx)
     source = folder / f"source{template.suffix}"
+    new_name = {"word": _("Documento"), "cell": _("Hoja de cálculo"), "slide": _("Presentación")}[p.kind] + template.suffix
     try:
         shutil.copyfile(template, source)
     except OSError:
         shutil.rmtree(folder, ignore_errors=True)
         raise unsupported(_("Documentos, Hojas y Presentaciones no están instalados.")) from None
-    return _load(ctx, piece, source, p.kind, doc_id, folder)
+    return _load(ctx, piece, source, p.kind, doc_id, folder, name=new_name)
 
 
 class MediaParams(Params):
@@ -340,6 +352,9 @@ def office_changes(ctx: Ctx, p: ChangesParams) -> dict[str, Any]:
             chunk = f'"{line}",'.encode("ascii")
             out.write(chunk)
             at += len(chunk)
+    if lines and not item.dirty:
+        item.dirty = True
+        item.note()
     return {"applied": len(item.offsets)}
 
 
@@ -395,6 +410,9 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
         size, _mtime = ctx.engine.host.install(out, dest)
     finally:
         out.unlink(missing_ok=True)
+    # Guardado: lo que haya ahora ya esta en el archivo del usuario.
+    item.name, item.dirty = Path(dest).name, False
+    item.note()
     return {"path": dest, "size": size}
 
 
@@ -421,6 +439,55 @@ def office_export_pdf(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
 
 class CloseParams(Params):
     doc: OfficeDocId
+
+
+def _recovery_area(ctx: Ctx) -> Path:
+    return recovery.area_for(ctx.engine.work_root)
+
+
+_DEFAULT_SAVE = {"word": (65, ".docx"), "cell": (257, ".xlsx"), "slide": (129, ".pptx")}
+
+
+@method("office.recoverable")
+def office_recoverable(ctx: Ctx, p: Params) -> dict[str, Any]:
+    """Documentos de oficina con cambios sin guardar de una ejecucion que termino de golpe."""
+    return {"documents": [entry.payload() for entry in recovery.office_entries(_recovery_area(ctx))]}
+
+
+class RecoverParams(Params):
+    id: OfficeDocId
+
+
+@method("office.recover", RecoverParams)
+def office_recover(ctx: Ctx, p: RecoverParams) -> Reply:
+    """Abre lo recuperado como documento nuevo, sin archivo propio: Editor.bin con sus cambios, convertido de nuevo."""
+    piece = _piece(ctx)
+    area = _recovery_area(ctx)
+    entry = recovery.find_office(area, p.id)
+    if entry is None:
+        raise not_found(_("Ese documento ya no se puede recuperar."))
+    code, suffix = _DEFAULT_SAVE[entry.kind]
+    doc_id, folder = _new_folder(ctx)
+    source = folder / f"source{suffix}"
+    try:
+        ctx.progress(0, 0, _("Recuperando el documento…"))
+        shutil.copytree(entry.folder / "doc", folder / "doc")
+        out = _export(ctx, piece, OfficeDoc(doc_id, entry.kind, folder), code, suffix, None)
+        os.replace(out, source)
+        shutil.rmtree(folder / "doc")
+    except BaseException:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    stem = Path(entry.name).stem or entry.name
+    reply = _load(ctx, piece, source, entry.kind, doc_id, folder, name=_("{stem} (recuperado){suffix}", stem=stem, suffix=suffix), dirty=True)
+    recovery.discard(area, p.id)
+    return reply
+
+
+@method("office.discardRecovery", RecoverParams)
+def office_discard_recovery(ctx: Ctx, p: RecoverParams) -> dict[str, Any]:
+    recovery.discard(_recovery_area(ctx), p.id)
+    return {}
 
 
 @method("office.close", CloseParams)

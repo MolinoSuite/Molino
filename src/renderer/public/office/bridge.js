@@ -60,7 +60,7 @@
         const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey
         const shortcut =
           ctrl &&
-          (['k', 'o', 'n', 'w', 'p'].includes(key) && !e.shiftKey
+          (['k', 'o', 'n', 'w', 'p', 's'].includes(key) && !e.shiftKey
             ? key
             : key === 's' && e.shiftKey
               ? 'saveAs'
@@ -69,6 +69,9 @@
                   ? 'prevTab'
                   : 'nextTab'
                 : null)
+        // Ctrl+S es del editor, salvo en un documento sin archivo propio (nuevo o
+        // recuperado): ahí Molino pregunta dónde guardarlo.
+        if (shortcut === 's' && !(typeof w.top.molinoNeedsSaveAs === 'function' && w.top.molinoNeedsSaveAs())) return
         if (shortcut && typeof w.top.molinoShortcut === 'function') {
           e.preventDefault()
           e.stopImmediatePropagation()

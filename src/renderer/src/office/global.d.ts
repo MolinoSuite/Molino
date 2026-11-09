@@ -8,6 +8,8 @@ declare global {
     molinoShortcut?: (key: string) => void
     /** El editor entra o sale de presentar a pantalla completa. */
     molinoFullscreen?: (on: boolean) => void
+    /** ¿La pestaña activa no tiene archivo propio? Entonces Ctrl+S en el documento pregunta dónde guardar. */
+    molinoNeedsSaveAs?: () => boolean
   }
 }
 

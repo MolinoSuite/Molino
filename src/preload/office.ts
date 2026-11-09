@@ -43,6 +43,9 @@ const ui: OfficeUiApi = {
   recent: () => ipcRenderer.invoke('office:recent'),
   openRecent: (id) => ipcRenderer.invoke('office:openRecent', id),
   forgetRecent: (id) => ipcRenderer.invoke('office:forgetRecent', id),
+  recoverable: () => ipcRenderer.invoke('office:recoverable'),
+  recover: (id) => ipcRenderer.invoke('office:recover', id),
+  discardRecovery: (id) => ipcRenderer.invoke('office:discardRecovery', id),
   onTabs: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, tabs: OfficeTabs): void => listener(tabs)
     ipcRenderer.on('office:tabs', wrapped)

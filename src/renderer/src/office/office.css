@@ -463,3 +463,20 @@ body,
 .office-zoom[hidden] {
   display: none;
 }
+
+/* Recuperar tras un cierre inesperado (pantalla de inicio de cada app). */
+.office-recover {
+  width: 100%;
+  align-items: flex-start;
+}
+.office-recover svg {
+  flex: none;
+  margin-top: 2px;
+}
+.office-recover p {
+  margin: 2px 0 8px;
+  color: var(--text-2);
+}
+.office-recover .row {
+  margin-top: 4px;
+}

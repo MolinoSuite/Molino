@@ -38,6 +38,12 @@ KEEP_DAYS = 7
 _MAX_NOTE = 64 * 1024
 _SESSION = re.compile(r"^d[0-9a-f]{16}$")
 _WORK_FILE = re.compile(r"^w[0-9]{1,6}\.pdf$")
+# Documentos de Documentos, Hojas y Presentaciones (ops/office.py): su carpeta
+# lleva doc/Editor.bin, los cambios del editor (doc/changes/changes0.json) y
+# sus imagenes (doc/media).
+_OFFICE = re.compile(r"^o[0-9a-f]{16}$")
+_OFFICE_KINDS = ("word", "cell", "slide")
+_MAX_OFFICE = 2 * 1024**3
 
 
 def area_for(work_root: Path) -> Path:
@@ -132,13 +138,111 @@ def _read_note(folder: Path) -> Entry | None:
     return Entry(folder.name, name, path, when, encrypted, work, length)
 
 
+# ------------------------------------------------- Documentos, Hojas y Presentaciones
+
+
+def note_office(folder: Path, name: str, kind: str, dirty: bool) -> None:
+    """La ficha de un documento de oficina: nombre, editor y si tiene cambios sin guardar."""
+    payload = {"v": 1, "office": kind, "name": str(name)[:300], "dirty": bool(dirty), "time": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    target, tmp = folder / NOTE, folder / (NOTE + ".tmp")
+    try:
+        tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+        os.replace(tmp, target)
+    except OSError:
+        log.warning("no se pudo actualizar la ficha de recuperacion")
+
+
+@dataclass(frozen=True)
+class OfficeEntry:
+    id: str
+    name: str
+    kind: str
+    time: str
+    folder: Path
+
+    def payload(self) -> dict[str, Any]:
+        return {"id": self.id, "name": self.name, "kind": self.kind, "time": self.time}
+
+
+def _read_office_note(folder: Path) -> OfficeEntry | None:
+    """Ficha valida de la carpeta de un documento de oficina con cambios sin guardar, o ``None``."""
+    note_path = folder / NOTE
+    if not _plain(note_path, directory=False):
+        return None
+    try:
+        raw = note_path.read_bytes()[: _MAX_NOTE + 1]
+        if len(raw) > _MAX_NOTE:
+            return None
+        data = json.loads(raw.decode("utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get("v") != 1 or data.get("dirty") is not True:
+        return None
+    name, kind, when = data.get("name"), data.get("office"), data.get("time")
+    if not isinstance(name, str) or not 0 < len(name) <= 300 or kind not in _OFFICE_KINDS:
+        return None
+    if not isinstance(when, str) or len(when) > 40:
+        return None
+    doc = folder / "doc"
+    canvas, changes = doc / "Editor.bin", doc / "changes" / "changes0.json"
+    if not (_plain(doc, directory=True) and _plain(canvas, directory=False) and _plain(changes, directory=False)):
+        return None
+    try:
+        if changes.stat().st_size == 0 or canvas.stat().st_size + changes.stat().st_size > _MAX_OFFICE:
+            return None
+    except OSError:
+        return None
+    return OfficeEntry(folder.name, name, kind, when, folder)
+
+
+def office_entries(area: Path) -> list[OfficeEntry]:
+    if not _plain(area, directory=True):
+        return []
+    found = []
+    for entry in os.scandir(area):
+        if _OFFICE.match(entry.name) and _plain(Path(entry.path), directory=True):
+            item = _read_office_note(Path(entry.path))
+            if item is not None:
+                found.append(item)
+    return sorted(found, key=lambda item: item.time, reverse=True)
+
+
+def find_office(area: Path, oid: str) -> OfficeEntry | None:
+    if not _OFFICE.match(oid):
+        return None
+    folder = area / oid
+    return _read_office_note(folder) if _plain(folder, directory=True) else None
+
+
+def _harvest_office(folder: Path, area: Path) -> bool:
+    entry = _read_office_note(folder)
+    if entry is None:
+        return False
+    area.mkdir(exist_ok=True)
+    if not _plain(area, directory=True):
+        return False
+    target = area / folder.name
+    target.mkdir()
+    os.replace(folder / "doc", target / "doc")
+    os.replace(folder / NOTE, target / NOTE)
+    return True
+
+
 def harvest(run: Path, area: Path) -> int:
     """Aparta a ``area`` las copias con cambios sin guardar de una ejecucion abandonada."""
     moved = 0
     try:
-        sessions = [Path(entry.path) for entry in os.scandir(run) if _SESSION.match(entry.name)]
+        found = [Path(entry.path) for entry in os.scandir(run) if _SESSION.match(entry.name) or _OFFICE.match(entry.name)]
     except OSError:
         return 0
+    sessions = [folder for folder in found if _SESSION.match(folder.name)]
+    for folder in found:
+        if not _OFFICE.match(folder.name) or not _plain(folder, directory=True):
+            continue
+        try:
+            moved += _harvest_office(folder, area)
+        except OSError:
+            log.warning("no se pudo apartar un documento para recuperarlo")
     for folder in sessions:
         if not _plain(folder, directory=True):
             continue
@@ -170,7 +274,8 @@ def prune(area: Path, *, keep_days: int = KEEP_DAYS) -> None:
             stale = entry.stat(follow_symlinks=False).st_mtime < limit
         except OSError:
             stale = True
-        if not _SESSION.match(entry.name) or not _plain(folder, directory=True) or stale or _read_note(folder) is None:
+        valid = (_SESSION.match(entry.name) and _read_note(folder) is not None) or (_OFFICE.match(entry.name) and _read_office_note(folder) is not None)
+        if not valid or not _plain(folder, directory=True) or stale:
             if _plain(folder, directory=True):
                 shutil.rmtree(folder, ignore_errors=True)
             else:
@@ -200,5 +305,5 @@ def find(area: Path, sid: str) -> Entry | None:
 
 
 def discard(area: Path, sid: str) -> None:
-    if _SESSION.match(sid) and _plain(area / sid, directory=True):
+    if (_SESSION.match(sid) or _OFFICE.match(sid)) and _plain(area / sid, directory=True):
         shutil.rmtree(area / sid, ignore_errors=True)

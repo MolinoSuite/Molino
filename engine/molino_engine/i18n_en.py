@@ -328,6 +328,10 @@ CATALOG: dict[str, str] = {
     "Reconociendo el texto de la página {page} de {total}": "Recognizing text on page {page} of {total}",
     # ---------------------------------------------------------- recuperar
     "{stem} (recuperado).pdf": "{stem} (recovered).pdf",
+    "{stem} (recuperado){suffix}": "{stem} (recovered){suffix}",
+    "Recuperando el documento…": "Recovering the document…",
+    "Hoja de cálculo": "Spreadsheet",
+    "Presentación": "Presentation",
     "Ese documento ya no se puede recuperar.": "That document can no longer be recovered.",
     "El documento recuperado es demasiado grande.": "The recovered document is too large.",
     "No se pudo leer el documento recuperado.": "Couldn’t read the recovered document.",

@@ -144,6 +144,8 @@ interface OpenDoc {
   pendingSave: ((code: number) => void) | null
   /** Lo que Molino pidió al editor que guardara: «Guardar como» o imprimir. */
   intent: { kind: 'saveAs' | 'print'; at: number } | null
+  /** Recuperado tras un cierre inesperado: hasta que se guarde, cerrarlo pregunta. */
+  recovered: boolean
 }
 
 interface AppWindow {
@@ -285,6 +287,29 @@ export class OfficeWindows {
     this.show(win, null)
   }
 
+  /** Lo que se puede recuperar de una app tras un cierre inesperado (motor: office.recoverable). */
+  private async recoverable(kind: Kind): Promise<{ id: string; name: string; time: string }[]> {
+    try {
+      const { result } = await this.engine.request<{ documents?: unknown }>('office.recoverable', {}, { priority: 8 })
+      const list = Array.isArray(result.documents) ? result.documents : []
+      return list.flatMap((d: { id?: unknown; name?: unknown; kind?: unknown; time?: unknown }) =>
+        typeof d.id === 'string' && DOC_ID.test(d.id) && typeof d.name === 'string' && typeof d.time === 'string' && d.kind === kind
+          ? [{ id: d.id, name: d.name.slice(0, 300), time: d.time.slice(0, 40) }]
+          : []
+      )
+    } catch {
+      return []
+    }
+  }
+
+  /** Abre lo recuperado en su app, sin archivo propio («Guardar» pregunta dónde). */
+  private async recover(win: AppWindow, id: string): Promise<boolean> {
+    const entry = (await this.recoverable(win.kind)).find((d) => d.id === id)
+    if (!entry) return false
+    const name = fmt(L.main.office.recoveredName, { stem: parse(entry.name).name, suffix: DEFAULT_SUFFIX[win.kind] })
+    return this.load(win.kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.recover', { id }, { priority: 7 }), true)
+  }
+
   /** Documento nuevo de una app, desde la plantilla vacía de la pieza. */
   async create(kind: Kind): Promise<boolean> {
     const name = `${L.main.office.filters[kind]}${DEFAULT_SUFFIX[kind]}`
@@ -295,7 +320,8 @@ export class OfficeWindows {
     kind: Kind,
     name: string,
     path: string | null,
-    ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>
+    ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>,
+    recovered = false
   ): Promise<boolean> {
     // La ventana de la app sale enseguida, con «Abriendo…» mientras el motor
     // (que al abrir desde el Explorador puede estar aún arrancando) prepara el documento.
@@ -310,7 +336,7 @@ export class OfficeWindows {
         void dialog.showMessageBox(win.window, { type: 'info', title: 'Molino', message: installed ? L.main.office.preparing : L.main.office.notInstalled })
         return false
       }
-      return await this.loadInto(win, name, path, ask)
+      return await this.loadInto(win, name, path, ask, recovered)
     } finally {
       win.opening--
       if (!win.window.isDestroyed()) this.sendTabs(win)
@@ -321,7 +347,8 @@ export class OfficeWindows {
     win: AppWindow,
     name: string,
     path: string | null,
-    ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>
+    ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>,
+    recovered = false
   ): Promise<boolean> {
     try {
       const { result, binary } = await ask()
@@ -342,7 +369,8 @@ export class OfficeWindows {
         canvasLength: binary.length,
         modified: false,
         pendingSave: null,
-        intent: null
+        intent: null,
+        recovered
       }
       win.docs.set(open.doc, open)
       win.order.push(open.doc)
@@ -438,7 +466,9 @@ export class OfficeWindows {
       opening: win.opening > 0,
       tabs: win.order.flatMap((doc) => {
         const open = win.docs.get(doc)
-        return open ? [{ doc, name: open.name, ext: (extname(open.name) || DEFAULT_SUFFIX[open.kind]).slice(1).toLowerCase(), modified: open.modified }] : []
+        return open
+          ? [{ doc, name: open.name, ext: (extname(open.name) || DEFAULT_SUFFIX[open.kind]).slice(1).toLowerCase(), modified: open.modified, hasFile: open.path !== null }]
+          : []
       })
     }
   }
@@ -458,7 +488,7 @@ export class OfficeWindows {
   private async closeTab(win: AppWindow, doc: string): Promise<boolean> {
     const open = win.docs.get(doc)
     if (!open) return true
-    if (open.modified) {
+    if (open.modified || (open.recovered && !open.path)) {
       const T = L.main.office
       if (win.active !== doc) {
         win.active = doc
@@ -629,6 +659,22 @@ export class OfficeWindows {
       }
       return this.open(entry.path)
     })
+    ipcMain.handle('office:recoverable', async (event) => {
+      const win = this.uiSender(event)
+      return win ? this.recoverable(win.kind) : []
+    })
+    ipcMain.handle('office:recover', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      return win && typeof raw === 'string' && DOC_ID.test(raw) ? this.recover(win, raw) : false
+    })
+    ipcMain.handle('office:discardRecovery', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      if (!win) return []
+      if (typeof raw === 'string' && DOC_ID.test(raw) && (await this.recoverable(win.kind)).some((d) => d.id === raw)) {
+        await this.engine.request('office.discardRecovery', { id: raw }, { priority: 8 }).catch(() => undefined)
+      }
+      return this.recoverable(win.kind)
+    })
     ipcMain.handle('office:forgetRecent', (event, raw: unknown) => {
       const win = this.uiSender(event)
       if (!win) return []
@@ -762,6 +808,7 @@ export class OfficeWindows {
     }
     if (!pdf) {
       if (dest !== open.path) this.options.recents.add(dest)
+      open.recovered = false
       open.path = dest
       open.name = basename(dest)
       open.modified = false

@@ -8,6 +8,8 @@ export interface OfficeTab {
   /** Extensión sin punto (docx, xlsx…). */
   ext: string
   modified: boolean
+  /** Tiene archivo propio (no es nuevo ni recuperado): «Guardar» guarda ahí; si no, pregunta dónde. */
+  hasFile: boolean
 }
 
 export interface OfficeTabs {
@@ -26,6 +28,13 @@ export interface OfficeRecent {
   openedAt: number
 }
 
+/** Un documento que se puede recuperar: su nombre y cuándo se tocó por última vez (ISO). */
+export interface OfficeRecoverable {
+  id: string
+  name: string
+  time: string
+}
+
 export interface OfficeUiApi {
   env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string }
   tabs(): Promise<OfficeTabs | null>
@@ -41,4 +50,8 @@ export interface OfficeUiApi {
   recent(): Promise<OfficeRecent[]>
   openRecent(id: string): Promise<boolean>
   forgetRecent(id: string): Promise<OfficeRecent[]>
+  /** Documentos de la app con cambios sin guardar de un cierre inesperado. */
+  recoverable(): Promise<OfficeRecoverable[]>
+  recover(id: string): Promise<boolean>
+  discardRecovery(id: string): Promise<OfficeRecoverable[]>
 }

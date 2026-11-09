@@ -102,6 +102,7 @@ export const main: typeof source = {
     cancel: 'Cancel',
     removeOpen: 'Close your Docs, Sheets and Slides documents before removing them.',
     filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' },
+    recoveredName: '{stem} (recovered){suffix}',
     recentMissing: 'Can’t find “{name}”: it may have been moved or deleted. It’s been removed from your recent files.',
     descriptions: {
       word: 'Write and edit Word and OpenDocument documents.',

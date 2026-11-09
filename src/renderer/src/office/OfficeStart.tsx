@@ -3,9 +3,9 @@
  * abrir la app desde el menú Inicio (sin documento) o al cerrar la última
  * pestaña, como la de Molino PDF. Nuevo, abrir y los recientes de la app.
  */
-import { FilePlus2, FileText, FolderOpen, X } from 'lucide-react'
+import { FileClock, FilePlus2, FileText, FolderOpen, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import type { OfficeKind, OfficeRecent } from '@shared/officeui'
+import type { OfficeKind, OfficeRecent, OfficeRecoverable } from '@shared/officeui'
 import { ICONS } from './icons'
 import { env, fmt, L } from './i18n'
 
@@ -26,7 +26,11 @@ function formatWhen(timestamp: number): string {
 
 export function OfficeStart({ kind }: { kind: OfficeKind }) {
   const [recent, setRecent] = useState<OfficeRecent[] | null>(null)
-  const refresh = useCallback(() => void window.molinoOffice.recent().then(setRecent), [])
+  const [unsaved, setUnsaved] = useState<OfficeRecoverable[]>([])
+  const refresh = useCallback(() => {
+    void window.molinoOffice.recent().then(setRecent)
+    void window.molinoOffice.recoverable().then(setUnsaved)
+  }, [])
   useEffect(refresh, [refresh])
 
   return (
@@ -48,6 +52,29 @@ export function OfficeStart({ kind }: { kind: OfficeKind }) {
             {S.open}
           </button>
         </div>
+
+        {unsaved.length > 0 && (
+          <div className="notice office-recover" role="region" aria-label={S.recover.title}>
+            <FileClock size={16} />
+            <div className="grow">
+              <strong>{S.recover.title}</strong>
+              <p>{S.recover.text}</p>
+              {unsaved.map((doc) => (
+                <div key={doc.id} className="row">
+                  <span className="grow">
+                    {doc.name} <span className="hint">· {formatWhen(Date.parse(doc.time))}</span>
+                  </span>
+                  <button className="btn sm primary" onClick={() => void window.molinoOffice.recover(doc.id).then(refresh)}>
+                    {S.recover.open}
+                  </button>
+                  <button className="btn sm ghost" onClick={() => void window.molinoOffice.discardRecovery(doc.id).then(setUnsaved)}>
+                    {S.recover.discard}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="recent">
           <div className="recent-head">

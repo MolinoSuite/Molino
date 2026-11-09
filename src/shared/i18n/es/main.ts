@@ -112,6 +112,7 @@ export const main = {
     cancel: 'Cancelar',
     removeOpen: 'Cierra los documentos de Documentos, Hojas y Presentaciones antes de quitarlas.',
     filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' },
+    recoveredName: '{stem} (recuperado){suffix}',
     recentMissing: 'No se encuentra «{name}»: puede que se haya movido o borrado. Se quita de los recientes.',
     // En el menú Inicio y en «Aplicaciones predeterminadas» de Windows.
     descriptions: {
