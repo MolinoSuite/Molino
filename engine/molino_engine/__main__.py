@@ -215,6 +215,11 @@ def main(argv: list[str] | None = None) -> int:
     # volcar al log fragmentos del contenido de los documentos.
     pymupdf.TOOLS.mupdf_display_errors(False)
     pymupdf.TOOLS.mupdf_display_warnings(False)
+    # Antes de abrir ningun documento: un PDF con una trama pintada sin trazado
+    # cuelga a este MuPDF (ver paint_guard.py).
+    from . import paint_guard
+
+    paint_guard.install()
 
     engine = Engine(work_root, resources)
     server = Server(rfile, wfile, engine)

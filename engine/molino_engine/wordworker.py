@@ -61,6 +61,10 @@ def main(argv: list[str]) -> int:
         from pdf2docx import Converter
     except (Exception, SystemExit):  # noqa: BLE001
         return EXIT_UNAVAILABLE
+    # pdf2docx usa PyMuPDF: el mismo freno que en el motor (ver paint_guard.py).
+    from . import paint_guard
+
+    paint_guard.install()
     try:
         converter = Converter(source, password=password)
         try:
