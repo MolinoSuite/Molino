@@ -8,6 +8,7 @@ import { Bridge, isOpenable } from './ipc'
 import { initLang } from './i18n'
 import { initLog, log } from './log'
 import { legacyModelsDir, migrateFromFolio } from './migrate'
+import { OfficePiece } from './office'
 import { portableDataDir } from './portable'
 import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
@@ -165,11 +166,14 @@ void app.whenReady().then(async () => {
   )
   modelsRoot = aiModels.root
   await aiModels.load()
+  // El motor de oficina (Documentos, Hojas y Presentaciones), si se ha añadido.
+  const office = new OfficePiece(app.getPath('userData'), (progress) => bridge?.sendOfficeProgress(progress))
+  await office.load()
   engine = new EngineClient(engineLaunch)
   const printer = new PrintService(engine)
   serveApp(join(__dirname, '../renderer'), (url) => printer.respond(url), aptosFile)
   updates = new Updates((status) => bridge?.sendUpdate(status))
-  bridge = new Bridge(engine, store, printer, updates, aiModels)
+  bridge = new Bridge(engine, store, printer, updates, aiModels, office)
   // Cada vez que el motor arranca (o rearranca) recibe en memoria las fuentes
   // extra que haya en este equipo (Aptos); después la interfaz recarga la lista.
   engine.on('ready', () => void shareExtraFonts())

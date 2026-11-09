@@ -21,6 +21,7 @@ export const dialogs: typeof source = {
     tabs: {
       general: 'General',
       appearance: 'Appearance',
+      apps: 'Apps',
       documents: 'Documents',
       signature: 'Signature'
     },
@@ -94,6 +95,34 @@ export const dialogs: typeof source = {
       ready: 'The new version will be installed when you close Molino PDF.',
       available: 'A new version is available.',
       availableVersion: 'A new version is available: {version}.'
+    },
+    apps: {
+      title: 'Molino apps',
+      intro: 'Install only the ones you use. The ones you add work offline, like Molino PDF.',
+      pdf: 'Molino PDF',
+      pdfHint: 'View, fill in, sign and edit PDFs.',
+      office: 'Docs, Sheets and Slides',
+      officeHint: 'Documents, spreadsheets and presentations, with Word, Excel and PowerPoint or OpenDocument files. They download together: {size} ({unpacked} on disk).',
+      installed: 'Installed',
+      added: 'Added',
+      add: 'Add ({size})',
+      update: 'Update ({size})',
+      updateHint: 'There is a new version for this Molino.',
+      downloading: 'Downloading… {done} of {total}',
+      installing: 'Installing… {done} of {total} files',
+      cancel: 'Cancel',
+      remove: 'Remove',
+      removeConfirm: 'Docs, Sheets and Slides will be removed from this computer ({size}). Your documents are not touched and you can add them again whenever you like.',
+      noDisk: 'Not enough disk space: {size} needed.',
+      basedOn: 'They use the ONLYOFFICE engine (AGPL-3.0) with Molino’s changes.',
+      errors: {
+        disk: 'Not enough disk space.',
+        integrity: 'The download doesn’t match the original and has been deleted. Please try again.',
+        network: 'Couldn’t download. Check your connection and try again.',
+        cancelled: 'Cancelled.',
+        restart: 'The download had to start over. Please try again.',
+        install: 'Couldn’t install. Try again; if it keeps failing, restart your computer.'
+      }
     }
   },
   about: {

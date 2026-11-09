@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
 import type { EngineStatus, MolinoApi } from '@shared/api'
+import type { OfficeFailure, OfficeProgress } from '@shared/office'
 import { LOCALE_RE, type Lang } from '@shared/i18n'
 import type { ProgressInfo, UpdateStatus } from '@shared/types'
 
@@ -127,6 +128,15 @@ const api: MolinoApi = {
     onProgress: (listener) => subscribe<AiDownloadProgress | null>('ai:progress', listener),
     onChanged: (listener) => subscribe<void>('ai:changed', () => listener()),
     onError: (listener) => subscribe<AiDownloadError>('ai:error', listener)
+  },
+  office: {
+    status: () => ipcRenderer.invoke('office:status'),
+    install: () => ipcRenderer.invoke('office:install'),
+    cancel: () => ipcRenderer.invoke('office:cancel'),
+    remove: () => ipcRenderer.invoke('office:remove'),
+    onProgress: (listener) => subscribe<OfficeProgress | null>('office:progress', listener),
+    onChanged: (listener) => subscribe<void>('office:changed', () => listener()),
+    onError: (listener) => subscribe<OfficeFailure>('office:error', listener)
   },
   feedback: {
     available: () => ipcRenderer.invoke('feedback:available'),

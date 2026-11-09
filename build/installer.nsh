@@ -33,6 +33,9 @@
     ; Los modelos de IA descargados (pueden ser varios GB); los ajustes y el
     ; registro de Molino PDF se quedan, como hasta ahora.
     RMDir /r "$LOCALAPPDATA\Molino\models"
+    ; Y el motor de oficina de Documentos, Hojas y Presentaciones, si se anadio
+    ; (unos 430 MB; src/main/office.ts).
+    RMDir /r "$LOCALAPPDATA\Molino\office"
     DeleteRegValue SHELL_CONTEXT "Software\RegisteredApplications" "Molino PDF"
     DeleteRegKey SHELL_CONTEXT "Software\CuevasTech\Molino PDF"
     DeleteRegKey /ifempty SHELL_CONTEXT "Software\CuevasTech"

@@ -1,4 +1,4 @@
-import { FileText, KeyRound, Lock, Palette, Settings2, Signature, Sparkles } from 'lucide-react'
+import { FileText, KeyRound, LayoutGrid, Lock, Palette, Settings2, Signature, Sparkles } from 'lucide-react'
 import { type KeyboardEvent, type ReactNode, useState } from 'react'
 import type { LangSetting } from '@shared/i18n'
 import { type CloseMany, type DateStyle, DEFAULT_ACCENT, type SignLevel, type TimestampServer, type UpdateStatus } from '@shared/types'
@@ -12,6 +12,8 @@ import { chooseMolinoAsDefault, useDefaultApp } from '@/state/defaultApp'
 import { useUpdates } from '@/state/updates'
 import { takeSettingsTab } from '@/modes/ai'
 import { AiSettings } from '@/modes/ai/settings'
+import { useOffice } from '@/state/office'
+import { AppsSettings } from './AppsSettings'
 import { Checkbox, Dialog, Field, Logo, Segmented } from './ui'
 
 function Confirm({ dialog }: { dialog: ConfirmDialog }) {
@@ -165,10 +167,11 @@ function Unlock({ doc, retry }: { doc: string; retry?: () => void }) {
 // El rojo de Molino PDF primero; el añil es el de la marca Molino.
 const ACCENTS = [DEFAULT_ACCENT, '#4f5bd5', '#2f7fe8', '#0f9d8a', '#2e9e55', '#d9822b', '#b0479a', '#5b6472']
 
-type SettingsTab = 'general' | 'appearance' | 'documents' | 'signature' | 'ai'
+type SettingsTab = 'general' | 'apps' | 'appearance' | 'documents' | 'signature' | 'ai'
 
 const SETTINGS_TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
   { id: 'general', label: L.dialogs.settings.tabs.general, icon: <Settings2 size={16} /> },
+  { id: 'apps', label: L.dialogs.settings.tabs.apps, icon: <LayoutGrid size={16} /> },
   { id: 'appearance', label: L.dialogs.settings.tabs.appearance, icon: <Palette size={16} /> },
   { id: 'documents', label: L.dialogs.settings.tabs.documents, icon: <FileText size={16} /> },
   { id: 'signature', label: L.dialogs.settings.tabs.signature, icon: <Signature size={16} /> },
@@ -180,25 +183,29 @@ let lastSettingsTab: SettingsTab = 'general'
 
 function SettingsDialog() {
   const close = useApp((s) => s.closeDialog)
+  // «Aplicaciones», solo si esta versión ofrece añadir Documentos, Hojas y Presentaciones.
+  const appsOffered = useOffice((s) => s.status?.available ?? false)
+  const tabs = SETTINGS_TABS.filter((item) => item.id !== 'apps' || appsOffered)
   // El panel de la IA puede pedir que se abra directamente en su pestaña.
-  const [tab, setTab] = useState<SettingsTab>(() => (takeSettingsTab() as SettingsTab | null) ?? lastSettingsTab)
+  const [chosen, setTab] = useState<SettingsTab>(() => (takeSettingsTab() as SettingsTab | null) ?? lastSettingsTab)
+  const tab = tabs.some((item) => item.id === chosen) ? chosen : 'general'
   const choose = (next: SettingsTab): void => {
     lastSettingsTab = next
     setTab(next)
   }
   // Pestañas en vertical: flechas arriba y abajo, Inicio y Fin.
   const onTabKey = (event: KeyboardEvent<HTMLDivElement>): void => {
-    const index = SETTINGS_TABS.findIndex((item) => item.id === tab)
-    const last = SETTINGS_TABS.length - 1
+    const index = tabs.findIndex((item) => item.id === tab)
+    const last = tabs.length - 1
     const target =
-      event.key === 'ArrowDown' ? (index + 1) % SETTINGS_TABS.length
-      : event.key === 'ArrowUp' ? (index + last) % SETTINGS_TABS.length
+      event.key === 'ArrowDown' ? (index + 1) % tabs.length
+      : event.key === 'ArrowUp' ? (index + last) % tabs.length
       : event.key === 'Home' ? 0
       : event.key === 'End' ? last
       : -1
     if (target < 0) return
     event.preventDefault()
-    const next = SETTINGS_TABS[target].id
+    const next = tabs[target].id
     choose(next)
     event.currentTarget.querySelector<HTMLElement>(`#settings-tab-${next}`)?.focus()
   }
@@ -214,7 +221,7 @@ function SettingsDialog() {
       }
     >
       <div className="settings-tabs" role="tablist" aria-orientation="vertical" aria-label={L.dialogs.settings.sections} onKeyDown={onTabKey}>
-        {SETTINGS_TABS.map((item) => (
+        {tabs.map((item) => (
           <button
             key={item.id}
             id={`settings-tab-${item.id}`}
@@ -240,6 +247,7 @@ function SettingsDialog() {
             <UpdatesSettings />
           </>
         )}
+        {tab === 'apps' && <AppsSettings />}
         {tab === 'appearance' && <AppearanceSettings />}
         {tab === 'documents' && <DocumentSettings />}
         {tab === 'signature' && <SignatureSettings />}

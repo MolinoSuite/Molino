@@ -23,6 +23,7 @@ export const dialogs = {
     tabs: {
       general: 'General',
       appearance: 'Apariencia',
+      apps: 'Aplicaciones',
       documents: 'Documentos',
       signature: 'Firma'
     },
@@ -96,6 +97,34 @@ export const dialogs = {
       ready: 'La versión nueva se instalará al cerrar Molino PDF.',
       available: 'Hay una versión nueva.',
       availableVersion: 'Hay una versión nueva: {version}.'
+    },
+    apps: {
+      title: 'Aplicaciones de Molino',
+      intro: 'Instala solo las que uses. Las que añadas funcionan sin Internet, como Molino PDF.',
+      pdf: 'Molino PDF',
+      pdfHint: 'Ver, rellenar, firmar y editar PDF.',
+      office: 'Documentos, Hojas y Presentaciones',
+      officeHint: 'Textos, hojas de cálculo y presentaciones, con archivos de Word, Excel y PowerPoint u OpenDocument. Se descargan juntas: {size} ({unpacked} en el disco).',
+      installed: 'Instalada',
+      added: 'Añadidas',
+      add: 'Añadir ({size})',
+      update: 'Actualizar ({size})',
+      updateHint: 'Hay una versión nueva para este Molino.',
+      downloading: 'Descargando… {done} de {total}',
+      installing: 'Instalando… {done} de {total} archivos',
+      cancel: 'Cancelar',
+      remove: 'Quitar',
+      removeConfirm: 'Se quitarán Documentos, Hojas y Presentaciones de este equipo ({size}). Tus documentos no se tocan y puedes volver a añadirlas cuando quieras.',
+      noDisk: 'No hay espacio suficiente en el disco: hacen falta {size}.',
+      basedOn: 'Usan el motor de ONLYOFFICE (AGPL-3.0) con los cambios de Molino.',
+      errors: {
+        disk: 'No hay espacio suficiente en el disco.',
+        integrity: 'Lo descargado no coincide con el original y se ha borrado. Inténtalo de nuevo.',
+        network: 'No se pudo descargar. Comprueba la conexión e inténtalo de nuevo.',
+        cancelled: 'Cancelado.',
+        restart: 'La descarga tuvo que empezar de nuevo. Inténtalo otra vez.',
+        install: 'No se pudo instalar. Inténtalo de nuevo; si sigue fallando, reinicia el equipo.'
+      }
     }
   },
   about: {

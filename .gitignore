@@ -6,6 +6,7 @@ engine/.venv/
 out/
 dist/
 dist-engine/
+dist-office/
 build-engine/
 *.tsbuildinfo
 # Avisos de terceros: se generan al compilar (npm run notices)

@@ -7,6 +7,7 @@
  */
 
 import type { AiDownloadError, AiDownloadProgress, AiStatus } from './ai'
+import type { OfficeFailure, OfficeProgress, OfficeStatus } from './office'
 import type { Lang } from './i18n'
 import type {
   DocDescriptor,
@@ -240,6 +241,16 @@ export interface MolinoApi {
     onProgress(listener: (progress: AiDownloadProgress | null) => void): () => void
     onChanged(listener: () => void): () => void
     onError(listener: (reason: AiDownloadError) => void): () => void
+  }
+  /** Motor de oficina (la pieza de Documentos, Hojas y Presentaciones): añadirla, quitarla y su estado. */
+  office: {
+    status(): Promise<Envelope<OfficeStatus>>
+    install(): Promise<Envelope<boolean>>
+    cancel(): Promise<Envelope<boolean>>
+    remove(): Promise<Envelope<boolean>>
+    onProgress(listener: (progress: OfficeProgress | null) => void): () => void
+    onChanged(listener: () => void): () => void
+    onError(listener: (reason: OfficeFailure) => void): () => void
   }
   /** Comentarios al autor (fallos, mejoras…): por correo, a través de su servicio de comentarios. */
   feedback: {

@@ -15,13 +15,15 @@ Molino usa, con sus cambios:
    esa, no el JavaScript.
 5. Se añaden las licencias (office/licenses) y el aviso de modificación que piden
    los términos del §7 de la licencia de ONLYOFFICE.
-6. Todo se comprime en dist/office/MolinoOffice-<versión>.zip, con orden y fechas
+6. Todo se comprime en dist-office/MolinoOffice-<versión>.zip, con orden y fechas
    fijos, y se escribe al lado su ficha (tamaño y SHA-256) para el catálogo de
    Molino. Dos armados dan los mismos archivos salvo la versión precompilada
    regenerada (V8 no la genera igual dos veces), así que la huella del zip cambia:
-   la que vale es la del zip publicado.
+   la que vale es la del zip publicado. Por eso, si el zip de esta versión ya
+   existe, no se rehace (``--rehacer`` para hacerlo igualmente): su huella es la
+   que lleva Molino (src/main/office.ts).
 
-  engine\\.venv\\Scripts\\python.exe -I office\\build.py [--source <DesktopEditors_x64.zip>]
+  engine\\.venv\\Scripts\\python.exe -I office\\build.py [--source <DesktopEditors_x64.zip>] [--rehacer]
 """
 
 from __future__ import annotations
@@ -242,9 +244,12 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Arma el motor de oficina de Molino.")
     ap.add_argument("--source", type=Path, help="DesktopEditors_x64.zip ya descargada (se comprueba su huella)")
     ap.add_argument("--cache", type=Path, default=REPO / "build-cache" / "office")
+    ap.add_argument("--rehacer", action="store_true", help="rehacer el zip aunque ya exista (cambiará su huella)")
     a = ap.parse_args()
 
-    out_dir = REPO / "dist" / "office"
+    out_dir = REPO / "dist-office"
+    if (out_dir / f"{NAME}.zip").exists() and not a.rehacer:
+        sys.exit(f"{NAME}.zip ya existe y su huella es la que lleva Molino: no se rehace (--rehacer para hacerlo igualmente).")
     work = out_dir / NAME
     if work.exists():
         shutil.rmtree(work)

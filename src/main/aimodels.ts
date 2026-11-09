@@ -5,10 +5,11 @@ import { totalmem } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
-import { app, net, type Session, session } from 'electron'
+import { app, type Session } from 'electron'
 import { z } from 'zod'
-import type { AiDownloadError, AiDownloadProgress, AiStatus, AiTier } from '@shared/ai'
+import type { AiDownloadProgress, AiStatus, AiTier } from '@shared/ai'
 import { CATALOG, type AiComponent, type AiFile } from './aicatalog'
+import { DownloadError as AiError, downloadPinned, matchesPinned, restrictedSession, sha256Of } from './download'
 import { log } from './log'
 
 /**
@@ -34,7 +35,6 @@ import { log } from './log'
  * Folio solo se lee.
  */
 
-const MAX_REDIRECTS = 5
 // Sesión de red propia de las descargas de modelos (en memoria): la principal de
 // Molino PDF lo bloquea todo (security.ts). Esta solo deja pasar los servidores de
 // Hugging Face, también en cada redirección (defensa en profundidad).
@@ -42,17 +42,8 @@ const MODELS_PARTITION = 'molino-models'
 let modelsSession: Session | null = null
 
 function downloadSession(): Session {
-  if (modelsSession) return modelsSession
-  const own = session.fromPartition(MODELS_PARTITION)
-  own.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
-  own.setPermissionCheckHandler(() => false)
-  own.webRequest.onBeforeRequest((details, callback) => {
-    const allowed = isModelHost(details.url)
-    if (!allowed) log.warn('ia: se bloquea una petición fuera de Hugging Face')
-    callback({ cancel: !allowed })
-  })
-  modelsSession = own
-  return own
+  modelsSession ??= restrictedSession(MODELS_PARTITION, isModelHost, 'ia')
+  return modelsSession
 }
 const DISK_MARGIN = 512 * 1024 ** 2 // se deja libre al menos esto además de la descarga
 
@@ -279,7 +270,7 @@ export class AiModels {
         await mkdir(dir, { recursive: true })
         for (const file of component.files) {
           const target = join(dir, file.name)
-          if (await this.matches(target, file)) {
+          if (await matchesPinned(target, file)) {
             done += file.size
             continue
           }
@@ -423,17 +414,6 @@ export class AiModels {
     }
   }
 
-  /** ¿El archivo que hay ya es el bueno? (tamaño y huella). */
-  private async matches(path: string, file: AiFile): Promise<boolean> {
-    try {
-      const info = await stat(path)
-      if (!info.isFile() || info.size !== file.size) return false
-      return (await sha256Of(path)) === file.sha256
-    } catch {
-      return false
-    }
-  }
-
   /**
    * Descarga un archivo a «.partial», comprobando tamaño y huella mientras
    * llega, y solo entonces lo mueve a su sitio. Si se corta, la próxima vez
@@ -442,122 +422,18 @@ export class AiModels {
   private async download(file: AiFile, target: string, progress: (bytes: number) => void): Promise<void> {
     const partialDir = this.inside(join(this.root, '.partial'))
     await mkdir(partialDir, { recursive: true })
-    const part = join(partialDir, `${file.sha256}.part`)
-    let hash = createHash('sha256')
-    let have = 0
-    try {
-      const info = await stat(part)
-      if (info.isFile() && info.size < file.size) {
-        await new Promise<void>((done, fail) => {
-          createReadStream(part)
-            .on('data', (chunk) => hash.update(chunk))
-            .on('end', () => done())
-            .on('error', fail)
-        })
-        have = info.size
-      } else {
-        await rm(part, { force: true })
+    await downloadPinned(file, join(partialDir, `${file.sha256}.part`), target, {
+      session: downloadSession(),
+      allowed: isModelHost,
+      progress,
+      onAbort: (abort) => {
+        this.abort = abort
       }
-    } catch {
-      have = 0
-    }
-    let received: number
-    try {
-      received = await this.fetchInto(file.url, part, have, file.size, hash, progress)
-    } catch (error) {
-      if (!(error instanceof AiError && error.reason === 'restart')) throw error
-      // El servidor no reanudó: se empieza de cero, una sola vez y con la huella nueva.
-      hash = createHash('sha256')
-      received = await this.fetchInto(file.url, part, 0, file.size, hash, progress)
-    }
-    if (received !== file.size || hash.digest('hex') !== file.sha256) {
-      await rm(part, { force: true })
-      throw new AiError('integrity')
-    }
-    await rename(part, target)
-  }
-
-  private fetchInto(
-    url: string,
-    part: string,
-    offset: number,
-    size: number,
-    hash: ReturnType<typeof createHash>,
-    progress: (bytes: number) => void
-  ): Promise<number> {
-    return new Promise((done, fail) => {
-      let hops = 0
-      let finished = false
-      const finish = (error: Error | null, value = 0): void => {
-        if (finished) return
-        finished = true
-        this.abort = null
-        if (error) fail(error)
-        else done(value)
-      }
-      if (!isModelHost(url)) return finish(new AiError('network'))
-      const request = net.request({ url, session: downloadSession(), redirect: 'manual', useSessionCookies: false, credentials: 'omit' })
-      if (offset > 0) request.setHeader('Range', `bytes=${offset}-`)
-      this.abort = () => {
-        request.abort()
-        finish(new AiError('cancelled'))
-      }
-      request.on('redirect', (_status, _method, redirectUrl) => {
-        hops++
-        // Cada salto se comprueba: solo HTTPS y solo servidores de Hugging Face.
-        if (hops > MAX_REDIRECTS || !isModelHost(redirectUrl)) {
-          request.abort()
-          finish(new AiError('network'))
-          return
-        }
-        request.followRedirect()
-      })
-      request.on('response', (response) => {
-        const resumed = response.statusCode === 206
-        if (response.statusCode !== 200 && !resumed) {
-          response.on('data', () => undefined)
-          finish(new AiError('network'))
-          return
-        }
-        // Sin reanudación (200 en vez de 206) y con una parte ya bajada, la huella
-        // ya no sirve: se corta con 'restart' y quien llama empieza de cero.
-        let written = resumed ? offset : 0
-        if (!resumed && offset > 0) {
-          request.abort()
-          finish(new AiError('restart'))
-          return
-        }
-        const out = createWriteStream(part, { flags: resumed ? 'a' : 'w' })
-        response.on('data', (chunk: Buffer) => {
-          written += chunk.length
-          // Nunca más de lo anunciado en el catálogo (no llenar el disco).
-          if (written > size) {
-            request.abort()
-            out.destroy()
-            finish(new AiError('integrity'))
-            return
-          }
-          hash.update(chunk)
-          out.write(chunk)
-          progress(written)
-        })
-        response.on('end', () => out.end(() => finish(null, written)))
-        response.on('error', (error) => {
-          out.destroy()
-          finish(error)
-        })
-      })
-      request.on('error', (error) => finish(error))
-      request.end()
     })
   }
 }
 
-export class AiError extends Error {
-  constructor(readonly reason: AiDownloadError) {
-    super(reason)
-  }
-}
+export { AiError }
 
 function tierSize(tier: Exclude<AiTier, 'off'>): number {
   return CATALOG.tiers[tier].reduce((sum, id) => sum + CATALOG.components[id].files.reduce((s, f) => s + f.size, 0), 0)
@@ -577,14 +453,4 @@ async function checkFile(path: string, file: AiFile): Promise<'ok' | 'damaged' |
   } catch {
     return 'unknown'
   }
-}
-
-function sha256Of(path: string): Promise<string> {
-  return new Promise((done, fail) => {
-    const hash = createHash('sha256')
-    createReadStream(path)
-      .on('data', (chunk) => hash.update(chunk))
-      .on('end', () => done(hash.digest('hex')))
-      .on('error', fail)
-  })
 }

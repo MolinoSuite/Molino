@@ -17,6 +17,7 @@ import { useActiveDoc, useApp } from './state/app'
 import { useFileDrop, useGlobalShortcuts } from './state/shortcuts'
 import { followDefaultApp } from './state/defaultApp'
 import { followAi } from './state/ai'
+import { followOffice } from './state/office'
 import { followUpdates } from './state/updates'
 
 export function App() {
@@ -29,6 +30,7 @@ export function App() {
     void initApp()
     followUpdates()
     followAi()
+    followOffice()
     followDefaultApp()
   }, [])
 

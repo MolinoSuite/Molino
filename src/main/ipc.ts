@@ -7,10 +7,12 @@ import { z } from 'zod'
 import type { EngineStatus, ExportOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
 import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
 import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
+import type { OfficeProgress } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
 import { EngineClient, EngineError } from './engine'
 import { fmt, L } from './i18n'
 import { log } from './log'
+import { OfficeError, type OfficePiece } from './office'
 import type { PrintService } from './print'
 import { isTrustedSender } from './security'
 import type { Store } from './store'
@@ -152,7 +154,8 @@ export class Bridge {
     private readonly store: Store,
     private readonly printer: PrintService,
     private readonly updates: Updates,
-    private readonly ai: AiModels
+    private readonly ai: AiModels,
+    private readonly office: OfficePiece
   ) {
     this.register()
     engine.on('down', () => {
@@ -189,6 +192,11 @@ export class Bridge {
   /** Avance de la descarga de los modelos de IA (lo emite aimodels.ts). */
   sendAiProgress(progress: AiDownloadProgress | null): void {
     this.send('ai:progress', progress)
+  }
+
+  /** Avance de la descarga e instalación del motor de oficina (lo emite office.ts). */
+  sendOfficeProgress(progress: OfficeProgress | null): void {
+    this.send('office:progress', progress)
   }
 
   /** Lo que el motor dice de la IA al configurarla: gráfica en uso y si el procesador sirve. */
@@ -917,6 +925,27 @@ export class Bridge {
       // La interfaz pone después el nivel en «Desactivada» (y eso vuelve a configurar el motor).
       await this.ai.removeAll()
       await this.configureAi()
+      return true
+    })
+    // ---- motor de oficina (Documentos, Hojas y Presentaciones): añadirlo y quitarlo
+    this.handle('office:status', z.undefined(), () => this.office.status())
+    this.handle('office:install', z.undefined(), () => {
+      // Sigue en segundo plano; el avance llega por «office:progress» y el final
+      // por «office:changed» (y «office:error» si falla).
+      void this.office
+        .install()
+        .catch((error: unknown) => this.send('office:error', error instanceof OfficeError ? error.reason : 'network'))
+        .finally(() => this.send('office:changed'))
+      this.send('office:changed')
+      return true
+    })
+    this.handle('office:cancel', z.undefined(), () => {
+      this.office.cancel()
+      return true
+    })
+    this.handle('office:remove', z.undefined(), async () => {
+      await this.office.remove()
+      this.send('office:changed')
       return true
     })
     ipcMain.handle('recent:list', (event) =>
