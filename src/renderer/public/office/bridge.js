@@ -80,6 +80,54 @@
   }
   const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$/i
 
+  // -- el corrector ----------------------------------------------------------------
+  // El editor manda «clear» al empezar y espera «clear» de vuelta; después,
+  // tandas de palabras ({type: 'spell' | 'suggest', usrWords, usrLang…}) que el
+  // Worker devuelve corregidas. Las respuestas van a asc_nativeOnSpellCheck.
+  let speller = null
+  const answer = (data) => {
+    // Lo que ha dicho de cada palabra, a la vista de las pruebas (las últimas 500).
+    if (data && Array.isArray(data.usrWords) && Array.isArray(data.usrCorrect)) {
+      const seen = (w.molinoSpellSeen = w.molinoSpellSeen || new Map())
+      data.usrWords.forEach((word, i) => seen.set(String(word), data.usrCorrect[i] === true))
+      while (seen.size > 500) seen.delete(seen.keys().next().value)
+    }
+    if (typeof w.asc_nativeOnSpellCheck === 'function') w.asc_nativeOnSpellCheck(data)
+  }
+  const spellWorker = () => {
+    if (speller) return speller
+    const languages = {}
+    try {
+      const all = w.AscCommon.spellcheckGetLanguages()
+      for (const id of Object.keys(all)) if (all[id] && all[id].name) languages[id] = all[id].name
+    } catch {
+      return null
+    }
+    speller = new Worker('/sdkjs/common/spell/spell/spell.js')
+    speller.onmessage = (e) => answer(e.data)
+    speller.onerror = (e) => {
+      log('corrector:', (e && e.message) || 'error')
+      e.preventDefault && e.preventDefault()
+    }
+    speller.postMessage({ type: 'init', dictionaries_path: '/dictionaries', languages })
+    return speller
+  }
+  const spell = (json) => {
+    if (json === 'clear') {
+      setTimeout(() => answer('clear'), 0)
+      return
+    }
+    let message
+    try {
+      message = JSON.parse(String(json))
+    } catch {
+      return
+    }
+    // Las palabras que el usuario añade al diccionario: de momento, solo en esta sesión del corrector.
+    const worker = spellWorker()
+    if (worker && message && typeof message === 'object') worker.postMessage(message)
+  }
+
   // -- imágenes del documento -------------------------------------------------
   // El editor las pide a file:///doc/media/<nombre>; se sirven desde el motor.
   const MEDIA = 'file:///doc/media/'
@@ -258,8 +306,11 @@
       host.fullscreen(info.doc, !!on)
       if (molinoUi && typeof w.top.molinoFullscreen === 'function') w.top.molinoFullscreen(!!on)
     },
-    // Sin corrector por ahora (paso 7): el editor no subraya nada.
-    SpellCheck: () => {},
+    // El corrector: en la app de escritorio lo hace el nativo; aquí, el de los
+    // propios editores (hunspell en WebAssembly, en un Worker) con los
+    // diccionarios de la pieza. Las peticiones y las respuestas tienen la misma
+    // forma en los dos casos.
+    SpellCheck: (json) => spell(json),
     SetAdvancedOptions: () => {},
     SaveQuestion: () => {},
     LoadFontBase64: () => {},
