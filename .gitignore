@@ -37,3 +37,6 @@ test-output/
 Thumbs.db
 .vscode/
 .idea/
+
+# Cache del armado del motor de oficina (office/build.py)
+build-cache/
