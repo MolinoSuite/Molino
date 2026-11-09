@@ -4,7 +4,7 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { ChevronDown, FolderOpen, Minus, Plus, Search, X } from 'lucide-react'
+import { ChevronDown, FolderOpen, Minus, Plus, Printer, Search, X } from 'lucide-react'
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { OfficeTabs } from '@shared/officeui'
 import { Dialog } from '@/components/ui'
@@ -21,6 +21,12 @@ const SWATCHES = ['#000000', '#545b69', '#c4505a', '#e06a1a', '#d4a72c', '#2a935
 const T = L.office
 
 /** Quita acentos y pasa a minúsculas (para buscar órdenes). */
+/** Órdenes del buscador que no van al editor, sino a Molino (imprimir, guardar como). */
+const HOST_COMMANDS: Record<string, (doc: string) => void> = {
+  print: (doc) => void window.molinoOffice.print(doc),
+  saveAs: (doc) => void window.molinoOffice.saveAs(doc)
+}
+
 const plain = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
 export function OfficeApp() {
@@ -59,7 +65,14 @@ export function OfficeApp() {
   }
   const active = tabs?.active ? session(tabs.active) : null
   const state = useSessionState(active)
-  const run = useCallback((command: string, value?: string) => active?.run(command, value), [active])
+  const run = useCallback(
+    (command: string, value?: string) => {
+      const host = HOST_COMMANDS[command]
+      if (host) return tabs?.active ? (host(tabs.active), true) : false
+      return active?.run(command, value)
+    },
+    [active, tabs?.active]
+  )
 
   const step = useCallback(
     (delta: number) => {
@@ -74,6 +87,8 @@ export function OfficeApp() {
     (key: string) => {
       if (key === 'k') setPalette(Boolean(tabs?.tabs.length))
       else if (key === 's') run('save')
+      else if (key === 'saveAs' && tabs?.active) void window.molinoOffice.saveAs(tabs.active)
+      else if (key === 'p' && tabs?.active) void window.molinoOffice.print(tabs.active)
       else if (key === 'o') void window.molinoOffice.openDialog()
       else if (key === 'n') void window.molinoOffice.newDoc()
       else if (key === 'w' && tabs?.active) void window.molinoOffice.closeTab(tabs.active)
@@ -90,7 +105,16 @@ export function OfficeApp() {
     const onKey = (event: globalThis.KeyboardEvent): void => {
       const key = event.key.toLowerCase()
       if (!(event.ctrlKey || event.metaKey) || event.altKey) return
-      const mapped = ['k', 'o', 'n', 'w', 's'].includes(key) && !event.shiftKey ? key : key === 'tab' ? (event.shiftKey ? 'prevTab' : 'nextTab') : null
+      const mapped =
+        ['k', 'o', 'n', 'w', 's', 'p'].includes(key) && !event.shiftKey
+          ? key
+          : key === 's'
+            ? 'saveAs'
+            : key === 'tab'
+              ? event.shiftKey
+                ? 'prevTab'
+                : 'nextTab'
+              : null
       if (!mapped) return
       event.preventDefault()
       shortcut(mapped)
@@ -139,6 +163,15 @@ export function OfficeApp() {
         )}
         <div className="titlebar-fill" />
         <div className="office-actions" hidden={empty}>
+          <button
+            className="icon-btn sm"
+            aria-label={T.actions.printTip}
+            data-tip={T.actions.printTip}
+            disabled={!state?.ready}
+            onClick={() => tabs?.active && void window.molinoOffice.print(tabs.active)}
+          >
+            <Printer size={16} />
+          </button>
           {app.header.map((b, i) => (
             <button
               key={b.key}
@@ -269,11 +302,12 @@ function ToolView({ tool, state, ready, run }: { tool: Tool; state: EditorState 
     }
   }, [open])
   if (tool.type === 'font') {
-    const fonts = state?.font && !FONTS.includes(state.font) ? [state.font, ...FONTS] : FONTS
+    const known = state?.fonts.length ? state.fonts : FONTS
+    const fonts = state?.font && !known.includes(state.font) ? [state.font, ...known] : known
     return (
       <select className="office-select wide" aria-label={T.tools.font} disabled={!ready} value={state?.font ?? ''} onChange={(e) => run('font', e.target.value)}>
         {fonts.map((f) => (
-          <option key={f} value={f}>
+          <option key={f} value={f} style={{ fontFamily: `"${f}", var(--font-ui)` }}>
             {f}
           </option>
         ))}

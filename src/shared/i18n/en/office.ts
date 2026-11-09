@@ -14,7 +14,7 @@ export const office: typeof es = {
     placeholder: 'Type what you want to do…',
     empty: 'No command has that name.'
   },
-  actions: { save: 'Save', savePdf: 'Save as PDF', present: 'Present' },
+  actions: { save: 'Save', savePdf: 'Save as PDF', present: 'Present', printTip: 'Print (Ctrl+P)' },
   start: {
     subtitle: {
       word: 'Write documents and open Word and OpenDocument files.',
@@ -113,6 +113,8 @@ export const office: typeof es = {
     zoomOut: 'Zoom out',
     save: 'Save',
     savePdf: 'Save as PDF',
+    saveAs: 'Save as… (Ctrl+Shift+S)',
+    print: 'Print (Ctrl+P)',
     table2: '2 × 2 table',
     table3: '3 × 3 table',
     table4: '4 × 4 table'
@@ -133,6 +135,8 @@ export const office: typeof es = {
     zoomOut: 'zoom smaller',
     save: 'save store',
     savePdf: 'pdf export send print',
+    saveAs: 'save as copy another name folder format',
+    print: 'print printer paper',
     bullets: 'list bullets dots',
     numbers: 'list numbers numbering',
     clearFormat: 'clear remove formatting',

@@ -13,7 +13,7 @@ export const office = {
     placeholder: 'Escribe lo que quieres hacer…',
     empty: 'No hay ninguna orden con ese nombre.'
   },
-  actions: { save: 'Guardar', savePdf: 'Guardar como PDF', present: 'Presentar' },
+  actions: { save: 'Guardar', savePdf: 'Guardar como PDF', present: 'Presentar', printTip: 'Imprimir (Ctrl+P)' },
   loading: 'Abriendo…',
   start: {
     subtitle: {
@@ -112,6 +112,8 @@ export const office = {
     zoomOut: 'Reducir',
     save: 'Guardar',
     savePdf: 'Guardar como PDF',
+    saveAs: 'Guardar como… (Ctrl+Mayús+S)',
+    print: 'Imprimir (Ctrl+P)',
     table2: 'Tabla de 2 × 2',
     table3: 'Tabla de 3 × 3',
     table4: 'Tabla de 4 × 4'
@@ -133,6 +135,8 @@ export const office = {
     zoomOut: 'zoom alejar',
     save: 'guardar grabar salvar',
     savePdf: 'pdf exportar enviar imprimir',
+    saveAs: 'guardar como copia otro nombre carpeta formato',
+    print: 'imprimir impresora papel',
     bullets: 'lista puntos vinetas',
     numbers: 'lista numeros enumerar',
     clearFormat: 'limpiar quitar formato',

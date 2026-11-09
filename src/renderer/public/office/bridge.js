@@ -58,7 +58,17 @@
       (e) => {
         const key = e.key.toLowerCase()
         const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey
-        const shortcut = ctrl && (['k', 'o', 'n', 'w'].includes(key) && !e.shiftKey ? key : key === 'tab' ? (e.shiftKey ? 'prevTab' : 'nextTab') : null)
+        const shortcut =
+          ctrl &&
+          (['k', 'o', 'n', 'w', 'p'].includes(key) && !e.shiftKey
+            ? key
+            : key === 's' && e.shiftKey
+              ? 'saveAs'
+              : key === 'tab'
+                ? e.shiftKey
+                  ? 'prevTab'
+                  : 'nextTab'
+                : null)
         if (shortcut && typeof w.top.molinoShortcut === 'function') {
           e.preventDefault()
           e.stopImmediatePropagation()

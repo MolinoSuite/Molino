@@ -147,6 +147,8 @@ export class Bridge {
   private allowClose = false
   private rendererReady = false
   private waitingFiles: string[] = []
+  /** PDF de Documentos, Hojas o Presentaciones que esperan a la interfaz para imprimirse. */
+  private waitingPrints: string[] = []
   /** Si ya se ha dibujado alguna página (se anota una vez en el registro, para las comprobaciones). */
   private firstRender = false
 
@@ -359,6 +361,25 @@ export class Bridge {
       }
     }
     return outcomes
+  }
+
+  /**
+   * Imprimir un documento de Documentos, Hojas o Presentaciones: su PDF
+   * (temporal, officewin.ts) se abre aquí sin ruta propia ni reciente, y la
+   * interfaz saca el cuadro de imprimir de Molino PDF.
+   */
+  async printFile(path: string): Promise<void> {
+    if (!this.rendererReady) {
+      this.waitingPrints.push(path)
+      return
+    }
+    try {
+      const { result } = await this.engine.request<DocDescriptor>('doc.open', { path }, { priority: 9 })
+      this.docs.set(result.doc, { path: null })
+      this.send('files:opened', [{ ok: true, doc: result, print: true }])
+    } catch (error) {
+      this.send('files:opened', [{ ok: false, name: basename(path), error: toInfo(error) }])
+    }
   }
 
   /** Archivos abiertos desde fuera de la interfaz (doble clic, «Abrir con», segunda instancia). */
@@ -1012,6 +1033,7 @@ export class Bridge {
       log.info('interfaz lista')
       const files = this.waitingFiles.splice(0)
       if (files.length > 0) void this.openFromSystem(files)
+      for (const path of this.waitingPrints.splice(0)) void this.printFile(path)
     })
 
     ipcMain.on('window:closeNow', (event) => {

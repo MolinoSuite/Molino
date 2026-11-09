@@ -38,7 +38,12 @@ export interface CallOptions {
 }
 
 export type OpenOutcome =
-  | { ok: true; doc: DocDescriptor }
+  | {
+      ok: true
+      doc: DocDescriptor
+      /** Abierto para imprimir (un documento de Documentos, Hojas o Presentaciones): sale el cuadro de imprimir. */
+      print?: boolean
+    }
   | {
       ok: false
       name: string

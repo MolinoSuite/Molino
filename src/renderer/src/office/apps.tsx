@@ -136,6 +136,8 @@ const M = L.office.modes
 const G = L.office.groups
 const COMMON_EXTRA: PaletteEntry[] = [
   { label: T.save, group: G.file, keywords: L.office.keywords.save, command: 'save' },
+  { label: T.saveAs, group: G.file, keywords: L.office.keywords.saveAs, command: 'saveAs' },
+  { label: T.print, group: G.file, keywords: L.office.keywords.print, command: 'print' },
   { label: T.savePdf, group: G.file, keywords: L.office.keywords.savePdf, command: 'savePdf' },
   { label: T.zoomIn, group: G.view, keywords: L.office.keywords.zoomIn, command: 'zoomIn' },
   { label: T.zoomOut, group: G.view, keywords: L.office.keywords.zoomOut, command: 'zoomOut' }

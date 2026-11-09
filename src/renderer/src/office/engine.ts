@@ -27,6 +27,8 @@ export interface EditorState {
   align: Align
   style: string
   font: string
+  /** Las fuentes que tiene el editor: las del equipo y las de la pieza. */
+  fonts: string[]
   size: number
   color: string
   fill: string | null
@@ -62,6 +64,7 @@ function initialState(): EditorState {
     align: 'left',
     style: 'Normal',
     font: '',
+    fonts: [],
     size: 11,
     color: '#000000',
     fill: null,
@@ -376,6 +379,23 @@ export class EditorSession {
       s.modified = !!(api.isDocumentModified ? api.isDocumentModified() : api.asc_isDocumentModified && api.asc_isDocumentModified())
     }
     on('asc_onDocumentModifiedChanged', modified)
+    const fontNames = (names: unknown[]): string[] =>
+      [...new Set(names.filter((n): n is string => typeof n === 'string' && n.length > 0 && n.length < 200))].sort((a, b) => a.localeCompare(b))
+    on('asc_onInitEditorFonts', (fonts: Api[]) => {
+      s.fonts = fontNames((fonts || []).map((f) => f && f.asc_getFontName && f.asc_getFontName()))
+    })
+    // La lista ya llegó al cargar (antes de que la sesión escuchara): la guarda la
+    // interfaz del editor, que está oculta pero cargada.
+    const readFonts = (): void => {
+      if (s.fonts.length) return
+      try {
+        const editorApp = this.ew.DE || this.ew.SSE || this.ew.PE
+        const names = editorApp && editorApp.getCollection('Common.Collections.Fonts').pluck('name')
+        if (Array.isArray(names)) s.fonts = fontNames(names)
+      } catch {
+        /* sin lista: la interfaz usa la suya */
+      }
+    }
 
     if (this.kind === 'word' || this.kind === 'slide') {
       on('asc_onBold', (v) => (s.bold = !!v))
@@ -462,6 +482,7 @@ export class EditorSession {
       if (s.ready) return
       s.ready = true
       modified()
+      readFonts()
       if (this.kind === 'cell') {
         readSheets()
         readCell(api.asc_getCellInfo())

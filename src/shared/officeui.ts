@@ -32,6 +32,10 @@ export interface OfficeUiApi {
   activate(doc: string): Promise<boolean>
   closeTab(doc: string): Promise<boolean>
   openDialog(): Promise<boolean>
+  /** «Guardar como»: pregunta dónde y con qué nombre. */
+  saveAs(doc: string): Promise<boolean>
+  /** Imprimir, con el cuadro de imprimir de Molino PDF. */
+  print(doc: string): Promise<boolean>
   newDoc(): Promise<boolean>
   onTabs(listener: (tabs: OfficeTabs) => void): () => void
   recent(): Promise<OfficeRecent[]>

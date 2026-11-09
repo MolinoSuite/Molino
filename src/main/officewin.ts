@@ -1,4 +1,5 @@
-import { existsSync } from 'node:fs'
+import { randomBytes } from 'node:crypto'
+import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, session as sessions, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
@@ -58,6 +59,10 @@ const PDF_FORMAT = 513
 const IMAGE_SUFFIXES = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
 const MAX_IMAGE = 50 * 1024 * 1024
 const DOC_ID = /^o[0-9a-f]{16}$/
+/** PDF temporales para imprimir (se borran al arrancar). */
+const PRINT_DIR = join(app.getPath('temp'), 'Molino-imprimir')
+/** Lo que Molino pide al editor vale este tiempo (si no llega a guardar, no se queda colgado para la próxima vez). */
+const INTENT_MS = 60_000
 const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$/i
 
 /** Los editores de ONLYOFFICE: scripts en línea, eval y WebAssembly. */
@@ -137,6 +142,8 @@ interface OpenDoc {
   modified: boolean
   /** Guardado pedido al cerrar: se resuelve con el código del editor (0 = bien). */
   pendingSave: ((code: number) => void) | null
+  /** Lo que Molino pidió al editor que guardara: «Guardar como» o imprimir. */
+  intent: { kind: 'saveAs' | 'print'; at: number } | null
 }
 
 interface AppWindow {
@@ -166,6 +173,8 @@ export interface OfficeOptions {
   rendererDir: string
   /** ¿Tema oscuro? (el de Ajustes de Molino). */
   dark: () => boolean
+  /** Imprimir: abre ese PDF (temporal) en Molino PDF con su cuadro de imprimir (index.ts). */
+  print(path: string): void
   /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
   recents: {
     list(): { id: string; path: string; openedAt: number }[]
@@ -186,6 +195,7 @@ export class OfficeWindows {
   private readonly piece: OfficePiece
 
   constructor(private readonly options: OfficeOptions) {
+    rmSync(PRINT_DIR, { recursive: true, force: true, maxRetries: 2 })
     this.engine = options.engine
     this.piece = options.piece
     this.firstConfigured = new Promise((done) => {
@@ -331,7 +341,8 @@ export class OfficeWindows {
         canvas: binary.toString('base64'),
         canvasLength: binary.length,
         modified: false,
-        pendingSave: null
+        pendingSave: null,
+        intent: null
       }
       win.docs.set(open.doc, open)
       win.order.push(open.doc)
@@ -482,6 +493,40 @@ export class OfficeWindows {
     if (!win.window.isDestroyed()) win.window.close()
   }
 
+  /** El marco del editor de una pestaña: su padre es el frame.html con su documento. */
+  private editorFrame(win: AppWindow, open: OpenDoc): Electron.WebFrameMain | undefined {
+    return win.window.webContents.mainFrame.framesInSubtree.find(
+      (f) => f.url.includes('/main/index.html') && f.parent !== null && f.parent.url.includes(`doc=${open.doc}`)
+    )
+  }
+
+  /**
+   * «Guardar como» e imprimir: Molino pide al editor que se descargue (como
+   * en su menú; así manda antes los cambios que le queden) y, cuando llega a
+   * guardar (save), sabe para qué era: preguntar dónde o imprimirlo.
+   */
+  private async requestDownload(win: AppWindow, open: OpenDoc, kind: 'saveAs' | 'print'): Promise<boolean> {
+    const frame = this.editorFrame(win, open)
+    if (!frame) return false
+    open.intent = { kind, at: Date.now() }
+    const ext = (extname(open.name).slice(1) || DEFAULT_SUFFIX[open.kind].slice(1)).toLowerCase()
+    const fallback = { word: 'DOCX', cell: 'XLSX', slide: 'PPTX' }[open.kind]
+    const format =
+      kind === 'print'
+        ? 'T.PDF'
+        : `({ docx: T.DOCX, odt: T.ODT, rtf: T.RTF, xlsx: T.XLSX, ods: T.ODS, pptx: T.PPTX, odp: T.ODP })[${JSON.stringify(/^[a-z]{3,4}$/.test(ext) ? ext : '')}] || T.${fallback}`
+    try {
+      return Boolean(
+        await frame.executeJavaScript(
+          `(function () { var e = window.molinoEditor && window.molinoEditor(); if (!e) return false; var T = window.Asc.c_oAscFileType; e.asc_DownloadAs(new window.Asc.asc_CDownloadOptions(${format})); return true })()`
+        )
+      )
+    } catch {
+      open.intent = null
+      return false
+    }
+  }
+
   /** Guarda como si el usuario pulsara Guardar: así el editor manda antes los cambios que le queden. */
   private saveFromEditor(win: AppWindow, open: OpenDoc): Promise<number> {
     return new Promise((done) => {
@@ -492,10 +537,7 @@ export class OfficeWindows {
         done(code)
       }
       open.pendingSave = finish
-      // El marco del editor de esa pestaña: su padre es el frame.html con su documento.
-      const frame = win.window.webContents.mainFrame.framesInSubtree.find(
-        (f) => f.url.includes('/main/index.html') && f.parent !== null && f.parent.url.includes(`doc=${open.doc}`)
-      )
+      const frame = this.editorFrame(win, open)
       if (!frame) return finish(2)
       frame.executeJavaScript('window.molinoEditor && window.molinoEditor() && window.molinoEditor().asc_Save(false)').catch(() => finish(2))
     })
@@ -555,6 +597,16 @@ export class OfficeWindows {
       })
       for (const file of picked.canceled ? [] : picked.filePaths.slice(0, 20)) await this.open(file)
       return true
+    })
+    ipcMain.handle('office:saveAs', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
+      return win && open ? this.requestDownload(win, open, 'saveAs') : false
+    })
+    ipcMain.handle('office:print', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
+      return win && open ? this.requestDownload(win, open, 'print') : false
     })
     ipcMain.handle('office:new', async (event) => {
       const win = this.uiSender(event)
@@ -657,14 +709,23 @@ export class OfficeWindows {
 
   // ================================================================ guardar
 
-  private async save(win: AppWindow, open: OpenDoc, saveAs: boolean, format: number, rawOptions: unknown): Promise<number> {
+  private async save(win: AppWindow, open: OpenDoc, askedSaveAs: boolean, format: number, rawOptions: unknown): Promise<number> {
+    const intent = open.intent && Date.now() - open.intent.at < INTENT_MS ? open.intent.kind : null
+    open.intent = null
     const pdf = format === PDF_FORMAT
+    const saveAs = askedSaveAs || intent === 'saveAs'
+    const printing = intent === 'print' && pdf
     const current = open.path ? extname(open.path).toLowerCase() : ''
     const keeps = Object.values(SAVE_FORMATS[open.kind]).includes(current)
     const suffix = pdf ? '.pdf' : (SAVE_FORMATS[open.kind][format] ?? (keeps ? current : DEFAULT_SUFFIX[open.kind]))
     let dest = open.path
-    // Guardar como, PDF, un documento nuevo o uno de un formato que no se escribe (.doc): se pregunta dónde.
-    if (saveAs || pdf || !dest || suffix !== current) {
+    if (printing) {
+      // Para imprimir: un PDF temporal, sin preguntar.
+      const folder = join(PRINT_DIR, randomBytes(6).toString('hex'))
+      mkdirSync(folder, { recursive: true })
+      dest = join(folder, `${parse(open.name).name}.pdf`)
+    } else if (saveAs || pdf || !dest || suffix !== current) {
+      // Guardar como, PDF, un documento nuevo o uno de un formato que no se escribe (.doc): se pregunta dónde.
       const T = L.main.office.filters
       const folder = open.path ? dirname(open.path) : app.getPath('documents')
       const picked = await dialog.showSaveDialog(win.window, {
@@ -694,6 +755,10 @@ export class OfficeWindows {
         detail: error instanceof EngineError ? error.message : undefined
       })
       return 2
+    }
+    if (printing) {
+      this.options.print(dest)
+      return 0
     }
     if (!pdf) {
       if (dest !== open.path) this.options.recents.add(dest)

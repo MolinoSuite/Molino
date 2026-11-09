@@ -275,7 +275,12 @@ void app.whenReady().then(async () => {
     piece: office,
     rendererDir: join(__dirname, '../renderer'),
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
-    recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) }
+    recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
+    // Imprimir un documento de oficina: con el cuadro de imprimir de Molino PDF.
+    print: (path) => {
+      showPdfWindow()
+      void bridge?.printFile(path)
+    }
   })
   officeWindows = editors
   bridge.officeBusy = () => editors.busy

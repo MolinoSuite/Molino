@@ -1,4 +1,5 @@
 import type { OpenOutcome } from '@shared/api'
+import { printDoc } from './print'
 import type { DocDescriptor, FontFamily, MutationResult } from '@shared/types'
 import { L, fmt } from '@/i18n'
 import { loadExtraFontFaces } from '@/lib/fonts'
@@ -89,6 +90,8 @@ export function handleOutcomes(outcomes: OpenOutcome[]): void {
     if (outcome.ok) {
       if (getDoc(outcome.doc.doc)) app().setActive(outcome.doc.doc)
       else app().addDoc(outcome.doc)
+      // Un documento de Documentos, Hojas o Presentaciones que se quiere imprimir.
+      if (outcome.print) printDoc(outcome.doc.doc)
     } else if (outcome.token) {
       locked ??= outcome
     } else {
