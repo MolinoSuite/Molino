@@ -6,7 +6,8 @@ import { join, resolve, sep } from 'node:path'
  * El índice de fuentes de los editores (AllFonts.js y font_selection.bin).
  *
  * Lo crea x2t dentro del motor aislado (``office.fonts``) con las fuentes de
- * Windows, las instaladas solo para el usuario y las que descarga Office. Se
+ * Windows, las instaladas solo para el usuario, las que descarga Office y las
+ * instaladas solo en Molino (``office\own-fonts``, ``ownFontsDir``). Se
  * guarda en ``office\fonts\<huella>``: la huella sale de la versión de la pieza
  * y de las fuentes del equipo (nombre, tamaño y fecha de cada archivo), así que
  * al instalar o quitar una fuente se crea uno nuevo.
@@ -16,14 +17,20 @@ import { join, resolve, sep } from 'node:path'
  * (``cleanFontIndex``): lo que llega del motor aislado no se da por bueno.
  */
 
-/** Carpetas de fuentes del equipo que van en el índice. */
-export function fontFolders(): string[] {
+/** Las fuentes instaladas solo en Molino (fontcatalog.ts): las lee x2t y solo las ven los editores. */
+export function ownFontsDir(officeRoot: string): string {
+  return join(officeRoot, 'own-fonts')
+}
+
+/** Carpetas de fuentes que van en el índice: las del equipo y, si se da, las instaladas solo en Molino. */
+export function fontFolders(ownFonts?: string): string[] {
   const windows = process.env.WINDIR ?? process.env.SystemRoot ?? 'C:\\Windows'
   const folders = [join(windows, 'Fonts')]
   const local = process.env.LOCALAPPDATA
   if (local) {
     folders.push(join(local, 'Microsoft', 'Windows', 'Fonts'), join(local, 'Microsoft', 'FontCache', '4', 'CloudFonts'))
   }
+  if (ownFonts) folders.push(ownFonts)
   return folders
 }
 
@@ -52,10 +59,10 @@ async function listing(folder: string, depth = 0): Promise<string[]> {
   return out
 }
 
-/** Huella de las fuentes del equipo y de la pieza (16 cifras hexadecimales). */
-export async function fontFingerprint(pieceVersion: string): Promise<string> {
+/** Huella de las fuentes del equipo, de las de Molino y de la pieza (16 cifras hexadecimales). */
+export async function fontFingerprint(pieceVersion: string, ownFonts?: string): Promise<string> {
   const hash = createHash('sha256').update(`pieza:${pieceVersion}\n`)
-  for (const folder of fontFolders()) {
+  for (const folder of fontFolders(ownFonts)) {
     const lines = (await listing(folder)).sort()
     hash.update(`${folder.toLowerCase()}\n${lines.join('\n')}\n`)
   }

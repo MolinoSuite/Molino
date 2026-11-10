@@ -422,6 +422,12 @@ body,
   color: var(--text-3);
   font-size: 12px;
 }
+.office-about .row {
+  margin: 0 0 12px;
+}
+.office-about .row.wrap {
+  flex-wrap: wrap;
+}
 
 /* Presentar: solo la diapositiva, a pantalla completa. Lo oculto no ocupa
    celda, así que cada cuadrícula se queda con una sola fila. */
@@ -563,6 +569,9 @@ body,
 .office-fonts p {
   margin: 0 0 10px;
   line-height: 1.5;
+}
+.office-fonts .field {
+  margin-bottom: 12px;
 }
 .office-fonts-list {
   display: grid;

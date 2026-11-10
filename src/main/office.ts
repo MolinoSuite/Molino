@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { mkdir, readdir, readFile, rename, rm, statfs, writeFile } from 'node:fs/promises'
 import { dirname, join, relative, resolve, sep } from 'node:path'
-import { app, type Session } from 'electron'
+import { app, type Session, shell } from 'electron'
 import { z } from 'zod'
-import type { OfficeFailure, OfficeProgress, OfficeStatus } from '@shared/office'
+import type { OfficeFailure, OfficeLegal, OfficeProgress, OfficeStatus } from '@shared/office'
 import { DownloadError, downloadPinned, matchesPinned, type PinnedFile, restrictedSession } from './download'
 import { log } from './log'
 import { unzip, UnzipError } from './unzip'
@@ -24,6 +24,10 @@ import { unzip, UnzipError } from './unzip'
  *   (build/installer.nsh);
  * - el zip descargado se guarda hasta acabar de instalar: si se cierra Molino a
  *   medias, la próxima vez no se vuelve a descargar.
+ *
+ * Una pieza nueva se instala sola (``autoUpdate``): si Molino se actualiza y
+ * trae otra, quien ya tenía las apps la recibe en segundo plano, con las mismas
+ * comprobaciones, sin volver a pedirlo; la anterior se borra al acabar.
  */
 
 export interface PieceFile extends PinnedFile {
@@ -54,6 +58,38 @@ export const OFFICE_PIECE: PieceFile = {
  * solo se ofrece sin empaquetar (desarrollo y pruebas).
  */
 const OFFERED_WHEN_PACKAGED = false
+
+/** Cómo se arma la pieza y los cambios de Molino (office/build.py y office/patches.py): el código que pide la AGPL. */
+export const OFFICE_SOURCE_URL = 'https://github.com/MolinoSuite/Molino/tree/main/office'
+
+/**
+ * Abre un aviso legal de la pieza instalada en ``pieceDir`` (paso 8 de
+ * PLAN-SUITE): el de los cambios de Molino (en el idioma de Molino), la
+ * licencia de ONLYOFFICE, la carpeta con los componentes de terceros o, en el
+ * navegador, el código. Las rutas y direcciones son fijas: de la interfaz solo
+ * llega cuál.
+ */
+export async function openOfficeLegal(pieceDir: string, what: OfficeLegal, language: string): Promise<boolean> {
+  if (what === 'source') {
+    await shell.openExternal(OFFICE_SOURCE_URL)
+    return true
+  }
+  if (what === 'original') {
+    const manifest = JSON.parse(await readFile(join(pieceDir, 'manifest.json'), 'utf8')) as { onlyoffice?: unknown }
+    const version = typeof manifest.onlyoffice === 'string' && /^\d{1,3}(\.\d{1,4}){1,3}$/.test(manifest.onlyoffice) ? manifest.onlyoffice : null
+    if (!version) return false
+    await shell.openExternal(`https://github.com/ONLYOFFICE/DesktopEditors/tree/v${version}`)
+    return true
+  }
+  const target =
+    what === 'notice'
+      ? join(pieceDir, `MOLINO-NOTICE.${language === 'es' ? 'es' : 'en'}.txt`)
+      : what === 'license'
+        ? join(pieceDir, 'licenses', 'ONLYOFFICE-LICENSE.txt')
+        : join(pieceDir, 'licenses')
+  if (!existsSync(target)) return false
+  return (await shell.openPath(target)) === ''
+}
 
 /** Ruta de las descargas de las versiones de Molino en GitHub (y nada más de github.com). */
 const RELEASES_PATH = '/MolinoSuite/Molino/releases/download/'
@@ -188,6 +224,29 @@ export class OfficePiece {
     return OFFERED_WHEN_PACKAGED || !app.isPackaged
   }
 
+  /** La pieza instalada es de una versión anterior de Molino: hay que poner la de esta (se hace sola). */
+  get outdated(): boolean {
+    return this.offered && this.installed !== null && this.installed !== PIECE.version
+  }
+
+  /**
+   * Si la pieza instalada es de una versión anterior de Molino, descarga e
+   * instala en segundo plano la de esta (paso 8 de PLAN-SUITE: «una pieza nueva
+   * se instala sola, como los modelos de IA»). Quien añadió las apps ya dijo
+   * que las quería. Si falla (sin red), se vuelve a intentar al abrir un
+   * documento o al arrancar otra vez; mientras, Ajustes ofrece «Actualizar».
+   */
+  autoUpdate(): void {
+    if (!this.outdated || this.running) return
+    log.info(`oficina: poniendo al día la pieza (${this.installed} → ${PIECE.version})`)
+    const running = this.install()
+    this.onUpdate()
+    void running.catch(() => undefined).finally(() => this.onUpdate())
+  }
+
+  /** Se llama al empezar y al acabar una puesta al día sola (para que Ajustes vuelva a mirar el estado). */
+  onUpdate: () => void = () => undefined
+
   /** Carpeta de la pieza instalada, si es la de esta versión y está entera. */
   async ready(): Promise<string | null> {
     if (this.installed !== PIECE.version) return null
@@ -310,8 +369,9 @@ export class OfficePiece {
   /** Quita lo que no sea la versión instalada (versiones anteriores, carpetas sueltas). */
   private async tidy(): Promise<void> {
     for (const name of await readdir(this.root).catch(() => [] as string[])) {
-      // fonts: el índice de fuentes de los editores (officefonts.ts), que se rehace solo.
-      if (name === 'installed.json' || name === '.partial' || name === 'fonts' || name === this.installed) continue
+      // fonts: el índice de fuentes de los editores (officefonts.ts), que se rehace
+      // solo; own-fonts: las instaladas solo en Molino (fontcatalog.ts).
+      if (['installed.json', '.partial', 'fonts', 'own-fonts', this.installed].includes(name)) continue
       await rm(this.inside(name), { recursive: true, force: true }).catch(() => log.warn('oficina: no se pudo borrar una versión anterior'))
     }
   }

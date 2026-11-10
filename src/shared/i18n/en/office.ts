@@ -35,6 +35,8 @@ export const office: typeof es = {
     removeTip: 'Remove from the list (the file isn’t deleted)'
   },
   loading: 'Opening…',
+  updatingDownload: 'Updating Docs, Sheets and Slides (this happens on its own)… {percent}%',
+  updatingInstall: 'Installing the new version of Docs, Sheets and Slides… {percent}%',
   status: {
     saved: 'Saved',
     unsaved: 'Not saved',
@@ -52,6 +54,12 @@ export const office: typeof es = {
     based: 'Based on ONLYOFFICE software developed by Ascensio System SIA. © 2009-2026 Ascensio System SIA.',
     modified: 'Modified by Molino: its own interface, a bridge to the desktop app, a sandboxed converter and changes in Sheets (fit to page and page order when printing).',
     trademark: 'ONLYOFFICE is a trademark of Ascensio System SIA. Molino is not affiliated with or endorsed by Ascensio System SIA.',
+    version: 'Office engine {version}, in Molino {molino}. It updates on its own when Molino brings a new one.',
+    notice: 'Molino’s changes',
+    license: 'ONLYOFFICE license',
+    thirdParty: 'Third-party components',
+    source: 'Engine source code',
+    original: 'ONLYOFFICE source code',
     close: 'Close'
   },
   modes: {
@@ -241,7 +249,12 @@ export const office: typeof es = {
     notNow: 'Not now',
     title: 'Missing fonts',
     intro: 'Free fonts are downloaded from the Google Fonts catalog that comes with Molino and installed just for you, without administrator rights. The document is then reopened with them.',
-    cantInstall: 'This version of Molino doesn’t install fonts: you can install them yourself from Windows.',
+    introMolino: 'Free fonts are downloaded from the Google Fonts catalog that comes with Molino and installed only in Molino: Docs, Sheets and Slides use them, and Windows stays as it is. The document is then reopened with them.',
+    where: 'Where to install them',
+    inWindows: 'In Windows',
+    inMolino: 'Only in Molino',
+    whereWindows: 'For all your programs, as if you installed them yourself.',
+    whereMolino: 'Only Docs, Sheets and Slides see them. Windows and your other programs stay as they are.',
     free: 'Free ({license}) · {size}',
     licenses: { ofl: 'SIL Open Font License', apache: 'Apache License 2.0', ufl: 'Ubuntu Font Licence' },
     microsoft: 'By Microsoft: it can’t be downloaded.',
@@ -251,6 +264,7 @@ export const office: typeof es = {
     install: 'Install ({n})',
     installing: 'Downloading and installing…',
     done: 'Installed: {fonts}. Unchanged documents that use them have been reopened with them; save the others and open them again.',
+    doneWindows: 'Your other programs will see them the next time you open them.',
     failed: 'Couldn’t install: {fonts}.',
     cancel: 'Cancel',
     close: 'Close'

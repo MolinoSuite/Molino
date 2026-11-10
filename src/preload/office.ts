@@ -32,6 +32,7 @@ const ui: OfficeUiApi = {
     dark: argValue('molino-theme') === 'dark',
     kind: kindArg === 'cell' || kindArg === 'slide' ? kindArg : 'word',
     version: /^\d{1,4}\.\d{1,4}\.\d{1,6}/.test(argValue('molino-version')) ? argValue('molino-version') : '',
+    piece: /^[\w.-]{1,40}$/.test(argValue('molino-piece')) ? argValue('molino-piece') : '',
     author: (() => {
       try {
         return decodeURIComponent(argValue('molino-author')).slice(0, 100)
@@ -54,8 +55,9 @@ const ui: OfficeUiApi = {
   recover: (id) => ipcRenderer.invoke('office:recover', id),
   discardRecovery: (id) => ipcRenderer.invoke('office:discardRecovery', id),
   fontsInfo: (doc) => ipcRenderer.invoke('office:fontsInfo', doc),
-  installFonts: (doc, names) => ipcRenderer.invoke('office:installFonts', { doc, names }),
+  installFonts: (doc, names, into) => ipcRenderer.invoke('office:installFonts', { doc, names, into }),
   dismissFonts: (doc, forever) => ipcRenderer.invoke('office:dismissFonts', { doc, forever }),
+  legal: (what) => ipcRenderer.invoke('office:legal', what),
   onTabs: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, tabs: OfficeTabs): void => listener(tabs)
     ipcRenderer.on('office:tabs', wrapped)
@@ -75,5 +77,7 @@ contextBridge.exposeInMainWorld('molinoHost', {
   modified: (doc: unknown, value: unknown) => ipcRenderer.send('office:modified', { doc, value: value === true }),
   ready: (doc: unknown) => ipcRenderer.send('office:ready', doc),
   fullscreen: (doc: unknown, value: unknown) => ipcRenderer.send('office:fullscreen', { doc, value: value === true }),
-  log: (text: unknown) => ipcRenderer.send('office:log', String(text).slice(0, 500))
+  log: (text: unknown) => ipcRenderer.send('office:log', String(text).slice(0, 500)),
+  userWords: (doc: unknown) => ipcRenderer.invoke('office:userWords', doc),
+  addWords: (doc: unknown, words: unknown) => ipcRenderer.invoke('office:addWords', { doc, words })
 })

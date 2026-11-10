@@ -7,11 +7,12 @@ import { EngineError, type EngineClient } from './engine'
 import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
 import { log } from './log'
-import { type OfficePiece, pieceVersion } from './office'
+import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
+import type { OfficeProgress } from '@shared/office'
 import type { OfficeTabs } from '@shared/officeui'
-import { canInstallFonts, installFonts, lookupFont } from './fontcatalog'
+import { fontTargets, type FontTarget, installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
-import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontIndex, saveFontIndex } from './officefonts'
+import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontIndex, ownFontsDir, saveFontIndex } from './officefonts'
 
 /**
  * Las ventanas de Documentos, Hojas y Presentaciones: una por app, con una
@@ -27,7 +28,9 @@ import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontInde
  *   (y ``data:`` o ``blob:``): ni red ni la interfaz de Molino PDF;
  * - **su propio anfitrión**, ``molino://office/``, que solo sirve la interfaz,
  *   la pieza, el índice de fuentes, las fuentes que lista (y que están en una
- *   carpeta de fuentes), el puente y las imágenes de los documentos abiertos;
+ *   carpeta de fuentes), el puente y las imágenes de los documentos abiertos.
+ *   Un documento con letras incrustadas que no están en el equipo tiene su
+ *   propio índice, con ellas (del motor: docfonts.py), solo para su editor;
  * - **sandbox, sin Node, contexto aislado**, sin navegar ni abrir ventanas;
  * - **canales** (preload/office.ts) que solo dan acceso a los documentos de su
  *   ventana: los de la interfaz, solo desde su página; los del puente, solo
@@ -65,6 +68,8 @@ const PRINT_DIR = join(app.getPath('temp'), 'Molino-imprimir')
 /** Lo que Molino pide al editor vale este tiempo (si no llega a guardar, no se queda colgado para la próxima vez). */
 const INTENT_MS = 60_000
 const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$/i
+/** Una letra incrustada en el índice propio de un documento: su carpeta del motor, fonts\eNN.ttf. */
+const EMBEDDED_FONT = /[\\/](o[0-9a-f]{16})[\\/]fonts[\\/](e[0-9]{2}\.(?:ttf|otf))$/i
 
 /** Los editores de ONLYOFFICE: scripts en línea, eval y WebAssembly. */
 const EDITOR_CSP = [
@@ -149,6 +154,8 @@ interface OpenDoc {
   recovered: boolean
   /** Las fuentes que nombra (del motor, al abrirlo). */
   fonts: string[]
+  /** Su índice de fuentes propio, si trae letras incrustadas que no están en el equipo (lo sirve a su editor). */
+  index: { text: string; listed: Set<string>; families: Set<string> } | null
   /** Se dijo «Ahora no» al aviso de fuentes que faltan. */
   fontsDismissed: boolean
 }
@@ -188,6 +195,8 @@ export interface OfficeOptions {
   print(path: string): void
   /** Fuentes de las que no se vuelve a avisar (store.ts). */
   ignoredFonts: { list(): string[]; add(names: string[]): void }
+  /** El diccionario personal del corrector (store.ts). */
+  userWords: { list(): string[]; add(words: string[]): void }
   /** Carpeta donde quedan las licencias de las fuentes instaladas. */
   fontLicenses: string
   /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
@@ -208,6 +217,8 @@ export class OfficeWindows {
   private readonly session: Session
   private readonly engine: EngineClient
   private readonly piece: OfficePiece
+  /** Avance de la pieza nueva que se está instalando sola (en tanto por ciento), para «Abriendo…». */
+  private updating: OfficeTabs['updating'] = null
 
   constructor(private readonly options: OfficeOptions) {
     rmSync(PRINT_DIR, { recursive: true, force: true, maxRetries: 2 })
@@ -221,6 +232,14 @@ export class OfficeWindows {
     setOfficeSession(this.session)
     this.session.protocol.handle('molino', (request) => this.serve(request))
     this.registerIpc()
+  }
+
+  /** El avance de la pieza (office.ts): las ventanas que esperan lo enseñan. Solo cuando cambia el tanto por ciento. */
+  pieceProgress(progress: OfficeProgress | null): void {
+    const next = progress ? { phase: progress.phase, percent: Math.floor((progress.done / Math.max(progress.total, 1)) * 100) } : null
+    if (next?.phase === this.updating?.phase && next?.percent === this.updating?.percent) return
+    this.updating = next
+    for (const win of this.windows.values()) if (win.opening > 0) this.sendTabs(win)
   }
 
   /** ¿Hay algún documento de oficina abierto? (entonces la pieza no se puede quitar). */
@@ -252,7 +271,8 @@ export class OfficeWindows {
         return
       }
       const version = pieceVersion()
-      const fingerprint = await fontFingerprint(version)
+      const own = ownFontsDir(this.piece.root)
+      const fingerprint = await fontFingerprint(version, own)
       let index = await loadFontIndex(this.piece.root, fingerprint)
       if (!index) {
         await this.engine.request('office.configure', { piece: version }, { priority: 9 })
@@ -268,7 +288,7 @@ export class OfficeWindows {
         allFonts: index.text,
         listed: new Set(index.files.map((f) => f.toLowerCase())),
         families: new Set(index.families.map((f) => f.toLowerCase())),
-        folders: [...fontFolders(), join(dir, 'fonts')]
+        folders: [...fontFolders(own), join(dir, 'fonts')]
       }
     } catch (error) {
       this.setup = null
@@ -345,9 +365,16 @@ export class OfficeWindows {
     try {
       await Promise.race([this.firstConfigured, new Promise((done) => setTimeout(done, 90_000))])
       await this.configuring
+      if (!this.setup && this.piece.outdated) {
+        // Molino se ha actualizado y trae otra pieza: se está instalando sola (o
+        // falló antes y se intenta otra vez). La ventana espera con su avance.
+        await this.piece.install().catch(() => undefined)
+        await this.configure()
+      }
       if (!this.setup) {
         const installed = (await this.piece.ready()) !== null
-        void dialog.showMessageBox(win.window, { type: 'info', title: 'Molino', message: installed ? L.main.office.preparing : L.main.office.notInstalled })
+        const message = installed ? L.main.office.preparing : this.piece.outdated ? L.main.office.updateFailed : L.main.office.notInstalled
+        void dialog.showMessageBox(win.window, { type: 'info', title: 'Molino', message })
         return false
       }
       return await this.loadInto(win, name, path, ask, recovered)
@@ -374,6 +401,15 @@ export class OfficeWindows {
         this.engine.request('office.close', { doc: result.doc }, { priority: 7 }).catch(() => undefined)
         return false
       }
+      // El índice propio (letras incrustadas): del motor aislado, así que se vuelve a leer como datos.
+      // Si no vale, el documento se abre igual, con el del equipo.
+      const own = (result as { allFonts?: unknown }).allFonts
+      let index: ReturnType<typeof cleanFontIndex> | null = null
+      try {
+        index = typeof own === 'string' ? cleanFontIndex(own) : null
+      } catch {
+        log.warn('oficina: el índice de fuentes del documento no vale; se usa el del equipo')
+      }
       const open: OpenDoc = {
         doc: result.doc,
         kind: win.kind,
@@ -388,6 +424,11 @@ export class OfficeWindows {
         fonts: Array.isArray((result as { fonts?: unknown }).fonts)
           ? ((result as { fonts: unknown[] }).fonts.filter((f) => typeof f === 'string' && f.length > 0 && f.length <= 64) as string[]).slice(0, 60)
           : [],
+        index: index && {
+          text: index.text,
+          listed: new Set(index.files.map((f) => f.toLowerCase())),
+          families: new Set(index.families.map((f) => f.toLowerCase()))
+        },
         fontsDismissed: false
       }
       win.docs.set(open.doc, open)
@@ -445,6 +486,7 @@ export class OfficeWindows {
           `--molino-theme=${dark ? 'dark' : 'light'}`,
           `--molino-kind=${kind}`,
           `--molino-version=${app.getVersion()}`,
+          `--molino-piece=${pieceVersion()}`,
           `--molino-author=${encodeURIComponent(this.options.author().replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100))}`
         ]
       }
@@ -489,6 +531,7 @@ export class OfficeWindows {
       kind: win.kind,
       active: win.active,
       opening: win.opening > 0,
+      updating: win.opening > 0 ? this.updating : null,
       tabs: win.order.flatMap((doc) => {
         const open = win.docs.get(doc)
         return open
@@ -512,7 +555,8 @@ export class OfficeWindows {
     const families = this.setup?.families
     if (!families) return []
     const ignored = new Set(this.options.ignoredFonts.list())
-    return open.fonts.filter((f) => !families.has(f.toLowerCase()) && !ignored.has(f.toLowerCase()))
+    const own = open.index?.families
+    return open.fonts.filter((f) => !families.has(f.toLowerCase()) && !own?.has(f.toLowerCase()) && !ignored.has(f.toLowerCase()))
   }
 
   /**
@@ -520,10 +564,10 @@ export class OfficeWindows {
    * índice y vuelve a abrir los documentos sin cambios que las usaban, para
    * que se vean con ellas.
    */
-  private async installFonts(open: OpenDoc, names: string[]): Promise<{ installed: string[]; failed: string[] }> {
+  private async installFonts(open: OpenDoc, names: string[], into: FontTarget): Promise<{ installed: string[]; failed: string[] }> {
     const missing = new Set(this.missingFonts(open))
     const wanted = names.filter((n) => missing.has(n)).slice(0, 30)
-    const result = await installFonts(wanted, this.options.fontLicenses)
+    const result = await installFonts(wanted, this.options.fontLicenses, into, ownFontsDir(this.piece.root))
     if (result.installed.length === 0) return result
     log.info(`fuentes: instaladas ${result.installed.length}`)
     await this.configure()
@@ -747,14 +791,21 @@ export class OfficeWindows {
     ipcMain.handle('office:fontsInfo', (event, raw: unknown) => {
       const win = this.uiSender(event)
       const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
-      return { canInstall: canInstallFonts(), fonts: open ? this.missingFonts(open).map(lookupFont) : [] }
+      return { targets: fontTargets(), fonts: open ? this.missingFonts(open).map(lookupFont) : [] }
     })
     ipcMain.handle('office:installFonts', async (event, raw: unknown) => {
       const win = this.uiSender(event)
-      const { doc, names } = (raw ?? {}) as { doc?: unknown; names?: unknown }
+      const { doc, names, into } = (raw ?? {}) as { doc?: unknown; names?: unknown; into?: unknown }
       const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
-      if (!win || !open || !Array.isArray(names)) return { installed: [], failed: [] }
-      return this.installFonts(open, names.filter((n): n is string => typeof n === 'string'))
+      const where = fontTargets().find((t) => t === into)
+      if (!win || !open || !Array.isArray(names) || !where) return { installed: [], failed: [] }
+      return this.installFonts(open, names.filter((n): n is string => typeof n === 'string'), where)
+    })
+    ipcMain.handle('office:legal', async (event, raw: unknown) => {
+      const legal = ['notice', 'license', 'thirdParty', 'source', 'original'] as const
+      const what = legal.find((w) => w === raw)
+      if (!this.uiSender(event) || !what || !this.setup) return false
+      return openOfficeLegal(this.setup.piece, what, lang)
     })
     ipcMain.handle('office:dismissFonts', (event, raw: unknown) => {
       const win = this.uiSender(event)
@@ -836,6 +887,15 @@ export class OfficeWindows {
     ipcMain.on('office:fullscreen', (event, raw: unknown) => {
       const { doc, value } = (raw ?? {}) as { doc?: unknown; value?: unknown }
       this.editorDoc(event, doc)?.win.window.setFullScreen(value === true)
+    })
+    // El diccionario personal: lo lee cada editor al empezar y le añade lo que el usuario pide.
+    ipcMain.handle('office:userWords', (event, raw: unknown) => (this.editorDoc(event, raw) ? this.options.userWords.list() : []))
+    ipcMain.handle('office:addWords', (event, raw: unknown) => {
+      const { doc, words } = (raw ?? {}) as { doc?: unknown; words?: unknown }
+      if (!this.editorDoc(event, doc) || !Array.isArray(words)) return false
+      const list = words.filter((w): w is string => typeof w === 'string').slice(0, 50)
+      if (list.length) this.options.userWords.add(list)
+      return true
     })
     ipcMain.on('office:log', (event, text: unknown) => {
       // Solo sin empaquetar: lo que cuenta el editor no va al registro del usuario.
@@ -929,10 +989,13 @@ export class OfficeWindows {
       if (!setup) return notFound()
       const media = /^\/__doc__\/(o[0-9a-f]{16})\/media\/([^/]+)$/.exec(path)
       if (media) return await this.media(media[1], media[2])
-      if (path.startsWith('/__fonts__/')) {
-        const file = path.slice('/__fonts__/'.length)
-        if (!fontAllowed(file, setup.listed, setup.folders)) return notFound()
-        return await this.file(file, { type: 'font/ttf' })
+      // Cada editor pide su índice y sus fuentes con su documento delante (bridge.js).
+      const docFonts = /^\/__doc__\/(o[0-9a-f]{16})\/(AllFonts\.js|fonts\/(.+))$/.exec(path)
+      if (docFonts) {
+        const open = this.allDocs().find((d) => d.doc === docFonts[1])
+        if (!open) return notFound()
+        if (!docFonts[3]) return respond(Buffer.from(open.index?.text ?? setup.allFonts, 'utf8'), MIME['.js'], EDITOR_CSP)
+        return await this.font(open, docFonts[3], setup)
       }
       if (path === '/sdkjs/common/AllFonts.js') return respond(Buffer.from(setup.allFonts, 'utf8'), MIME['.js'], EDITOR_CSP)
       if (path.startsWith('/dictionaries/')) return await this.file(inside(join(setup.piece, 'dictionaries'), path.slice('/dictionaries/'.length)), { piece: true, bridge: true })
@@ -940,6 +1003,22 @@ export class OfficeWindows {
     } catch {
       return notFound()
     }
+  }
+
+  /** Una fuente del índice del editor de ``open``: del equipo o de la pieza (del disco), o una letra incrustada suya (del motor). */
+  private async font(open: OpenDoc, file: string, setup: Setup): Promise<Response> {
+    if (open.index) {
+      const key = file.toLowerCase()
+      if (!open.index.listed.has(key)) return notFound()
+      const embedded = EMBEDDED_FONT.exec(file)
+      if (embedded) {
+        if (embedded[1] !== open.doc) return notFound()
+        const { binary } = await this.engine.request('office.font', { doc: open.doc, name: embedded[2].toLowerCase() }, { priority: 8 })
+        return binary ? respond(binary, 'font/ttf', EDITOR_CSP) : notFound()
+      }
+      return fontAllowed(file, open.index.listed, setup.folders) ? await this.file(file, { type: 'font/ttf' }) : notFound()
+    }
+    return fontAllowed(file, setup.listed, setup.folders) ? await this.file(file, { type: 'font/ttf' }) : notFound()
   }
 
   private async media(doc: string, rawName: string): Promise<Response> {

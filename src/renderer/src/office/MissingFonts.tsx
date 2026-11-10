@@ -1,13 +1,13 @@
 /**
  * «Fuentes que faltan»: el aviso sobre el documento cuando nombra fuentes que
  * no están en el equipo, y el cuadro que dice qué se puede hacer con cada una
- * (instalar las libres del catálogo de Molino; las de Microsoft no se pueden
- * descargar). Lo hace el proceso principal (fontcatalog.ts).
+ * (instalar las libres del catálogo de Molino, en Windows o solo en Molino; las
+ * de Microsoft no se pueden descargar). Lo hace el proceso principal (fontcatalog.ts).
  */
 import { Type } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { OfficeFontInfo, OfficeTab } from '@shared/officeui'
-import { Checkbox, Dialog } from '@/components/ui'
+import type { OfficeFontInfo, OfficeFontTarget, OfficeTab } from '@shared/officeui'
+import { Checkbox, Dialog, Field, Segmented } from '@/components/ui'
 import { env, fmt, L } from './i18n'
 
 const F = L.office.fonts
@@ -40,7 +40,8 @@ export function FontsNotice({ tab, onFind }: { tab: OfficeTab; onFind: () => voi
 }
 
 export function FontsDialog({ doc, onClose }: { doc: string; onClose: () => void }) {
-  const [info, setInfo] = useState<{ canInstall: boolean; fonts: OfficeFontInfo[] } | null>(null)
+  const [info, setInfo] = useState<{ targets: OfficeFontTarget[]; fonts: OfficeFontInfo[] } | null>(null)
+  const [into, setInto] = useState<OfficeFontTarget>('windows')
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [dontAsk, setDontAsk] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -49,6 +50,7 @@ export function FontsDialog({ doc, onClose }: { doc: string; onClose: () => void
   useEffect(() => {
     void window.molinoOffice.fontsInfo(doc).then((value) => {
       setInfo(value)
+      if (value.targets[0]) setInto(value.targets[0])
       setChosen(new Set(value.fonts.filter((f) => f.status === 'free').map((f) => f.name)))
     })
   }, [doc])
@@ -60,12 +62,13 @@ export function FontsDialog({ doc, onClose }: { doc: string; onClose: () => void
   const install = async (): Promise<void> => {
     setBusy(true)
     try {
-      setResult(await window.molinoOffice.installFonts(doc, [...chosen]))
+      setResult(await window.molinoOffice.installFonts(doc, [...chosen], into))
     } finally {
       setBusy(false)
     }
   }
   const free = info?.fonts.filter((f) => f.status === 'free') ?? []
+  const canInstall = (info?.targets.length ?? 0) > 0
 
   return (
     <Dialog
@@ -81,7 +84,7 @@ export function FontsDialog({ doc, onClose }: { doc: string; onClose: () => void
             <button className="btn ghost" onClick={close} disabled={busy}>
               {F.cancel}
             </button>
-            {info?.canInstall && free.length > 0 && (
+            {canInstall && free.length > 0 && (
               <button className="btn primary" disabled={busy || chosen.size === 0} onClick={() => void install()}>
                 {busy ? F.installing : fmt(F.install, { n: chosen.size })}
               </button>
@@ -94,17 +97,18 @@ export function FontsDialog({ doc, onClose }: { doc: string; onClose: () => void
         {result ? (
           <>
             {result.installed.length > 0 && <p>{fmt(F.done, { fonts: names(result.installed) })}</p>}
+            {result.installed.length > 0 && into === 'windows' && <p className="hint">{F.doneWindows}</p>}
             {result.failed.length > 0 && <p className="error-text">{fmt(F.failed, { fonts: names(result.failed) })}</p>}
           </>
         ) : !info ? (
           <p className="hint">…</p>
         ) : (
           <>
-            <p className="hint">{info.canInstall ? F.intro : F.cantInstall}</p>
+            <p className="hint">{info.targets.includes('windows') ? F.intro : F.introMolino}</p>
             <ul className="office-fonts-list">
               {info.fonts.map((font) => (
                 <li key={font.name}>
-                  {font.status === 'free' && info.canInstall ? (
+                  {font.status === 'free' && canInstall ? (
                     <Checkbox
                       checked={chosen.has(font.name)}
                       disabled={busy}
@@ -130,6 +134,15 @@ export function FontsDialog({ doc, onClose }: { doc: string; onClose: () => void
                 </li>
               ))}
             </ul>
+            {info.targets.length > 1 && free.length > 0 && (
+              <Field label={F.where} hint={into === 'windows' ? F.whereWindows : F.whereMolino}>
+                <Segmented
+                  value={into}
+                  onChange={setInto}
+                  options={info.targets.map((t) => ({ value: t, label: t === 'windows' ? F.inWindows : F.inMolino }))}
+                />
+              </Field>
+            )}
             <Checkbox checked={dontAsk} onChange={setDontAsk} disabled={busy}>
               {F.dontAsk}
             </Checkbox>

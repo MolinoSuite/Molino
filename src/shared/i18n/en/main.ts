@@ -93,6 +93,7 @@ export const main: typeof source = {
     apps: { word: 'Molino Docs', cell: 'Molino Sheets', slide: 'Molino Slides' },
     notInstalled: 'To open this file, add Docs, Sheets and Slides in Settings → Apps.',
     preparing: 'Docs, Sheets and Slides are getting ready. Try again in a moment.',
+    updateFailed: 'Docs, Sheets and Slides couldn’t be updated. Check your Internet connection and try again (or use “Update” in Settings → Apps).',
     openFailed: 'Couldn’t open “{name}”.',
     saveFailed: 'Couldn’t save “{name}”.',
     unsaved: 'Save the changes to “{name}”?',

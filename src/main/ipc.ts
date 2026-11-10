@@ -10,9 +10,9 @@ import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
 import type { OfficeApp, OfficeProgress } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
 import { EngineClient, EngineError } from './engine'
-import { fmt, L } from './i18n'
+import { fmt, L, lang } from './i18n'
 import { log } from './log'
-import { OfficeError, type OfficePiece } from './office'
+import { OfficeError, openOfficeLegal, type OfficePiece } from './office'
 import { openDefaultApps, shellIntegration } from './officeapps'
 import type { PrintService } from './print'
 import { isTrustedSender } from './security'
@@ -207,6 +207,11 @@ export class Bridge {
   /** Avance de la descarga e instalación del motor de oficina (lo emite office.ts). */
   sendOfficeProgress(progress: OfficeProgress | null): void {
     this.send('office:progress', progress)
+  }
+
+  /** La pieza ha empezado o acabado de instalarse sola (una nueva): Ajustes vuelve a mirar su estado. */
+  sendOfficeChanged(): void {
+    this.send('office:changed')
   }
 
   /** Lo que el motor dice de la IA al configurarla: gráfica en uso y si el procesador sirve. */
@@ -965,6 +970,11 @@ export class Bridge {
       return true
     })
     this.handle('office:defaultApps', z.enum(['word', 'cell', 'slide']), (app) => openDefaultApps(app))
+    this.handle('office:userWordsList', z.undefined(), () => this.store.userWords())
+    this.handle('office:removeUserWords', z.array(z.string().max(64)).max(5000), (words) => {
+      this.store.removeUserWords(words)
+      return this.store.userWords()
+    })
     this.handle('office:install', z.undefined(), () => {
       // Sigue en segundo plano; el avance llega por «office:progress» y el final
       // por «office:changed» (y «office:error» si falla).
@@ -1091,6 +1101,11 @@ export class Bridge {
       const file = legalFile(what)
       if (!file) return false
       return (await shell.openPath(file)) === ''
+    })
+    // Los del motor de oficina, si está añadido (sus archivos, dentro de la pieza instalada).
+    this.handle('about:office', z.enum(['notice', 'license', 'thirdParty', 'source', 'original']), async (what) => {
+      const dir = await this.office.ready()
+      return dir ? openOfficeLegal(dir, what, lang) : false
     })
   }
 }

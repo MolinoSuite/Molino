@@ -118,7 +118,8 @@ const api: MolinoApi = {
     onStatus: (listener) => subscribe<UpdateStatus>('updates:status', listener)
   },
   about: {
-    open: (what) => ipcRenderer.invoke('about:open', what)
+    open: (what) => ipcRenderer.invoke('about:open', what),
+    office: (what) => ipcRenderer.invoke('about:office', what)
   },
   ai: {
     status: () => ipcRenderer.invoke('ai:status'),
@@ -138,7 +139,9 @@ const api: MolinoApi = {
     onChanged: (listener) => subscribe<void>('office:changed', () => listener()),
     onError: (listener) => subscribe<OfficeFailure>('office:error', listener),
     launch: (app) => ipcRenderer.invoke('office:launch', app),
-    defaultApps: (app) => ipcRenderer.invoke('office:defaultApps', app)
+    defaultApps: (app) => ipcRenderer.invoke('office:defaultApps', app),
+    userWords: () => ipcRenderer.invoke('office:userWordsList'),
+    removeUserWords: (words) => ipcRenderer.invoke('office:removeUserWords', words)
   },
   feedback: {
     available: () => ipcRenderer.invoke('feedback:available'),

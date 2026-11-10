@@ -511,6 +511,7 @@ function AboutDialog() {
     ? new Date(`${built}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
     : ''
   const T = L.dialogs.about
+  const office = useOffice((s) => s.status)
   return (
     <Dialog
       title={T.title}
@@ -545,6 +546,30 @@ function AboutDialog() {
             {T.notices}
           </button>
         </div>
+        {office?.installed && (
+          <div className="about-office">
+            <p>
+              <b>{T.officeTitle}</b>
+              <br />
+              {T.officeText} <i lang="en">Based on ONLYOFFICE software developed by Ascensio System SIA.</i>
+            </p>
+            <div className="row wrap">
+              <button className="btn sm" onClick={() => void window.molino.about.office('notice')}>
+                {T.officeNotice}
+              </button>
+              <button className="btn sm" onClick={() => void window.molino.about.office('license')}>
+                {T.officeLicense}
+              </button>
+              <button className="btn sm" onClick={() => void window.molino.about.office('thirdParty')}>
+                {T.notices}
+              </button>
+              <button className="btn sm" onClick={() => void window.molino.about.office('source')}>
+                {T.officeSource}
+              </button>
+            </div>
+            <p className="hint">{T.officeTrademark}</p>
+          </div>
+        )}
         <div className="about-support">
           <p>{T.support}</p>
           <div className="row">

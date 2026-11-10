@@ -5,6 +5,7 @@ import { basename, extname, join } from 'node:path'
 import { app, type Session } from 'electron'
 import type { OfficeFontInfo } from '@shared/officeui'
 import { isStoreApp } from './appx'
+import { isPortable } from './portable'
 import { restrictedSession } from './download'
 import catalog from './fonts-catalog.json'
 import { log } from './log'
@@ -18,8 +19,10 @@ import { regSet } from './registry'
  * Google Fonts en una revisión fija de github.com/google/fonts) y, si el
  * usuario dice que sí, las instala solo para él, sin permisos de
  * administrador: en su carpeta de fuentes de Windows y en su parte del
- * registro. Una fuente instalada la lee Windows entero; por eso solo se baja
- * de esa revisión, con el tamaño y la huella del catálogo, y solo TTF u OTF.
+ * registro, o «solo en Molino» (``office\own-fonts``, que leen x2t y los
+ * editores, sin tocar Windows: la única forma en la portable y en la de la
+ * Store). Una fuente instalada en Windows la lee Windows entero; por eso solo
+ * se baja de esa revisión, con el tamaño y la huella del catálogo, y solo TTF u OTF.
  */
 
 type Family = { dir: string; license: string; licenseFile: [string, number, string]; files: [string, number, string][] }
@@ -59,25 +62,32 @@ export function lookupFont(name: string): OfficeFontInfo {
   return { name, status: 'unknown' }
 }
 
+/** Dónde se instalan: en Windows (para todos los programas) o solo en Molino. */
+export type FontTarget = 'windows' | 'molino'
+
 interface Target {
-  /** Carpeta donde se instalan (la de fuentes del usuario de Windows). */
+  /** Carpeta donde se instalan (la de fuentes del usuario de Windows, o la de Molino). */
   fonts: string
-  /** Raíz del registro (HKCU\Software, o la de pruebas). */
-  registry: string
+  /** Raíz del registro (HKCU\Software, o la de pruebas); null: solo en Molino, sin registro. */
+  registry: string | null
 }
 
-/** Dónde se instalan; null si esta versión no instala fuentes (la de la Store: su carpeta de datos es la del paquete). */
-function target(): Target | null {
-  if (process.platform !== 'win32' || isStoreApp()) return null
+/**
+ * Las fuentes del usuario de Windows; null si esta versión no instala en
+ * Windows (la portable no toca el equipo; la de la Store tiene su carpeta de
+ * datos dentro del paquete, que Windows no lee como fuentes).
+ */
+function windowsTarget(): Target | null {
+  if (process.platform !== 'win32' || isStoreApp() || isPortable()) return null
   const test = !app.isPackaged ? process.env.MOLINO_TEST_FONTS_DIR : undefined
   if (test) return { fonts: test, registry: TEST_REGISTRY_ROOT }
   const local = process.env.LOCALAPPDATA
   return local ? { fonts: join(local, 'Microsoft', 'Windows', 'Fonts'), registry: 'HKCU\\Software' } : null
 }
 
-/** ¿Instala fuentes esta versión de Molino? */
-export function canInstallFonts(): boolean {
-  return target() !== null
+/** Dónde puede instalar fuentes esta versión de Molino (la primera, la que se propone). */
+export function fontTargets(): FontTarget[] {
+  return windowsTarget() ? ['windows', 'molino'] : ['molino']
 }
 
 let fontSession: Session | null = null
@@ -122,12 +132,18 @@ function registryName(file: string): string {
 }
 
 /**
- * Instala las familias de esas fuentes (solo las que están en el catálogo).
- * Devuelve las instaladas y las que no se pudieron; las licencias quedan en
- * ``licenses`` (una por familia).
+ * Instala las familias de esas fuentes (solo las que están en el catálogo), en
+ * Windows o solo en Molino (``ownFonts``: office\own-fonts). Devuelve las
+ * instaladas y las que no se pudieron; las licencias quedan en ``licenses``
+ * (una por familia).
  */
-export async function installFonts(names: string[], licenses: string): Promise<{ installed: string[]; failed: string[] }> {
-  const where = target()
+export async function installFonts(
+  names: string[],
+  licenses: string,
+  into: FontTarget,
+  ownFonts: string
+): Promise<{ installed: string[]; failed: string[] }> {
+  const where = into === 'windows' ? windowsTarget() : { fonts: ownFonts, registry: null }
   if (!where) return { installed: [], failed: names }
   const installed: string[] = []
   const failed: string[] = []
@@ -153,7 +169,7 @@ export async function installFonts(names: string[], licenses: string): Promise<{
         const data = await fetchPinned(`${family.dir}/${file}`, size, sha1)
         if (!isFont(data, extname(base).toLowerCase())) throw new Error('no es una fuente TrueType u OpenType')
         await writeFile(dest, data, { flag: 'wx' })
-        if (!(await regSet(`${where.registry}\\Microsoft\\Windows NT\\CurrentVersion\\Fonts`, registryName(base), dest))) {
+        if (where.registry && !(await regSet(`${where.registry}\\Microsoft\\Windows NT\\CurrentVersion\\Fonts`, registryName(base), dest))) {
           throw new Error('no se pudo apuntar en el registro')
         }
       }

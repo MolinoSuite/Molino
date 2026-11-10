@@ -186,7 +186,8 @@ async function route(argv: string[], cwd: string): Promise<void> {
 
 /** ¿Está el motor de oficina? Si no (un acceso que quedó, un «Abrir con»), Molino PDF dice cómo añadirlo. */
 async function officeReady(): Promise<boolean> {
-  if (officePiece && (await officePiece.ready()) !== null) return true
+  // Con una pieza anterior, la de esta versión se está poniendo sola: la app abre y espera (officewin.ts).
+  if (officePiece && ((await officePiece.ready()) !== null || officePiece.outdated)) return true
   const window = showPdfWindow()
   const options = { type: 'info' as const, title: 'Molino', message: L.main.office.notInstalled }
   void (window ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options))
@@ -212,7 +213,7 @@ async function openPaths(paths: string[]): Promise<void> {
 
 /** Las apps que se pueden usar: Molino PDF siempre; las de oficina, con la pieza y si el usuario las quiere ver. */
 async function availableApps(): Promise<Record<HomeApp, boolean>> {
-  const installed = officePiece !== null && (await officePiece.ready()) !== null
+  const installed = officePiece !== null && ((await officePiece.ready()) !== null || officePiece.outdated)
   const shown = appStore?.settings.officeApps ?? { word: false, cell: false, slide: false }
   return { pdf: true, word: installed && shown.word, cell: installed && shown.cell, slide: installed && shown.slide }
 }
@@ -220,7 +221,8 @@ async function availableApps(): Promise<Record<HomeApp, boolean>> {
 /** Pone en Windows las apps de oficina que se ven (con la pieza instalada): accesos, tipos de archivo, nombre. */
 async function syncOfficeApps(): Promise<void> {
   if (!appStore || !officePiece) return
-  const installed = (await officePiece.ready()) !== null
+  // Mientras se pone al día una pieza anterior, las apps siguen en Windows.
+  const installed = (await officePiece.ready()) !== null || officePiece.outdated
   const shown = appStore.settings.officeApps
   await syncShell(Object.fromEntries(OFFICE_KINDS.map((kind) => [kind, installed && shown[kind]])) as typeof shown)
 }
@@ -269,7 +271,10 @@ void app.whenReady().then(async () => {
   modelsRoot = aiModels.root
   await aiModels.load()
   // El motor de oficina (Documentos, Hojas y Presentaciones), si se ha añadido.
-  const office = new OfficePiece(app.getPath('userData'), (progress) => bridge?.sendOfficeProgress(progress))
+  const office = new OfficePiece(app.getPath('userData'), (progress) => {
+    bridge?.sendOfficeProgress(progress)
+    officeWindows?.pieceProgress(progress)
+  })
   await office.load()
   officeRoot = office.root
   officePiece = office
@@ -287,6 +292,7 @@ void app.whenReady().then(async () => {
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
     author: () => store.settings.author || windowsUser(),
     ignoredFonts: { list: () => store.ignoredFonts(), add: (names) => store.ignoreFonts(names) },
+    userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words) },
     fontLicenses: join(app.getPath('userData'), 'fonts-licenses'),
     recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
     // Imprimir un documento de oficina: con el cuadro de imprimir de Molino PDF.
@@ -314,6 +320,7 @@ void app.whenReady().then(async () => {
     void syncOfficeApps()
     home.notify()
   }
+  office.onUpdate = () => bridge?.sendOfficeChanged()
   office.onChange = () => {
     void editors.configure()
     void syncOfficeApps()
@@ -339,6 +346,11 @@ void app.whenReady().then(async () => {
   // En pruebas (sin empaquetar) se puede adelantar con MOLINO_TEST_AI_RECHECK_MS.
   const recheckDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_AI_RECHECK_MS) : NaN
   setTimeout(() => void bridge?.recheckAi(), Number.isInteger(recheckDelay) && recheckDelay >= 0 ? recheckDelay : 60_000)
+
+  // Una pieza nueva (Molino se ha actualizado y trae otra) se instala sola, sin
+  // estorbar el arranque. En pruebas se adelanta con MOLINO_TEST_OFFICE_UPDATE_MS.
+  const updateDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_OFFICE_UPDATE_MS) : NaN
+  setTimeout(() => office.autoUpdate(), Number.isInteger(updateDelay) && updateDelay >= 0 ? updateDelay : 15_000)
 
   // Lo que se pidió al abrir Molino (y lo que llegó de otras instancias mientras arrancaba).
   await route(process.argv, process.cwd())

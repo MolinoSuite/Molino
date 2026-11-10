@@ -926,6 +926,22 @@
 .about-head b {
   font-size: 15px;
 }
+/* Acerca de: la parte de Documentos, Hojas y Presentaciones (con el motor de oficina añadido). */
+.about-office {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.about-office p {
+  margin: 0;
+  line-height: 1.5;
+}
+.row.wrap {
+  flex-wrap: wrap;
+}
 .about-support {
   display: flex;
   flex-direction: column;

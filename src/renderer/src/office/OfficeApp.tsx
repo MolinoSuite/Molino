@@ -203,7 +203,7 @@ export function OfficeApp() {
         ) : (
           <div className="office-loading office-opening">
             <span className="spinner" />
-            {T.loading}
+            {tabs?.updating ? fmt(tabs.updating.phase === 'download' ? T.updatingDownload : T.updatingInstall, { percent: tabs.updating.percent }) : T.loading}
           </div>
         )
       ) : (
@@ -442,7 +442,8 @@ function SidePanel({ kind, state, run }: { kind: string; state: EditorState; run
           </h3>
           {s.count !== '' && s.count !== '0' ? (
             <dl className="office-stats">
-              {rows.filter(([, v]) => v !== '' && v !== undefined).map(([k, v]) => (
+              {/* Las que el editor no da (con una sola celda, la suma y la media) no se enseñan. */}
+              {rows.filter(([, v]) => String(v ?? '').trim() !== '').map(([k, v]) => (
                 <div key={k}>
                   <dt>{k}</dt>
                   <dd>{v}</dd>
@@ -645,6 +646,24 @@ function AboutOffice({ onClose }: { onClose: () => void }) {
           <i lang="en">{A.based}</i>
         </p>
         <p>{A.modified}</p>
+        {env.piece && <p className="hint">{fmt(A.version, { version: env.piece, molino: env.version })}</p>}
+        <div className="row wrap">
+          <button className="btn sm" onClick={() => void window.molinoOffice.legal('notice')}>
+            {A.notice}
+          </button>
+          <button className="btn sm" onClick={() => void window.molinoOffice.legal('license')}>
+            {A.license}
+          </button>
+          <button className="btn sm" onClick={() => void window.molinoOffice.legal('thirdParty')}>
+            {A.thirdParty}
+          </button>
+          <button className="btn sm" onClick={() => void window.molinoOffice.legal('source')}>
+            {A.source}
+          </button>
+          <button className="btn sm" onClick={() => void window.molinoOffice.legal('original')}>
+            {A.original}
+          </button>
+        </div>
         <p className="hint">{A.trademark}</p>
       </div>
     </Dialog>

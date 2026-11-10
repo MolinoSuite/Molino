@@ -103,6 +103,7 @@ export const main = {
     apps: { word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones' },
     notInstalled: 'Para abrir este archivo, añade Documentos, Hojas y Presentaciones en Ajustes → Aplicaciones.',
     preparing: 'Documentos, Hojas y Presentaciones se están preparando. Vuelve a intentarlo en un momento.',
+    updateFailed: 'No se pudo actualizar Documentos, Hojas y Presentaciones. Comprueba la conexión a Internet y vuelve a intentarlo (o en Ajustes → Aplicaciones, «Actualizar»).',
     openFailed: 'No se pudo abrir «{name}».',
     saveFailed: 'No se pudo guardar «{name}».',
     unsaved: '¿Guardar los cambios de «{name}»?',

@@ -7,7 +7,7 @@
  */
 
 import type { AiDownloadError, AiDownloadProgress, AiStatus } from './ai'
-import type { OfficeApp, OfficeFailure, OfficeProgress, OfficeStatus } from './office'
+import type { OfficeApp, OfficeFailure, OfficeLegal, OfficeProgress, OfficeStatus } from './office'
 import type { Lang } from './i18n'
 import type {
   DocDescriptor,
@@ -236,6 +236,8 @@ export interface MolinoApi {
   /** Información legal y de la aplicación (licencia, código fuente, componentes de terceros). */
   about: {
     open(what: 'license' | 'notices' | 'source' | 'issues' | 'sponsors'): Promise<boolean>
+    /** Los avisos legales del motor de oficina (si está añadido). */
+    office(what: OfficeLegal): Promise<Envelope<boolean>>
   }
   /** IA local: modelos (descarga y borrado) y su estado. Lo que hace la IA va por `engine` (métodos ai.*). */
   ai: {
@@ -260,6 +262,10 @@ export interface MolinoApi {
     launch(app: OfficeApp | 'home'): Promise<Envelope<boolean>>
     /** Abre su página en «Aplicaciones predeterminadas» de Windows. */
     defaultApps(app: OfficeApp): Promise<Envelope<boolean>>
+    /** El diccionario personal del corrector (las palabras añadidas desde los editores). */
+    userWords(): Promise<Envelope<string[]>>
+    /** Quita esas palabras del diccionario personal; devuelve las que quedan. */
+    removeUserWords(words: string[]): Promise<Envelope<string[]>>
   }
   /** Comentarios al autor (fallos, mejoras…): por correo, a través de su servicio de comentarios. */
   feedback: {

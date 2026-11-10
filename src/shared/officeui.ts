@@ -1,4 +1,5 @@
 /** Lo que comparten el proceso principal (officewin.ts) y la interfaz de Documentos, Hojas y Presentaciones. */
+import type { OfficeLegal } from './office'
 
 export type OfficeKind = 'word' | 'cell' | 'slide'
 
@@ -15,6 +16,9 @@ export interface OfficeTab {
 }
 
 /** Qué se puede hacer con una fuente que falta (src/main/fontcatalog.ts). */
+/** Dónde se instala una fuente: en Windows (para todos los programas) o solo en Molino. */
+export type OfficeFontTarget = 'windows' | 'molino'
+
 export type OfficeFontInfo =
   | { name: string; status: 'free'; license: 'ofl' | 'apache' | 'ufl'; size: number; files: number }
   | { name: string; status: 'microsoft'; substitute: string | null }
@@ -25,6 +29,8 @@ export interface OfficeTabs {
   active: string | null
   /** Se está abriendo algún documento (sin pestañas aún, la interfaz muestra «Abriendo…»). */
   opening: boolean
+  /** Mientras se abre: la pieza nueva que se está instalando sola, y cuánto lleva. */
+  updating: { phase: 'download' | 'install'; percent: number } | null
   tabs: OfficeTab[]
 }
 
@@ -44,7 +50,8 @@ export interface OfficeRecoverable {
 }
 
 export interface OfficeUiApi {
-  env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; author: string }
+  /** ``piece``: la versión del motor de oficina (para «Acerca de»). */
+  env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; piece: string; author: string }
   tabs(): Promise<OfficeTabs | null>
   activate(doc: string): Promise<boolean>
   closeTab(doc: string): Promise<boolean>
@@ -62,10 +69,12 @@ export interface OfficeUiApi {
   recoverable(): Promise<OfficeRecoverable[]>
   recover(id: string): Promise<boolean>
   discardRecovery(id: string): Promise<OfficeRecoverable[]>
-  /** Las fuentes que faltan en un documento y qué se puede hacer con cada una. */
-  fontsInfo(doc: string): Promise<{ canInstall: boolean; fonts: OfficeFontInfo[] }>
-  /** Instala esas (del catálogo); el documento se vuelve a abrir con ellas si no tiene cambios. */
-  installFonts(doc: string, names: string[]): Promise<{ installed: string[]; failed: string[] }>
+  /** Las fuentes que faltan en un documento, qué se puede hacer con cada una y dónde se pueden instalar (la primera, la propuesta). */
+  fontsInfo(doc: string): Promise<{ targets: OfficeFontTarget[]; fonts: OfficeFontInfo[] }>
+  /** Instala esas (del catálogo) en Windows o solo en Molino; el documento se vuelve a abrir con ellas si no tiene cambios. */
+  installFonts(doc: string, names: string[], into: OfficeFontTarget): Promise<{ installed: string[]; failed: string[] }>
+  /** Abre un aviso legal del motor de oficina (cambios de Molino, licencia de ONLYOFFICE, terceros, código). */
+  legal(what: OfficeLegal): Promise<boolean>
   /** «Ahora no» (y, con ``forever``, no volver a avisar de esas fuentes). */
   dismissFonts(doc: string, forever: boolean): Promise<boolean>
 }

@@ -123,6 +123,8 @@ export class EditorSession {
   private disposed = false
   private attached = false
   private watching = false
+  /** Hojas: vuelve a leer la celda activa (formato, filtro…). */
+  private rereadCell: () => void = () => undefined
 
   constructor(
     readonly kind: OfficeKind,
@@ -267,7 +269,13 @@ export class EditorSession {
         pageBreak: () => api.put_AddPageBreak(),
         portrait: () => api.change_PageOrient(true),
         landscape: () => api.change_PageOrient(false),
-        marks: () => api.put_ShowParaMarks(!s.marks)
+        // El editor no avisa al cambiarlas (asc_onShowParaMarks solo llega al cargar):
+        // lo que devuelve es lo que queda.
+        marks: () => {
+          const shown = api.put_ShowParaMarks(!s.marks)
+          s.marks = typeof shown === 'boolean' ? shown : !s.marks
+          this.changed()
+        }
       }
     }
     if (this.kind === 'cell') {
@@ -420,6 +428,13 @@ export class EditorSession {
       console.error(`orden ${command}:`, error)
       return false
     }
+    if (this.kind === 'cell') {
+      // Dar formato a una celda no siempre avisa (asc_onSelectionChanged): los
+      // botones (ajustar texto, porcentaje…) se leen otra vez, ahora y al
+      // terminar lo que el editor haga después.
+      this.rereadCell()
+      setTimeout(() => this.rereadCell(), 0)
+    }
     this.focus()
     return true
   }
@@ -501,11 +516,25 @@ export class EditorSession {
       on('asc_onShowParaMarks', (v) => (s.marks = !!v))
     }
     if (this.kind === 'slide') {
+      // Al aplicar un tema, el editor lo copia en la presentación y avisa de él
+      // como tema del documento (índice negativo, con su nombre). Se marca el
+      // tema de la lista que se llama igual (si lo hay).
+      let docThemes: { id: number; name: string }[] = []
+      let current = -1
+      const markTheme = (): void => {
+        const own = current < 0 ? docThemes.find((t) => t.id === current) : undefined
+        s.activeTheme = current >= 0 ? current : (s.themes.find((t) => own && t.name === own.name)?.id ?? -1)
+      }
       on('asc_onInitEditorStyles', (t) => {
         const names: Api[] = (t && t[0]) || []
         s.themes = names.map((x) => ({ id: x.get_Index(), name: x.get_Name() }))
+        docThemes = ((t && t[1]) || []).map((x: Api) => ({ id: x.get_Index(), name: x.get_Name() }))
+        markTheme()
       })
-      on('asc_onUpdateThemeIndex', (i) => (s.activeTheme = i))
+      on('asc_onUpdateThemeIndex', (i) => {
+        current = typeof i === 'number' ? i : -1
+        markTheme()
+      })
       on('asc_onUpdateLayout', (layouts: Api[]) => {
         s.layouts = (layouts || []).map((l, i) => ({ index: l.getIndex ? l.getIndex() : i, name: l.get_Name() || '', image: l.get_Image() }))
       })
@@ -547,6 +576,14 @@ export class EditorSession {
         s.activeSheet = api.asc_getActiveWorksheetIndex()
       }
       on('asc_onSelectionChanged', (info) => readCell(info))
+      this.rereadCell = () => {
+        try {
+          readCell(api.asc_getCellInfo())
+        } catch {
+          return
+        }
+        this.changed()
+      }
       on('asc_onSheetsChanged', () => readSheets())
       on('asc_onActiveSheetChanged', () => readSheets())
     }

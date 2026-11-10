@@ -87,8 +87,27 @@
   // El editor manda «clear» al empezar y espera «clear» de vuelta; después,
   // tandas de palabras ({type: 'spell' | 'suggest', usrWords, usrLang…}) que el
   // Worker devuelve corregidas. Las respuestas van a asc_nativeOnSpellCheck.
+  // «Añadir al diccionario» manda {type: 'add', usrWords}: van al diccionario
+  // personal de Molino (Ajustes → Aplicaciones), que vale para todos los
+  // documentos y se queda; las palabras de ahí se dan por buenas.
   let speller = null
+  const personal = new Set()
+  // Hasta que llega el diccionario personal no se contesta (así no se marcan de más).
+  const personalReady = Promise.resolve(typeof host.userWords === 'function' ? host.userWords(info.doc) : [])
+    .then((words) => (Array.isArray(words) ? words : []).forEach((word) => personal.add(String(word))))
+    .catch(() => undefined)
+  // Como en Word: «molino» vale también como «Molino» o «MOLINO»; «Molino», solo así o en mayúsculas.
+  const isPersonal = (word) => {
+    const text = String(word)
+    if (personal.has(text) || personal.has(text.toLowerCase())) return true
+    return text === text.toUpperCase() && [...personal].some((p) => p.toUpperCase() === text)
+  }
   const answer = (data) => {
+    if (data && data.type === 'spell' && Array.isArray(data.usrWords) && Array.isArray(data.usrCorrect)) {
+      data.usrWords.forEach((word, i) => {
+        if (data.usrCorrect[i] !== true && isPersonal(word)) data.usrCorrect[i] = true
+      })
+    }
     // Lo que ha dicho de cada palabra, a la vista de las pruebas (las últimas 500).
     if (data && Array.isArray(data.usrWords) && Array.isArray(data.usrCorrect)) {
       const seen = (w.molinoSpellSeen = w.molinoSpellSeen || new Map())
@@ -107,7 +126,7 @@
       return null
     }
     speller = new Worker('/sdkjs/common/spell/spell/spell.js')
-    speller.onmessage = (e) => answer(e.data)
+    speller.onmessage = (e) => void personalReady.then(() => answer(e.data))
     speller.onerror = (e) => {
       log('corrector:', (e && e.message) || 'error')
       e.preventDefault && e.preventDefault()
@@ -126,7 +145,12 @@
     } catch {
       return
     }
-    // Las palabras que el usuario añade al diccionario: de momento, solo en esta sesión del corrector.
+    if (message && message.type === 'add') {
+      const words = (Array.isArray(message.usrWords) ? message.usrWords : []).map(String).filter((word) => word && word.length <= 64)
+      words.forEach((word) => personal.add(word))
+      if (words.length && typeof host.addWords === 'function') host.addWords(info.doc, words).catch(() => undefined)
+      return
+    }
     const worker = spellWorker()
     if (worker && message && typeof message === 'object') worker.postMessage(message)
   }
@@ -148,15 +172,33 @@
   })
 
   // -- fuentes ------------------------------------------------------------------
-  // El editor pide cada fuente a ascdesktop://fonts/<archivo del índice>.
+  // El índice de fuentes (AllFonts.js, que carga RequireJS) y cada fuente
+  // (ascdesktop://fonts/<archivo del índice>) se piden con el documento delante:
+  // uno con letras incrustadas que no están en el equipo tiene su propio índice.
   const FONTS = 'ascdesktop://fonts/'
+  const DOC = `molino://office/__doc__/${info.doc}`
   const xhrOpen = XMLHttpRequest.prototype.open
   XMLHttpRequest.prototype.open = function (method, url) {
     if (typeof url === 'string' && url.startsWith(FONTS)) {
-      arguments[1] = `molino://office/__fonts__/${encodeURIComponent(url.slice(FONTS.length))}`
+      const file = url.slice(FONTS.length)
+      // Las que ha pedido este editor (solo el nombre del archivo), a la vista de las pruebas.
+      const asked = (w.molinoFontsAsked = w.molinoFontsAsked || [])
+      asked.push(file.split(/[\\/]/).pop())
+      if (asked.length > 100) asked.shift()
+      arguments[1] = `${DOC}/fonts/${encodeURIComponent(file)}`
     }
     return xhrOpen.apply(this, arguments)
   }
+  const scriptSrc = Object.getOwnPropertyDescriptor(HTMLScriptElement.prototype, 'src')
+  Object.defineProperty(HTMLScriptElement.prototype, 'src', {
+    configurable: true,
+    enumerable: true,
+    get: scriptSrc.get,
+    set(value) {
+      if (typeof value === 'string' && /\/sdkjs\/common\/AllFonts\.js(\?[^/]*)?$/.test(value)) value = `${DOC}/AllFonts.js`
+      scriptSrc.set.call(this, value)
+    }
+  })
 
   // El tema de Molino (claro u oscuro), que llega en la dirección de la pestaña.
   const dark = tabParams.get('dark') === '1'
