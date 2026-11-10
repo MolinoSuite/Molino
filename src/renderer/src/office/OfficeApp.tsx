@@ -4,10 +4,10 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { ChevronDown, FolderOpen, Minus, Plus, Printer, Search, X } from 'lucide-react'
+import { ChevronDown, FilePlusCorner, FileText, FolderOpen, Info, Minus, Plus, Printer, Save, SaveAll, Search, StickyNote, X } from 'lucide-react'
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { OfficeTabs } from '@shared/officeui'
-import { Dialog } from '@/components/ui'
+import { Dialog, Menu, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { APPS, type Mode, paletteEntries, type PaletteEntry, type Tool } from './apps'
 import { EditorSession, type EditorState } from './engine'
@@ -40,6 +40,7 @@ export function OfficeApp() {
   const [about, setAbout] = useState(false)
   const [presenting, setPresenting] = useState(false)
   const [fontsFor, setFontsFor] = useState<string | null>(null)
+  const [fileMenu, setFileMenu] = useState<DOMRect | null>(null)
 
   useEffect(() => {
     void window.molinoOffice.tabs().then((t) => t && setTabs(t))
@@ -143,9 +144,30 @@ export function OfficeApp() {
   return (
     <div className={cn('office', presenting && 'presenting')} data-app={kind}>
       <header className="titlebar office-titlebar">
-        <div className="brand">
+        <button
+          className="brand office-file"
+          aria-label={T.file.menu}
+          data-tip={T.file.menu}
+          aria-haspopup="menu"
+          aria-expanded={fileMenu !== null}
+          onClick={(e) => setFileMenu(fileMenu ? null : e.currentTarget.getBoundingClientRect())}
+        >
           <img src={ICONS[kind]} width={22} height={22} alt="" />
-        </div>
+          <ChevronDown size={11} />
+        </button>
+        {fileMenu && (
+          <Menu
+            anchor={fileMenu}
+            minWidth={220}
+            onClose={() => setFileMenu(null)}
+            entries={fileEntries({
+              hasDoc: !empty && Boolean(state?.ready),
+              run,
+              about: () => setAbout(true),
+              doc: tabs?.active ?? null
+            })}
+          />
+        )}
         <div className="tabs" role="tablist" aria-label={T.tabs.label}>
           {tabs?.tabs.map((tab) => (
             <div key={tab.doc} className={cn('tab', tab.doc === tabs.active && 'on')} role="tab" aria-selected={tab.doc === tabs.active} title={tab.name}>
@@ -236,7 +258,6 @@ export function OfficeApp() {
               </div>
             )}
           </main>
-          {app.sheetTabs && state?.ready && <SheetTabs state={state} run={run} />}
         </div>
         {currentMode.id === 'review' && state?.ready ? (
           <CommentsPanel state={state} run={run} />
@@ -247,7 +268,14 @@ export function OfficeApp() {
       )}
 
       <footer className="office-status">
+        {app.sheetTabs && state?.ready && !empty ? <SheetTabs state={state} run={run} /> : null}
         <span className="grow">{statusText(kind, state)}</span>
+        {kind === 'slide' && state?.ready && !empty && (
+          <button className={cn('office-status-btn', state.notes && 'on')} aria-pressed={state.notes} onClick={() => run('notes')}>
+            <StickyNote size={13} />
+            {T.tools.notes}
+          </button>
+        )}
         {activeTab && <span className={activeTab.modified ? 'warn' : 'ok'}>{activeTab.modified ? T.status.unsaved : T.status.saved}</span>}
         <button className="office-credit" onClick={() => setAbout(true)}>
           {T.status.basedOn}
@@ -288,7 +316,49 @@ function statusText(kind: string, state: EditorState | null): string {
   return s.count !== '' && Number(s.count) > 1 ? fmt(T.status.stats, { sum: s.sum, average: s.average, count: s.count }) : s.name
 }
 
+/** El menú «Archivo»: lo de siempre de un documento, con sus atajos. */
+function fileEntries({ hasDoc, run, about, doc }: { hasDoc: boolean; run: (command: string) => void; about: () => void; doc: string | null }): MenuEntry[] {
+  const F = T.file
+  return [
+    { label: F.new, icon: <FilePlusCorner size={15} />, kbd: 'Ctrl+N', onSelect: () => void window.molinoOffice.newDoc() },
+    { label: F.open, icon: <FolderOpen size={15} />, kbd: 'Ctrl+O', onSelect: () => void window.molinoOffice.openDialog() },
+    'sep',
+    { label: F.save, icon: <Save size={15} />, kbd: 'Ctrl+S', disabled: !hasDoc, onSelect: () => run('save') },
+    { label: F.saveAs, icon: <SaveAll size={15} />, kbd: 'Ctrl+Mayús+S', disabled: !hasDoc || !doc, onSelect: () => doc && void window.molinoOffice.saveAs(doc) },
+    { label: F.savePdf, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('savePdf') },
+    { label: F.print, icon: <Printer size={15} />, kbd: 'Ctrl+P', disabled: !hasDoc || !doc, onSelect: () => doc && void window.molinoOffice.print(doc) },
+    'sep',
+    { label: F.about, icon: <Info size={15} />, onSelect: about }
+  ]
+}
+
 // ------------------------------------------------------------ herramientas
+
+/** Una herramienta con varias opciones (márgenes, interlineado…): botón y su menú. */
+function ToolMenu({ tool, ready, run }: { tool: Extract<Tool, { type: 'menu' }>; ready: boolean; run: (command: string, value?: string) => void }) {
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const label = T.tools[tool.key]
+  return (
+    <>
+      <button
+        className={cn('tool', !tool.caption && 'icon')}
+        aria-label={label}
+        data-tip={tool.caption ? undefined : label}
+        aria-haspopup="menu"
+        aria-expanded={anchor !== null}
+        disabled={!ready}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())}
+      >
+        {tool.icon}
+        {tool.caption && <span>{label}</span>}
+        <ChevronDown size={11} />
+      </button>
+      {anchor && (
+        <Menu anchor={anchor} onClose={() => setAnchor(null)} entries={tool.options.map((o) => ({ label: o.label, onSelect: () => run(tool.command, o.value) }))} />
+      )}
+    </>
+  )
+}
 
 function ToolBar({ mode, state, run }: { mode: Mode; state: EditorState | null; run: (command: string, value?: string) => void }) {
   const ready = Boolean(state?.ready)
@@ -358,6 +428,7 @@ function ToolView({ tool, state, ready, run }: { tool: Tool; state: EditorState 
       </select>
     )
   }
+  if (tool.type === 'menu') return <ToolMenu tool={tool} ready={ready} run={run} />
   if (tool.type === 'color') {
     const label = T.tools[tool.key]
     return (

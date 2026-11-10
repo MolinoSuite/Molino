@@ -6,43 +6,57 @@
  */
 import {
   AlignCenter,
-  Check,
-  CheckCheck,
-  ChevronLeft,
-  ChevronRight,
-  FileDiff,
-  ListX,
-  MessageSquarePlus,
-  X,
   AlignJustify,
   AlignLeft,
   AlignRight,
   ArrowDownWideNarrow,
+  ArrowUpDown,
   ArrowUpNarrowWide,
   Baseline,
   BetweenHorizontalStart,
   BetweenVerticalStart,
   Bold,
+  BookOpenText,
+  Calculator,
   ChartColumn,
   ChartLine,
   ChartPie,
+  Check,
+  CheckCheck,
+  ChevronLeft,
+  ChevronRight,
+  Columns3,
   Copy,
   Euro,
+  Eye,
+  FileDiff,
   Filter,
-  GalleryVerticalEnd,
+  Frame,
+  Grid2x2,
   Grid3x3,
+  Hash,
+  Heading,
+  House,
   Image,
   Italic,
   LayoutTemplate,
   List,
+  ListIndentDecrease,
+  ListIndentIncrease,
   ListOrdered,
+  ListX,
+  MessageSquarePlus,
   PaintBucket,
-  Paintbrush,
-  PenLine,
+  Palette,
+  PanelBottom,
+  PanelTop,
   Percent,
   Pilcrow,
   Play,
   Presentation,
+  Proportions,
+  Radical,
+  Ratio,
   RectangleHorizontal,
   RectangleVertical,
   Redo2,
@@ -50,16 +64,22 @@ import {
   SeparatorHorizontal,
   Shapes,
   Sigma,
+  Snowflake,
+  SquareFunction,
   SquarePlus,
+  StickyNote,
   Strikethrough,
+  Superscript,
   Table,
   Table2,
   TableCellsMerge,
+  TableOfContents,
   Trash2,
   Type,
   Underline,
   Undo2,
-  WrapText
+  WrapText,
+  X
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { OfficeKind } from '@shared/officeui'
@@ -85,6 +105,7 @@ export type Tool =
   | { type: 'size' }
   | { type: 'style' }
   | { type: 'color'; key: 'color' | 'fill'; icon: ReactNode; swatch: (s: EditorState) => string | null }
+  | { type: 'menu'; key: ToolKey; command: string; icon: ReactNode; caption?: boolean; options: { value: string; label: string }[] }
 
 export interface Mode {
   id: string
@@ -174,6 +195,20 @@ const COMMON_EXTRA: PaletteEntry[] = [
   { label: T.zoomOut, group: G.view, keywords: L.office.keywords.zoomOut, command: 'zoomOut' }
 ]
 
+/** Un desplegable: el botón y sus opciones (cada una, una orden con su valor). */
+const MENU = (key: ToolKey, command: string, options: Record<string, string>, icon: ReactNode, extra: { caption?: boolean } = {}): Tool => ({
+  type: 'menu',
+  key,
+  command,
+  icon,
+  caption: extra.caption,
+  options: Object.entries(options).map(([value, label]) => ({ value, label }))
+})
+const O = L.office.options
+
+// Las pestañas de cada app, como las de Word, Excel y PowerPoint (Inicio,
+// Insertar, Disposición…), para que cada cosa esté donde se espera.
+
 const word: AppConfig = {
   kind: 'word',
   panel: false,
@@ -184,10 +219,26 @@ const word: AppConfig = {
   ],
   modes: [
     {
-      id: 'write',
-      label: M.write,
-      icon: <PenLine size={19} />,
-      groups: [UNDO, [{ type: 'style' }], LETTER, FORMAT, ALIGN, LISTS, [B('clearFormat', 'clearFormat', { icon: <RemoveFormatting size={ICON} /> })]]
+      id: 'home',
+      label: M.home,
+      icon: <House size={19} />,
+      groups: [
+        UNDO,
+        [{ type: 'style' }],
+        LETTER,
+        FORMAT,
+        ALIGN,
+        [
+          ...LISTS,
+          B('indentLess', 'indentLess', { icon: <ListIndentDecrease size={ICON} /> }),
+          B('indentMore', 'indentMore', { icon: <ListIndentIncrease size={ICON} /> }),
+          MENU('lineSpacing', 'lineSpacing', O.lineSpacing, <ArrowUpDown size={ICON} />)
+        ],
+        [
+          B('marks', 'marks', { icon: <Pilcrow size={ICON} />, active: (s) => s.marks }),
+          B('clearFormat', 'clearFormat', { icon: <RemoveFormatting size={ICON} /> })
+        ]
+      ]
     },
     {
       id: 'insert',
@@ -198,7 +249,13 @@ const word: AppConfig = {
           B('table', 'table', { value: '3x3', icon: <Table size={ICON} />, caption: true }),
           B('image', 'image', { icon: <Image size={ICON} />, caption: true }),
           B('pageBreak', 'pageBreak', { icon: <SeparatorHorizontal size={ICON} />, caption: true })
-        ]
+        ],
+        [
+          B('header', 'header', { icon: <PanelTop size={ICON} />, caption: true }),
+          B('footer', 'footer', { icon: <PanelBottom size={ICON} />, caption: true }),
+          MENU('pageNumber', 'pageNumber', O.pageNumber, <Hash size={ICON} />, { caption: true })
+        ],
+        [B('equation', 'equation', { icon: <Radical size={ICON} />, caption: true })]
       ]
     },
     {
@@ -207,10 +264,26 @@ const word: AppConfig = {
       icon: <LayoutTemplate size={19} />,
       groups: [
         [
+          MENU('margins', 'margins', O.margins, <Frame size={ICON} />, { caption: true }),
+          MENU('pageSize', 'pageSize', O.pageSize, <Proportions size={ICON} />, { caption: true }),
+          MENU('pageColumns', 'pageColumns', O.pageColumns, <Columns3 size={ICON} />, { caption: true })
+        ],
+        [
           B('portrait', 'portrait', { icon: <RectangleVertical size={ICON} />, caption: true, active: (s) => s.portrait }),
           B('landscape', 'landscape', { icon: <RectangleHorizontal size={ICON} />, caption: true, active: (s) => !s.portrait })
         ],
-        [B('marks', 'marks', { icon: <Pilcrow size={ICON} />, caption: true, active: (s) => s.marks })]
+        [B('pageBreak', 'pageBreak', { icon: <SeparatorHorizontal size={ICON} />, caption: true })]
+      ]
+    },
+    {
+      id: 'references',
+      label: M.references,
+      icon: <BookOpenText size={19} />,
+      groups: [
+        [
+          B('toc', 'toc', { icon: <TableOfContents size={ICON} />, caption: true }),
+          B('footnote', 'footnote', { icon: <Superscript size={ICON} />, caption: true })
+        ]
       ]
     }
   ],
@@ -220,6 +293,13 @@ const word: AppConfig = {
     { label: T.table4, group: G.insert, keywords: L.office.keywords.table, command: 'table', value: '4x4' }
   ]
 }
+
+const SUM = B('sum', 'sum', { icon: <Sigma size={ICON} />, caption: true })
+const SORT_FILTER: Tool[] = [
+  B('sortAsc', 'sort', { value: 'asc', icon: <ArrowUpNarrowWide size={ICON} /> }),
+  B('sortDesc', 'sort', { value: 'desc', icon: <ArrowDownWideNarrow size={ICON} /> }),
+  B('filter', 'filter', { icon: <Filter size={ICON} />, caption: true, active: (s) => s.filter })
+]
 
 const cell: AppConfig = {
   kind: 'cell',
@@ -231,50 +311,33 @@ const cell: AppConfig = {
   ],
   modes: [
     {
-      id: 'data',
-      label: M.data,
-      icon: <Table2 size={19} />,
-      groups: [
-        UNDO,
-        [
-          B('currency', 'currency', { icon: <Euro size={ICON} />, active: (s) => s.numberFormat === 'currency' }),
-          B('percent', 'percent', { icon: <Percent size={ICON} />, active: (s) => s.numberFormat === 'percent' }),
-          B('fewerDecimals', 'fewerDecimals', { icon: <span className="glyph">,0</span> }),
-          B('moreDecimals', 'moreDecimals', { icon: <span className="glyph">,00</span> })
-        ],
-        [
-          B('bold', 'bold', { icon: <Bold size={ICON} />, active: (s) => s.bold }),
-          B('italic', 'italic', { icon: <Italic size={ICON} />, active: (s) => s.italic }),
-          { type: 'color', key: 'color', icon: <Baseline size={ICON} />, swatch: (s) => s.color },
-          { type: 'color', key: 'fill', icon: <PaintBucket size={ICON} />, swatch: (s) => s.fill },
-          B('borders', 'borders', { icon: <Grid3x3 size={ICON} /> })
-        ],
-        [
-          B('sum', 'sum', { icon: <Sigma size={ICON} />, caption: true }),
-          B('sortAsc', 'sort', { value: 'asc', icon: <ArrowUpNarrowWide size={ICON} /> }),
-          B('sortDesc', 'sort', { value: 'desc', icon: <ArrowDownWideNarrow size={ICON} /> }),
-          B('filter', 'filter', { icon: <Filter size={ICON} />, caption: true, active: (s) => s.filter }),
-          B('columnChart', 'chart', { value: 'columns', icon: <ChartColumn size={ICON} /> })
-        ]
-      ]
-    },
-    {
-      id: 'format',
-      label: M.format,
-      icon: <Paintbrush size={19} />,
+      id: 'home',
+      label: M.home,
+      icon: <House size={19} />,
       groups: [
         UNDO,
         LETTER,
         [
           B('bold', 'bold', { icon: <Bold size={ICON} />, active: (s) => s.bold }),
           B('italic', 'italic', { icon: <Italic size={ICON} />, active: (s) => s.italic }),
-          B('underline', 'underline', { icon: <Underline size={ICON} />, active: (s) => s.underline })
+          B('underline', 'underline', { icon: <Underline size={ICON} />, active: (s) => s.underline }),
+          { type: 'color', key: 'color', icon: <Baseline size={ICON} />, swatch: (s) => s.color },
+          { type: 'color', key: 'fill', icon: <PaintBucket size={ICON} />, swatch: (s) => s.fill },
+          B('borders', 'borders', { icon: <Grid3x3 size={ICON} /> })
         ],
-        ALIGN.slice(0, 3),
         [
-          B('wrap', 'wrap', { icon: <WrapText size={ICON} />, caption: true, active: (s) => s.wrap }),
-          B('merge', 'merge', { icon: <TableCellsMerge size={ICON} />, caption: true })
-        ]
+          ...ALIGN.slice(0, 3),
+          B('wrap', 'wrap', { icon: <WrapText size={ICON} />, active: (s) => s.wrap }),
+          B('merge', 'merge', { icon: <TableCellsMerge size={ICON} /> })
+        ],
+        [
+          B('currency', 'currency', { icon: <Euro size={ICON} />, active: (s) => s.numberFormat === 'currency' }),
+          B('percent', 'percent', { icon: <Percent size={ICON} />, active: (s) => s.numberFormat === 'percent' }),
+          B('fewerDecimals', 'fewerDecimals', { icon: <span className="glyph">,0</span> }),
+          B('moreDecimals', 'moreDecimals', { icon: <span className="glyph">,00</span> })
+        ],
+        // Sumar, sin texto para que quepa en una fila; ordenar y filtrar, en Datos (como en Excel).
+        [B('sum', 'sum', { icon: <Sigma size={ICON} /> })]
       ]
     },
     {
@@ -284,10 +347,45 @@ const cell: AppConfig = {
       groups: [
         [
           B('rows', 'rows', { icon: <BetweenHorizontalStart size={ICON} />, caption: true }),
-          B('columns', 'columns', { icon: <BetweenVerticalStart size={ICON} />, caption: true }),
+          B('columns', 'columns', { icon: <BetweenVerticalStart size={ICON} />, caption: true })
+        ],
+        [
+          B('columnChart', 'chart', { value: 'columns', icon: <ChartColumn size={ICON} />, caption: true }),
           B('lineChart', 'chart', { value: 'lines', icon: <ChartLine size={ICON} />, caption: true }),
-          B('pieChart', 'chart', { value: 'pie', icon: <ChartPie size={ICON} />, caption: true }),
-          B('image', 'image', { icon: <Image size={ICON} />, caption: true })
+          B('pieChart', 'chart', { value: 'pie', icon: <ChartPie size={ICON} />, caption: true })
+        ],
+        [B('image', 'image', { icon: <Image size={ICON} />, caption: true })]
+      ]
+    },
+    {
+      id: 'formulas',
+      label: M.formulas,
+      icon: <SquareFunction size={19} />,
+      groups: [
+        [
+          SUM,
+          B('average', 'func', { value: 'AVERAGE', icon: <Calculator size={ICON} />, caption: true }),
+          B('count', 'func', { value: 'COUNT', icon: <Hash size={ICON} />, caption: true }),
+          B('max', 'func', { value: 'MAX', icon: <ArrowUpNarrowWide size={ICON} />, caption: true }),
+          B('min', 'func', { value: 'MIN', icon: <ArrowDownWideNarrow size={ICON} />, caption: true })
+        ]
+      ]
+    },
+    {
+      id: 'data',
+      label: M.data,
+      icon: <Table2 size={19} />,
+      groups: [SORT_FILTER, [B('columnChart', 'chart', { value: 'columns', icon: <ChartColumn size={ICON} /> })]]
+    },
+    {
+      id: 'view',
+      label: M.view,
+      icon: <Eye size={19} />,
+      groups: [
+        [
+          B('freeze', 'freeze', { icon: <Snowflake size={ICON} />, caption: true, active: (s) => s.frozen }),
+          B('gridlines', 'gridlines', { icon: <Grid2x2 size={ICON} />, caption: true, active: (s) => s.gridlines }),
+          B('headings', 'headings', { icon: <Heading size={ICON} />, caption: true, active: (s) => s.headings })
         ]
       ]
     }
@@ -306,9 +404,9 @@ const slide: AppConfig = {
   ],
   modes: [
     {
-      id: 'slides',
-      label: M.slides,
-      icon: <GalleryVerticalEnd size={19} />,
+      id: 'home',
+      label: M.home,
+      icon: <House size={19} />,
       groups: [
         UNDO,
         [
@@ -319,12 +417,27 @@ const slide: AppConfig = {
         LETTER,
         FORMAT,
         ALIGN.slice(0, 3),
+        LISTS
+      ]
+    },
+    {
+      id: 'insert',
+      label: M.insert,
+      icon: <SquarePlus size={19} />,
+      groups: [
         [
-          B('textBox', 'textBox', { icon: <Type size={ICON} /> }),
-          B('shape', 'shape', { value: 'roundRect', icon: <Shapes size={ICON} /> }),
-          B('image', 'image', { icon: <Image size={ICON} /> })
+          B('textBox', 'textBox', { icon: <Type size={ICON} />, caption: true }),
+          B('shape', 'shape', { value: 'roundRect', icon: <Shapes size={ICON} />, caption: true }),
+          B('image', 'image', { icon: <Image size={ICON} />, caption: true }),
+          B('table', 'table', { value: '3x3', icon: <Table size={ICON} />, caption: true })
         ]
       ]
+    },
+    {
+      id: 'design',
+      label: M.design,
+      icon: <Palette size={19} />,
+      groups: [[MENU('slideSize', 'slideSize', O.slideSize, <Ratio size={ICON} />, { caption: true })]]
     },
     {
       id: 'present',
@@ -334,7 +447,8 @@ const slide: AppConfig = {
         [
           B('fromStart', 'present', { icon: <Play size={ICON} />, caption: true }),
           B('fromHere', 'present', { value: 'here', icon: <Play size={ICON} />, caption: true })
-        ]
+        ],
+        [B('notes', 'notes', { icon: <StickyNote size={ICON} />, caption: true, active: (s) => s.notes })]
       ]
     }
   ],
@@ -363,6 +477,13 @@ export function paletteEntries(app: AppConfig): PaletteEntry[] {
   for (const mode of app.modes) {
     for (const group of mode.groups) {
       for (const tool of group) {
+        if (tool.type === 'menu') {
+          // Cada opción de un desplegable, una orden del buscador («Márgenes: Estrechos»).
+          for (const option of tool.options) {
+            add({ label: `${T[tool.key]}: ${option.label}`, group: mode.label, keywords: '', command: tool.command, value: option.value })
+          }
+          continue
+        }
         if (tool.type !== 'button') continue
         add({
           label: T[tool.key],

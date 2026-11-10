@@ -60,10 +60,16 @@ export interface EditorState {
   selection: { name: string; sum: string; average: string; count: string; max: string; min: string }
   sheets: { index: number; name: string }[]
   activeSheet: number
+  /** Vista de la hoja: paneles inmovilizados, líneas de cuadrícula, encabezados. */
+  frozen: boolean
+  gridlines: boolean
+  headings: boolean
   // Presentaciones
   themes: { id: number; name: string }[]
   activeTheme: number
   layouts: { index: number; name: string; image: string }[]
+  /** Las notas del orador, debajo de la diapositiva. */
+  notes: boolean
   // Revisar
   comments: CommentInfo[]
   /** Control de cambios encendido (solo Documentos). */
@@ -99,13 +105,31 @@ function initialState(): EditorState {
     selection: { name: '', sum: '', average: '', count: '', max: '', min: '' },
     sheets: [],
     activeSheet: 0,
+    frozen: false,
+    gridlines: true,
+    headings: true,
     themes: [],
     activeTheme: -1,
     layouts: [],
+    notes: true,
     comments: [],
     track: false
   }
 }
+
+// Disposición de Documentos (en milímetros; márgenes: arriba, izquierda, abajo, derecha).
+const MARGINS: Record<string, [number, number, number, number]> = {
+  normal: [25, 30, 25, 30],
+  narrow: [12.7, 12.7, 12.7, 12.7],
+  moderate: [25.4, 19.1, 25.4, 19.1],
+  wide: [25.4, 50.8, 25.4, 50.8]
+}
+const PAGE_SIZES: Record<string, [number, number]> = { a4: [210, 297], letter: [215.9, 279.4], a5: [148, 210], legal: [215.9, 355.6] }
+// Constantes de los editores (las define su interfaz, no la API).
+const LINERULE_AUTO = 1
+const PAGE_NUM = { top: 0x01, bottom: 0x02, center: 2 }
+/** Las funciones de «Fórmulas» (con el nombre que entiende el editor). */
+const FUNCTIONS = new Set(['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN'])
 
 const LISTS = {
   bullets:
@@ -269,6 +293,50 @@ export class EditorSession {
         pageBreak: () => api.put_AddPageBreak(),
         portrait: () => api.change_PageOrient(true),
         landscape: () => api.change_PageOrient(false),
+        indentLess: () => api.DecreaseIndent(),
+        indentMore: () => api.IncreaseIndent(),
+        lineSpacing: (v) => {
+          const n = Number(v)
+          if (n > 0 && n <= 3) api.put_PrLineSpacing(LINERULE_AUTO, n)
+        },
+        header: () => api.GoToHeader(api.getCurrentPage()),
+        footer: () => api.GoToFooter(api.getCurrentPage()),
+        pageNumber: (where) => api.put_PageNum(where === 'top' ? PAGE_NUM.top : PAGE_NUM.bottom, PAGE_NUM.center),
+        equation: () => api.asc_AddMath(),
+        margins: (v) => {
+          const m = MARGINS[v ?? '']
+          if (!m) return
+          const props = new ew.Asc.CDocumentSectionProps()
+          props.put_TopMargin(m[0])
+          props.put_LeftMargin(m[1])
+          props.put_BottomMargin(m[2])
+          props.put_RightMargin(m[3])
+          api.asc_SetSectionProps(props)
+        },
+        pageSize: (v) => {
+          // En vertical: el editor lo pone en horizontal si la página lo está.
+          const size = PAGE_SIZES[v ?? '']
+          if (size) api.change_DocSize(size[0], size[1])
+        },
+        pageColumns: (v) => {
+          const n = Number(v)
+          if (![1, 2, 3].includes(n)) return
+          const props = new ew.Asc.CDocumentColumnsProps()
+          props.put_EqualWidth(true)
+          props.put_Num(n)
+          props.put_Space(12.5)
+          api.asc_SetColumnsProps(props)
+        },
+        toc: () => {
+          const props = new ew.Asc.CTableOfContentsPr()
+          props.put_OutlineRange(1, 9)
+          props.put_Hyperlink(true)
+          props.put_ShowPageNumbers(true)
+          props.put_RightAlignTab(true)
+          props.put_TabLeader(ew.Asc.c_oAscTabLeader.Dot)
+          api.asc_AddTableOfContents(null, props)
+        },
+        footnote: () => api.asc_AddFootnote(),
         // El editor no avisa al cambiarlas (asc_onShowParaMarks solo llega al cargar):
         // lo que devuelve es lo que queda.
         marks: () => {
@@ -305,6 +373,12 @@ export class EditorSession {
         merge: () => api.asc_mergeCells(ew.Asc.c_oAscMergeOptions.MergeCenter),
         wrap: () => api.asc_setCellTextWrap(!s.wrap),
         sum: () => api.asc_insertInCell(api.asc_getFormulaLocaleName('SUM'), ew.Asc.c_oAscPopUpSelectorType.Func, true),
+        func: (name) => {
+          if (name && FUNCTIONS.has(name)) api.asc_insertInCell(api.asc_getFormulaLocaleName(name), ew.Asc.c_oAscPopUpSelectorType.Func, true)
+        },
+        freeze: () => api.asc_freezePane(),
+        gridlines: () => api.asc_setDisplayGridlines(!s.gridlines),
+        headings: () => api.asc_setDisplayHeadings(!s.headings),
         sort: (direction) => {
           const E = ew.Asc.c_oAscSelectionSortExpand
           const expand = api.asc_sortCellsRangeExpand()
@@ -345,6 +419,22 @@ export class EditorSession {
       theme: (id) => api.ChangeTheme(Number(id)),
       layout: (i) => api.ChangeLayout(Number(i)),
       textBox: () => api.StartAddShape('textRect', true),
+      table: (d) => {
+        const [cols, rows] = String(d || '3x3').split('x').map(Number)
+        api.put_Table(cols, rows)
+      },
+      slideSize: (v) => {
+        // Se queda el alto y cambia el ancho (como PowerPoint): 16:9 o 4:3.
+        const height = api.get_PresentationHeight()
+        const Z = ew.Asc.c_oAscSlideSZType
+        if (v === 'standard') api.changeSlideSize((height * 4) / 3, height, Z.SzScreen4x3, 1)
+        else if (v === 'wide') api.changeSlideSize((height * 16) / 9, height, Z.SzCustom, 1)
+      },
+      notes: () => {
+        api.asc_ShowNotes(!s.notes)
+        s.notes = !s.notes
+        this.changed()
+      },
       shape: (f) => api.StartAddShape(f || 'rect', true),
       present: (from) => ew.Common.NotificationCenter.trigger('preview:start', from === 'here' ? api.getCurrentPage() : 0, false, false, from === 'here'),
       fit: () => api.zoomFitToPage()
@@ -567,6 +657,12 @@ export class EditorSession {
         s.numberFormat = type === T.Currency || type === T.Accounting ? 'currency' : type === T.Percent ? 'percent' : 'general'
         const filter = info.asc_getAutoFilterInfo()
         s.filter = !!(filter && filter.asc_getIsAutoFilter())
+        const view = api.asc_getSheetViewSettings()
+        if (view) {
+          s.frozen = !!view.asc_getIsFreezePane()
+          s.gridlines = !!view.asc_getShowGridLines()
+          s.headings = !!view.asc_getShowRowColHeaders()
+        }
       }
       readSheets = (): void => {
         const n = api.asc_getWorksheetsCount()
@@ -585,6 +681,7 @@ export class EditorSession {
         this.changed()
       }
       on('asc_onSheetsChanged', () => readSheets())
+      on('asc_onUpdateSheetViewSettings', () => this.rereadCell())
       on('asc_onActiveSheetChanged', () => readSheets())
     }
 
