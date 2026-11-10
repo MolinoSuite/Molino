@@ -224,6 +224,9 @@ def _harvest_office(folder: Path, area: Path) -> bool:
     target = area / folder.name
     target.mkdir()
     os.replace(folder / "doc", target / "doc")
+    # Las letras incrustadas de un .docx (docfonts.py), para volver a meterlas al guardarlo.
+    if _plain(folder / "embedded", directory=True):
+        os.replace(folder / "embedded", target / "embedded")
     os.replace(folder / NOTE, target / NOTE)
     return True
 

@@ -570,17 +570,18 @@ class Broker:
             base = self._office_root.resolve(strict=True)
             if not root.is_relative_to(base) or (index is not None and not index.is_relative_to(base)):
                 raise office.OfficeUnavailable(version)
+            own = office.own_fonts(base)
         except (office.OfficeUnavailable, OSError):
             self._office = None
             raise EngineError("unsupported", _("Documentos, Hojas y Presentaciones no están instalados.")) from None
         if self.sandboxed and self._container is not None:
             # Solo lectura: la pieza (x2t, sus bibliotecas, los editores para
-            # dibujar el PDF, plantillas y fuentes propias), el indice y las
-            # fuentes del usuario, que x2t tambien usa.
-            for folder in (root, *([index] if index else []), *office.user_font_dirs()):
+            # dibujar el PDF, plantillas y fuentes propias), el indice, las
+            # instaladas solo en Molino y las fuentes del usuario, que x2t tambien usa.
+            for folder in (root, *([index] if index else []), *([own] if own else []), *office.user_font_dirs()):
                 winsandbox.ensure_read_access(folder, self._container)
-        self._office = office.Piece(root, index)
-        return {"piece": str(root), "fonts": str(index) if index else None}
+        self._office = office.Piece(root, index, own)
+        return {"piece": str(root), "fonts": str(index) if index else None, "ownFonts": str(own) if own else None}
 
     def _prepare_signing(self, grant: Grant, params: dict[str, Any]) -> dict[str, Any]:
         """Carga aqui la clave elegida y le pasa al motor solo los certificados publicos."""

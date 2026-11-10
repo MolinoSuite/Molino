@@ -71,6 +71,8 @@ X2T_TIMEOUT = 10 * 60  # pasado este tiempo x2t se da por colgado
 # motor con nombres de forma fija, y solo esas acepta el intermediario.
 TASK_PATH = re.compile(r"^o[0-9a-f]{16}/x-[0-9a-f]{12}/task\.xml$")
 FONTS_PATH = re.compile(r"^f[0-9a-f]{16}$")
+# El indice propio de un documento con letras incrustadas (o<id>/index), con las de o<id>/fonts.
+DOC_INDEX_PATH = re.compile(r"^(o[0-9a-f]{16})/index$")
 # Cada cambio que manda el editor: «longitud;base64» (asi los escribe el nativo).
 CHANGE = re.compile(r"^[0-9]{1,10};[A-Za-z0-9+/]*={0,2}$")
 MEDIA_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$", re.IGNORECASE)
@@ -218,6 +220,8 @@ class Piece:
 
     root: Path
     fonts: Path | None = None
+    # Las fuentes instaladas «solo en Molino» (office\own-fonts), si hay.
+    own_fonts: Path | None = None
 
     @property
     def converter(self) -> Path:
@@ -261,6 +265,25 @@ def check_fonts(folder: Path) -> Path:
     return resolved
 
 
+OWN_FONTS = "own-fonts"
+
+
+def own_fonts(office_root: Path) -> Path | None:
+    """La carpeta de las fuentes instaladas solo en Molino (``office\\own-fonts``), resuelta; None si no hay.
+
+    La crea la aplicacion al instalar la primera (fontcatalog.ts). Tiene que
+    estar dentro de ``office_root``: un enlace que lleve a otro sitio no vale.
+    """
+    folder = office_root / OWN_FONTS
+    try:
+        if folder.is_symlink() or not folder.is_dir():
+            return None
+        resolved = folder.resolve(strict=True)
+        return resolved if resolved.is_relative_to(office_root.resolve(strict=True)) else None
+    except OSError:
+        return None
+
+
 def user_font_dirs() -> list[Path]:
     """Carpetas de fuentes del usuario que el contenedor no puede leer por si solo.
 
@@ -281,12 +304,20 @@ def x2t_command(piece: Piece, work_root: Path, job: dict[str, Any]) -> list[str]
 
     Las rutas van relativas a la carpeta del motor y solo valen las de forma
     fija; si no, ValueError. Nada mas que estas dos formas de llamar a x2t.
+    El indice de fuentes lleva las del equipo (x2t las busca solo), las de la
+    pieza, las instaladas solo en Molino y, el propio de un documento
+    (``o<id>/index``), sus letras incrustadas (``o<id>/fonts``).
     """
     task, fonts = job.get("task"), job.get("fonts")
     if isinstance(task, str) and TASK_PATH.match(task) and fonts is None:
         return [str(piece.x2t), str(work_root / task)]
-    if isinstance(fonts, str) and FONTS_PATH.match(fonts) and task is None:
-        return [str(piece.x2t), "-create-allfonts", str(work_root / fonts), str(piece.engine_fonts)]
+    if isinstance(fonts, str) and task is None:
+        own = [str(piece.own_fonts)] if piece.own_fonts else []
+        if FONTS_PATH.match(fonts):
+            return [str(piece.x2t), "-create-allfonts", str(work_root / fonts), str(piece.engine_fonts), *own]
+        doc = DOC_INDEX_PATH.match(fonts)
+        if doc:
+            return [str(piece.x2t), "-create-allfonts", str(work_root / fonts), str(piece.engine_fonts), *own, str(work_root / doc.group(1) / "fonts")]
     raise ValueError("trabajo de x2t no valido")
 
 
@@ -350,6 +381,27 @@ def clean_font_index(text: str) -> str:
     JSON, se comprueban los tipos y se escriben de nuevo. Si algo no encaja,
     ValueError.
     """
+    values = _index_values(text)
+    files, infos, ranges = values["__fonts_files"], values["__fonts_infos"], values["__fonts_ranges"]
+
+    def dump(value: Any) -> str:
+        return json.dumps(value, ensure_ascii=True, separators=(",", ":"))
+
+    lines = [f'window["__all_fonts_js_version__"] = {values["__all_fonts_js_version__"]};']
+    lines.append('window["__fonts_files"] = [\n' + ",\n".join(dump(f) for f in files) + "\n];")
+    lines.append('window["__fonts_infos"] = [\n' + ",\n".join(dump(i) for i in infos) + "\n];")
+    lines.append(f'window["__fonts_ranges"] = {dump(ranges)};')
+    lines.append(f'window["g_fonts_selection_bin"] = {dump(values["g_fonts_selection_bin"])};')
+    return "\n\n".join(lines) + "\n"
+
+
+def index_families(text: str) -> set[str]:
+    """Las familias de un indice de fuentes (AllFonts.js), en minusculas. ValueError si no es un indice."""
+    return {info[0].lower() for info in _index_values(text)["__fonts_infos"]}
+
+
+def _index_values(text: str) -> dict[str, Any]:
+    """Las cinco asignaciones de AllFonts.js, leidas como JSON y con sus tipos comprobados."""
     values: dict[str, Any] = {}
     decoder = json.JSONDecoder()
     at = 0
@@ -381,16 +433,7 @@ def clean_font_index(text: str) -> str:
     )
     if not ok:
         raise ValueError("indice de fuentes no valido")
-
-    def dump(value: Any) -> str:
-        return json.dumps(value, ensure_ascii=True, separators=(",", ":"))
-
-    lines = [f'window["__all_fonts_js_version__"] = {values["__all_fonts_js_version__"]};']
-    lines.append('window["__fonts_files"] = [\n' + ",\n".join(dump(f) for f in files) + "\n];")
-    lines.append('window["__fonts_infos"] = [\n' + ",\n".join(dump(i) for i in infos) + "\n];")
-    lines.append(f'window["__fonts_ranges"] = {dump(ranges)};')
-    lines.append(f'window["g_fonts_selection_bin"] = {dump(values["g_fonts_selection_bin"])};')
-    return "\n\n".join(lines) + "\n"
+    return values
 
 
 # ------------------------------------------------------- PDF que escribe x2t
