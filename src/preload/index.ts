@@ -109,6 +109,9 @@ const api: MolinoApi = {
   shell: {
     openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url)
   },
+  clipboard: {
+    writeText: (text) => ipcRenderer.invoke('clipboard:writeText', text)
+  },
   updates: {
     status: () => ipcRenderer.invoke('updates:status'),
     check: () => ipcRenderer.send('updates:check'),

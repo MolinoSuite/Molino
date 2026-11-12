@@ -17,6 +17,7 @@ import { useActiveDoc, useApp } from './state/app'
 import { useFileDrop, useGlobalShortcuts } from './state/shortcuts'
 import { followDefaultApp } from './state/defaultApp'
 import { followAi } from './state/ai'
+import { installCopy } from './modes/annotate/selection'
 import { followUpdates } from './state/updates'
 
 export function App() {
@@ -27,6 +28,8 @@ export function App() {
 
   useEffect(() => {
     void initApp()
+    // Ctrl+C sobre el texto de las páginas: con sus espacios y saltos de línea.
+    installCopy()
     followUpdates()
     followAi()
     followDefaultApp()

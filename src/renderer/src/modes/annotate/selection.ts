@@ -63,7 +63,52 @@ export function readSelection(docId: string): SelectedText | null {
     if (rects.length) pages.set(pageId, mergeLine(rects))
   }
   if (pages.size === 0 || !last) return null
-  return { text: selection.toString(), pages, anchor: { x: last.right, y: last.bottom } }
+  return { text: selectionText() ?? selection.toString(), pages, anchor: { x: last.right, y: last.bottom } }
+}
+
+/**
+ * El texto seleccionado en las capas de texto de las páginas, como se lee:
+ * palabras con su espacio, cada línea en la suya y una línea en blanco entre
+ * páginas. (El navegador lo copiaría todo seguido: los saltos de línea de la
+ * capa no se pueden seleccionar.) null si la selección no está en ninguna página.
+ */
+export function selectionText(): string | null {
+  const selection = window.getSelection()
+  if (!selection || selection.isCollapsed || selection.rangeCount === 0) return null
+  const range = selection.getRangeAt(0)
+  const pages: string[] = []
+  for (const layer of document.querySelectorAll<HTMLElement>('.text-layer')) {
+    if (!selection.containsNode(layer, true)) continue
+    let text = ''
+    for (const span of layer.querySelectorAll<HTMLElement>('span')) {
+      if (!selection.containsNode(span, true)) continue
+      let part = span.textContent ?? ''
+      const node = span.firstChild
+      if (node && range.endContainer === node) part = part.slice(0, range.endOffset)
+      if (node && range.startContainer === node) part = part.slice(range.startOffset)
+      text += part
+      if (span.dataset.eol) text = `${text.replace(/[ \t]+$/, '')}\n`
+    }
+    const clean = text.replace(/[ \t]+\n/g, '\n').trim()
+    if (clean) pages.push(clean)
+  }
+  return pages.length ? pages.join('\n\n') : null
+}
+
+/** Ctrl+C (y Copiar del sistema) con el texto de selectionText. Se instala una vez. */
+let copyInstalled = false
+export function installCopy(): void {
+  if (copyInstalled) return
+  copyInstalled = true
+  document.addEventListener('copy', (event) => {
+    const target = event.target
+    // En un campo de texto, lo de siempre.
+    if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) return
+    const text = selectionText()
+    if (!text || !event.clipboardData) return
+    event.clipboardData.setData('text/plain', text)
+    event.preventDefault()
+  })
 }
 
 export function rectToQuad(rect: Rect): Point[] {
