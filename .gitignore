@@ -7,6 +7,7 @@ out/
 dist/
 dist-engine/
 dist-office/
+dist-suite/
 build-engine/
 *.tsbuildinfo
 # Avisos de terceros: se generan al compilar (npm run notices)

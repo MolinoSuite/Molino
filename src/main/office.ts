@@ -59,6 +59,24 @@ export const OFFICE_PIECE: PieceFile = {
  */
 const OFFERED_WHEN_PACKAGED = false
 
+/**
+ * La pieza que trae dentro el paquete de Molino Suite (Microsoft Store), junto
+ * al programa (resources\office): de solo lectura y de la versión de este
+ * Molino. Con ella no se descarga nada; las apps vienen puestas y la Store las
+ * actualiza con el paquete. Solo pruebas (sin empaquetar):
+ * MOLINO_TEST_OFFICE_BUNDLED. Null si no la hay o no es la de esta versión.
+ */
+export function bundledPieceDir(): string | null {
+  const dir = app.isPackaged ? join(process.resourcesPath, 'office') : process.env.MOLINO_TEST_OFFICE_BUNDLED
+  if (!dir) return null
+  try {
+    const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as { piece?: unknown; version?: unknown }
+    return manifest.piece === 'office' && manifest.version === PIECE.version ? dir : null
+  } catch {
+    return null
+  }
+}
+
 /** Cómo se arma la pieza y los cambios de Molino (office/build.py y office/patches.py): el código que pide la AGPL. */
 export const OFFICE_SOURCE_URL = 'https://github.com/MolinoSuite/Molino/tree/main/office'
 
@@ -185,9 +203,15 @@ export class OfficePiece {
   private running: Promise<void> | null = null
   private abort: (() => void) | null = null
 
+  /**
+   * ``userData``: la carpeta de datos (la pieza descargada, su índice de
+   * fuentes y las fuentes propias van en su carpeta office). ``bundled``: la
+   * pieza que trae el paquete (bundledPieceDir), si la trae.
+   */
   constructor(
     userData: string,
-    private readonly onProgress: (progress: OfficeProgress | null) => void
+    private readonly onProgress: (progress: OfficeProgress | null) => void,
+    readonly bundled: string | null = null
   ) {
     this.root = join(userData, 'office')
   }
@@ -221,12 +245,12 @@ export class OfficePiece {
 
   /** ¿Ofrece esta versión de Molino añadir la pieza? (si no, ni se enseña ni se instala). */
   get offered(): boolean {
-    return OFFERED_WHEN_PACKAGED || !app.isPackaged
+    return this.bundled !== null || OFFERED_WHEN_PACKAGED || !app.isPackaged
   }
 
   /** La pieza instalada es de una versión anterior de Molino: hay que poner la de esta (se hace sola). */
   get outdated(): boolean {
-    return this.offered && this.installed !== null && this.installed !== PIECE.version
+    return this.bundled === null && this.offered && this.installed !== null && this.installed !== PIECE.version
   }
 
   /**
@@ -249,6 +273,7 @@ export class OfficePiece {
 
   /** Carpeta de la pieza instalada, si es la de esta versión y está entera. */
   async ready(): Promise<string | null> {
+    if (this.bundled) return this.bundled
     if (this.installed !== PIECE.version) return null
     const dir = this.inside(PIECE.version)
     try {
@@ -273,6 +298,7 @@ export class OfficePiece {
     return {
       available: this.offered,
       installed,
+      bundled: this.bundled !== null,
       update: !installed && this.installed !== null && this.installed !== PIECE.version,
       size: PIECE.size,
       unpacked: PIECE.unpacked,
@@ -283,6 +309,7 @@ export class OfficePiece {
 
   /** Descarga e instala la pieza (si ya se está haciendo, espera a eso). Falla con OfficeError. */
   install(): Promise<void> {
+    if (this.bundled) return Promise.resolve()
     if (!this.offered) return Promise.reject(new OfficeError('network'))
     if (!this.running) {
       this.running = this.doInstall().finally(() => {
@@ -378,6 +405,8 @@ export class OfficePiece {
 
   /** Quita la pieza entera (si se estaba instalando, primero lo cancela). */
   async remove(): Promise<void> {
+    // La del paquete se quita desinstalando Molino Suite.
+    if (this.bundled) return
     if (this.running) {
       this.cancel()
       await this.running.catch(() => undefined)

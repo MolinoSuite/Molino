@@ -1,0 +1,13 @@
+{
+  "HomeDescription": "All the Molino apps, what’s new and what’s recent.",
+  "PdfDescription": "View, fill in, sign and edit PDFs.",
+  "DocsName": "Molino Docs",
+  "DocsDescription": "Write and edit Word and OpenDocument documents.",
+  "DocsFileType": "Document",
+  "SheetsName": "Molino Sheets",
+  "SheetsDescription": "Work with numbers and tables in Excel and OpenDocument spreadsheets.",
+  "SheetsFileType": "Spreadsheet",
+  "SlidesName": "Molino Slides",
+  "SlidesDescription": "Create and present PowerPoint and OpenDocument slides.",
+  "SlidesFileType": "Presentation"
+}

@@ -257,6 +257,16 @@ def check_piece(root: Path) -> Path:
     return resolved
 
 
+def piece_version(root: Path) -> str | None:
+    """La version que dice el manifiesto de la pieza de ``root`` (None si no hay pieza o no se puede leer)."""
+    try:
+        manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    version = manifest.get("version") if isinstance(manifest, dict) and manifest.get("piece") == "office" else None
+    return version if isinstance(version, str) else None
+
+
 def check_fonts(folder: Path) -> Path:
     """``folder`` resuelta si tiene el indice de fuentes (AllFonts.js y font_selection.bin)."""
     try:

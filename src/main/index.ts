@@ -10,13 +10,13 @@ import { Bridge, isOpenable } from './ipc'
 import { initLang, L } from './i18n'
 import { initLog, log } from './log'
 import { legacyModelsDir, migrateFromFolio } from './migrate'
-import { OfficePiece } from './office'
+import { bundledPieceDir, OfficePiece } from './office'
 import type { HomeApp } from '@shared/home'
 import type { OfficeKind } from '@shared/officeui'
 import { OFFICE_KINDS, requestedApp, syncShell } from './officeapps'
 import { isOfficeFile, OfficeWindows } from './officewin'
 import { portableDataDir } from './portable'
-import { isStoreApp, storeDataDir } from './appx'
+import { isStoreApp, storeAppUserModelId, storeDataDir } from './appx'
 import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
 import { Store } from './store'
@@ -42,7 +42,9 @@ async function shareExtraFonts(): Promise<void> {
 }
 import { createWindow } from './window'
 
-app.setAppUserModelId('org.molinosuite.molino')
+// Molino PDF; en la Store, la app del paquete (appx.ts). Las ventanas de las
+// demás apps llevan la suya (officeapps.ts).
+app.setAppUserModelId(storeAppUserModelId('pdf') ?? 'org.molinosuite.molino')
 
 // Todos los datos de la aplicación (ajustes, registro y copias de trabajo de los
 // documentos) van a una carpeta local y privada del usuario, no a la itinerante.
@@ -97,6 +99,8 @@ let workDir = ''
 let modelsRoot = ''
 /** Carpeta del motor de oficina (la pieza y su índice de fuentes; ver office.ts). */
 let officeRoot = ''
+/** La pieza de oficina que trae el paquete (Molino Suite), si la trae (office.ts). */
+const officeBundled = bundledPieceDir()
 let officeWindows: OfficeWindows | null = null
 let homeWindow: HomeWindow | null = null
 let engine: EngineClient | null = null
@@ -124,7 +128,10 @@ function engineLaunch(): EngineLaunch {
     const dir = join(process.resourcesPath, 'engine')
     return {
       command: join(dir, 'molino-engine.exe'),
-      args: ['--workdir', workDir, '--resources', join(process.resourcesPath, 'assets'), '--models', modelsRoot, '--office', officeRoot],
+      args: [
+        '--workdir', workDir, '--resources', join(process.resourcesPath, 'assets'), '--models', modelsRoot, '--office', officeRoot,
+        ...(officeBundled ? ['--office-bundled', officeBundled] : [])
+      ],
       cwd: dir
     }
   }
@@ -133,7 +140,10 @@ function engineLaunch(): EngineLaunch {
     command: join(root, 'engine', '.venv', 'Scripts', 'python.exe'),
     // -E y -s: el intérprete ignora las variables PYTHON* y los paquetes del
     // perfil del usuario, de modo que el entorno no puede inyectarle código.
-    args: ['-E', '-s', '-m', 'molino_engine', '--workdir', workDir, '--resources', join(root, 'resources'), '--models', modelsRoot, '--office', officeRoot],
+    args: [
+      '-E', '-s', '-m', 'molino_engine', '--workdir', workDir, '--resources', join(root, 'resources'), '--models', modelsRoot, '--office', officeRoot,
+      ...(officeBundled ? ['--office-bundled', officeBundled] : [])
+    ],
     cwd: join(root, 'engine')
   }
 }
@@ -214,7 +224,9 @@ async function openPaths(paths: string[]): Promise<void> {
 /** Las apps que se pueden usar: Molino PDF siempre; las de oficina, con la pieza y si el usuario las quiere ver. */
 async function availableApps(): Promise<Record<HomeApp, boolean>> {
   const installed = officePiece !== null && ((await officePiece.ready()) !== null || officePiece.outdated)
-  const shown = appStore?.settings.officeApps ?? { word: false, cell: false, slide: false }
+  // Con Molino Suite vienen todas: no se eligen.
+  const all = { word: true, cell: true, slide: true }
+  const shown = officePiece?.bundled ? all : (appStore?.settings.officeApps ?? { word: false, cell: false, slide: false })
   return { pdf: true, word: installed && shown.word, cell: installed && shown.cell, slide: installed && shown.slide }
 }
 
@@ -271,10 +283,14 @@ void app.whenReady().then(async () => {
   modelsRoot = aiModels.root
   await aiModels.load()
   // El motor de oficina (Documentos, Hojas y Presentaciones), si se ha añadido.
-  const office = new OfficePiece(app.getPath('userData'), (progress) => {
-    bridge?.sendOfficeProgress(progress)
-    officeWindows?.pieceProgress(progress)
-  })
+  const office = new OfficePiece(
+    app.getPath('userData'),
+    (progress) => {
+      bridge?.sendOfficeProgress(progress)
+      officeWindows?.pieceProgress(progress)
+    },
+    officeBundled
+  )
   await office.load()
   officeRoot = office.root
   officePiece = office

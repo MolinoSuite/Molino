@@ -7,6 +7,10 @@ tarjeta o la barra de tareas.
 
   python scripts/make-appx-assets.py [carpeta exportado de la marca] [carpeta de salida]
 Por defecto: ../marca/exportado y build/appx.
+
+  python scripts/make-appx-assets.py --suite [carpeta exportado de la marca]
+Las del paquete de Molino Suite: una carpeta por app en build/suite/assets
+(molino, el inicio; pdf; docs; sheets; slides).
 """
 
 from __future__ import annotations
@@ -59,9 +63,17 @@ def main(brand: Path, out_dir: Path, app: str = "pdf") -> None:
     print(f"{len(images)} imagenes en {out_dir}")
 
 
+# Molino Suite: la carpeta de cada app en build/suite/assets y su icono en la marca.
+SUITE = {"molino": "molino", "pdf": "pdf", "docs": "documentos", "sheets": "hojas", "slides": "presentaciones"}
+
 if __name__ == "__main__":
     args = sys.argv[1:]
-    main(
-        Path(args[0]) if args else ROOT.parent / "marca" / "exportado",
-        Path(args[1]) if len(args) > 1 else ROOT / "build" / "appx",
-    )
+    if args[:1] == ["--suite"]:
+        brand = Path(args[1]) if len(args) > 1 else ROOT.parent / "marca" / "exportado"
+        for folder, app in SUITE.items():
+            main(brand, ROOT / "build" / "suite" / "assets" / folder, app)
+    else:
+        main(
+            Path(args[0]) if args else ROOT.parent / "marca" / "exportado",
+            Path(args[1]) if len(args) > 1 else ROOT / "build" / "appx",
+        )

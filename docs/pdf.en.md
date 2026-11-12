@@ -51,17 +51,16 @@ Summarizes the document, answers your questions pointing to the pages each answe
 
 ## 🏠 Your documents stay on your computer
 
-Molino PDF works offline and doesn’t ask you for an account. It only uses the Internet when you ask it to (the timestamp of a signature, which receives a fingerprint of the document, never the document itself; feedback you send us; or downloading the AI models, from Hugging Face) and to let you know about new versions. Each PDF opens in an isolated Windows sandbox, so a booby-trapped file can’t touch your other files or connect to the Internet.
+Molino PDF works offline and doesn’t ask you for an account. It only uses the Internet when you ask it to (the timestamp of a signature, which receives a fingerprint of the document, never the document itself; feedback you send us; or downloading the AI models, from Hugging Face). Each PDF opens in an isolated Windows sandbox, so a booby-trapped file can’t touch your other files or connect to the Internet.
 
 ## 💻 Installation
 
 For 64-bit Windows 10 and 11, including Windows 11 on Arm laptops. In English and Spanish: it follows the language of Windows.
 
-1. Download **MolinoPDF-Setup** from the [latest version](https://github.com/MolinoSuite/Molino/releases/latest).
-2. Open it and follow the steps. You don’t need to be an administrator.
-3. Done. When there’s a new version, Molino PDF will let you know.
+1. Search for **Molino PDF** in the Microsoft Store and click **Get**. You don’t need to be an administrator or have an account.
+2. Done. New versions arrive on their own through the Store.
 
-**Portable version:** download [MolinoPDF-Portable.zip](https://github.com/MolinoSuite/Molino/releases/latest/download/MolinoPDF-Portable.zip), unzip it in any folder and open `Molino.exe`. It keeps its settings in that folder and changes nothing in Windows.
+Also with winget: `winget install "Molino PDF" --source msstore`.
 
 ## 💬 Ideas or something not working?
 

@@ -193,6 +193,7 @@ class Broker:
         sandbox: bool,
         models: Path | None = None,
         office_root: Path | None = None,
+        office_bundled: Path | None = None,
     ) -> None:
         self._app_in = rfile
         self._app_out = FrameWriter(wfile)
@@ -217,6 +218,9 @@ class Broker:
         # Motor de oficina: la carpeta que dio la aplicacion al lanzarlo y la
         # pieza ya comprobada (office.configure). x2t solo se lanza de esta.
         self._office_root = office_root
+        # La pieza que trae el paquete de Molino Suite (solo lectura, junto al
+        # programa), si la trae: vale en vez de una descargada de su misma version.
+        self._office_bundled = office_bundled
         self._office: office.Piece | None = None
 
     # ================================================================ arranque
@@ -565,12 +569,19 @@ class Broker:
         ):
             raise denied(_("Operación no permitida."))
         try:
-            root = office.check_piece(self._office_root / version)
+            bundled = self._office_bundled
+            if bundled is not None and office.piece_version(bundled) == version:
+                root = office.check_piece(bundled)
+                inside = root == bundled.resolve(strict=True)
+            else:
+                root = office.check_piece(self._office_root / version)
+                inside = root.is_relative_to(self._office_root.resolve(strict=True))
+            # Con la pieza del paquete, la carpeta de datos puede no existir aun
+            # (sin indice de fuentes ni fuentes propias todavia).
             index = office.check_fonts(self._office_root / "fonts" / fonts) if fonts else None
-            base = self._office_root.resolve(strict=True)
-            if not root.is_relative_to(base) or (index is not None and not index.is_relative_to(base)):
+            if not inside or (index is not None and not index.is_relative_to(self._office_root.resolve(strict=True))):
                 raise office.OfficeUnavailable(version)
-            own = office.own_fonts(base)
+            own = office.own_fonts(self._office_root)
         except (office.OfficeUnavailable, OSError):
             self._office = None
             raise EngineError("unsupported", _("Documentos, Hojas y Presentaciones no están instalados.")) from None
@@ -1179,5 +1190,8 @@ def run(
     sandbox: bool = True,
     models: Path | None = None,
     office_root: Path | None = None,
+    office_bundled: Path | None = None,
 ) -> int:
-    return Broker(rfile, wfile, main_workdir, resources, sandbox=sandbox, models=models, office_root=office_root).serve()
+    return Broker(
+        rfile, wfile, main_workdir, resources, sandbox=sandbox, models=models, office_root=office_root, office_bundled=office_bundled
+    ).serve()

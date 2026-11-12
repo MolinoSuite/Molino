@@ -142,6 +142,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--models", default=None)
     # Carpeta del motor de oficina (Documentos, Hojas y Presentaciones), si la hay (ver office.py).
     parser.add_argument("--office", default=None)
+    # La pieza que viene dentro del paquete (Molino Suite de la Microsoft Store), si la trae.
+    parser.add_argument("--office-bundled", default=None)
     parser.add_argument("--log-level", default="info", choices=("debug", "info", "warning", "error"))
     args = parser.parse_args(arguments)
 
@@ -180,7 +182,13 @@ def main(argv: list[str] | None = None) -> int:
         office_root = Path(args.office) if args.office else None
         if office_root is not None and not office_root.is_absolute():
             office_root = None
-        return run(rfile, wfile, work_root, resources, sandbox=not args.no_sandbox, models=models, office_root=office_root)
+        office_bundled = Path(args.office_bundled) if args.office_bundled else None
+        if office_bundled is not None and not office_bundled.is_absolute():
+            office_bundled = None
+        return run(
+            rfile, wfile, work_root, resources,
+            sandbox=not args.no_sandbox, models=models, office_root=office_root, office_bundled=office_bundled,
+        )
 
     if args.worker:
         from . import recovery, winsandbox

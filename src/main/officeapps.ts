@@ -4,7 +4,7 @@ import { extname, join } from 'node:path'
 import { app, type AppDetailsOptions, shell, type ShortcutDetails } from 'electron'
 import { messagesFor } from '@shared/i18n'
 import type { OfficeKind } from '@shared/officeui'
-import { isStoreApp } from './appx'
+import { isStoreApp, storeAppUserModelId } from './appx'
 import { L, lang } from './i18n'
 import { log } from './log'
 import { isPortable } from './portable'
@@ -102,6 +102,9 @@ function launchCommand(kind: OfficeKind | 'home'): string {
 
 /** Para la ventana de una app: su identidad, su icono y cómo volver a abrirla si se ancla a la barra de tareas. */
 export function windowDetails(kind: OfficeKind): AppDetailsOptions {
+  // En la Store, la app del paquete: Windows sabe su icono y cómo abrirla.
+  const store = storeAppUserModelId(kind)
+  if (store) return { appId: store }
   return {
     appId: APP_USER_MODEL_ID[kind],
     appIconPath: appIcon(kind),
@@ -113,6 +116,8 @@ export function windowDetails(kind: OfficeKind): AppDetailsOptions {
 
 /** Lo mismo para la ventana de «Molino», el inicio común. */
 export function homeDetails(): AppDetailsOptions {
+  const store = storeAppUserModelId('home')
+  if (store) return { appId: store }
   return {
     appId: HOME_USER_MODEL_ID,
     appIconPath: iconPath('molino.ico'),

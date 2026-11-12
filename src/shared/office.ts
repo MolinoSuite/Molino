@@ -8,6 +8,8 @@ export interface OfficeStatus {
   available: boolean
   /** Instalada, completa y en la versión de este Molino. */
   installed: boolean
+  /** Viene dentro del paquete (Molino Suite de la Microsoft Store): ni se descarga ni se quita. */
+  bundled: boolean
   /** Hay una versión anterior instalada y este Molino trae otra. */
   update: boolean
   /** Bytes de la descarga. */

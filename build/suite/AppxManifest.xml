@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifiesto del paquete de la Microsoft Store (MSIX) de Molino Suite: todas las
+  apps en un mismo paquete, cada una con su entrada en el menú Inicio, su icono,
+  sus tipos de archivo y su identidad en la barra de tareas (src/main/appx.ts,
+  STORE_APP_ID). Todas son el mismo Molino.exe; uap10:Parameters dice cuál abrir.
+  Lo rellena y empaqueta scripts/make-suite-msix.mjs ({version}); los textos de
+  cada idioma están en build/suite/strings.
+-->
+<Package
+   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+   xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+   xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+   xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+  <!-- La identidad del producto en Partner Center (Identidad del producto): tiene que coincidir tal cual. -->
+  <Identity Name="CuevasTech.MolinoSuite"
+    ProcessorArchitecture="x64"
+    Publisher="CN=7B14860F-70FA-44EA-98D2-54F99AD6920A"
+    Version="{version}" />
+  <Properties>
+    <DisplayName>Molino Suite</DisplayName>
+    <PublisherDisplayName>Cuevas Tech</PublisherDisplayName>
+    <Logo>assets\molino\StoreLogo.png</Logo>
+  </Properties>
+  <Resources>
+    <Resource Language="es-ES" />
+    <Resource Language="en-US" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+  <Applications>
+    <!-- La primera es la que abre «Abrir» en la Store: Molino, el inicio con todas las apps. -->
+    <Application Id="Molino" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--molino-app=home">
+      <uap:VisualElements DisplayName="Molino" Description="ms-resource:HomeDescription" BackgroundColor="transparent"
+        Square150x150Logo="assets\molino\Square150x150Logo.png" Square44x44Logo="assets\molino\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="assets\molino\Wide310x150Logo.png" />
+      </uap:VisualElements>
+    </Application>
+    <Application Id="MolinoPDF" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--molino-app=pdf">
+      <uap:VisualElements DisplayName="Molino PDF" Description="ms-resource:PdfDescription" BackgroundColor="transparent"
+        Square150x150Logo="assets\pdf\Square150x150Logo.png" Square44x44Logo="assets\pdf\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="assets\pdf\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="pdf">
+            <uap:DisplayName>PDF</uap:DisplayName>
+            <uap:Logo>assets\pdf\Square44x44Logo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.pdf</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+        <!-- «molino archivo» desde la línea de órdenes: cada archivo se abre en su app. -->
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap3:AppExecutionAlias>
+            <desktop:ExecutionAlias Alias="molino.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+      </Extensions>
+    </Application>
+    <Application Id="MolinoDocs" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--molino-app=docs">
+      <uap:VisualElements DisplayName="ms-resource:DocsName" Description="ms-resource:DocsDescription" BackgroundColor="transparent"
+        Square150x150Logo="assets\docs\Square150x150Logo.png" Square44x44Logo="assets\docs\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="assets\docs\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="docs">
+            <uap:DisplayName>ms-resource:DocsFileType</uap:DisplayName>
+            <uap:Logo>assets\docs\Square44x44Logo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.docx</uap:FileType>
+              <uap:FileType>.doc</uap:FileType>
+              <uap:FileType>.odt</uap:FileType>
+              <uap:FileType>.rtf</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+    <Application Id="MolinoSheets" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--molino-app=sheets">
+      <uap:VisualElements DisplayName="ms-resource:SheetsName" Description="ms-resource:SheetsDescription" BackgroundColor="transparent"
+        Square150x150Logo="assets\sheets\Square150x150Logo.png" Square44x44Logo="assets\sheets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="assets\sheets\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="sheets">
+            <uap:DisplayName>ms-resource:SheetsFileType</uap:DisplayName>
+            <uap:Logo>assets\sheets\Square44x44Logo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.xlsx</uap:FileType>
+              <uap:FileType>.xls</uap:FileType>
+              <uap:FileType>.ods</uap:FileType>
+              <uap:FileType>.csv</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+    <Application Id="MolinoSlides" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication" uap10:Parameters="--molino-app=slides">
+      <uap:VisualElements DisplayName="ms-resource:SlidesName" Description="ms-resource:SlidesDescription" BackgroundColor="transparent"
+        Square150x150Logo="assets\slides\Square150x150Logo.png" Square44x44Logo="assets\slides\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="assets\slides\Wide310x150Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="slides">
+            <uap:DisplayName>ms-resource:SlidesFileType</uap:DisplayName>
+            <uap:Logo>assets\slides\Square44x44Logo.png</uap:Logo>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.pptx</uap:FileType>
+              <uap:FileType>.ppt</uap:FileType>
+              <uap:FileType>.odp</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+</Package>

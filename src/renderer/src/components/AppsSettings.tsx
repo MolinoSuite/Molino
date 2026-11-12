@@ -13,7 +13,8 @@ const OFFICE_APPS: OfficeApp[] = ['word', 'cell', 'slide']
 /**
  * Ajustes → Aplicaciones: Molino PDF siempre está; Documentos, Hojas y
  * Presentaciones se añaden (una sola descarga, el motor de oficina) y se
- * pueden quitar. Nada se descarga hasta que el usuario lo pide.
+ * pueden quitar. Nada se descarga hasta que el usuario lo pide. En Molino Suite
+ * (Microsoft Store) vienen ya en el paquete: solo se abren.
  */
 export function AppsSettings() {
   const status = useOffice((s) => s.status)
@@ -44,8 +45,10 @@ export function AppsSettings() {
       </Field>
       <Field label={T.office}>
         <div className="row">
-          <span className="hint grow">{fmt(T.officeHint, { size: size(status.size), unpacked: size(status.unpacked) })}</span>
-          {status.installed && <span className="ok">{T.added}</span>}
+          <span className="hint grow">
+            {status.bundled ? T.officeHintSuite : fmt(T.officeHint, { size: size(status.size), unpacked: size(status.unpacked) })}
+          </span>
+          {status.installed && <span className="ok">{status.bundled ? T.installedAll : T.added}</span>}
         </div>
         {busy ? (
           <div className="ai-download">
@@ -102,9 +105,13 @@ export function AppsSettings() {
               {OFFICE_APPS.map((app) => (
                 <div key={app} className="row">
                   <span className="grow">
-                    <Checkbox checked={shown[app]} onChange={(checked) => void updateSettings({ officeApps: { ...shown, [app]: checked } })}>
-                      {T.names[app]}
-                    </Checkbox>
+                    {status.bundled ? (
+                      T.names[app]
+                    ) : (
+                      <Checkbox checked={shown[app]} onChange={(checked) => void updateSettings({ officeApps: { ...shown, [app]: checked } })}>
+                        {T.names[app]}
+                      </Checkbox>
+                    )}
                   </span>
                   {status.shell && shown[app] && (
                     <button className="btn sm ghost" aria-label={fmt(T.defaultAppsTip, { name: T.names[app] })} onClick={() => void window.molino.office.defaultApps(app)}>
@@ -118,19 +125,21 @@ export function AppsSettings() {
                 </div>
               ))}
             </div>
-            <span className="hint">{status.shell ? T.shown : T.shownPortable}</span>
+            {!status.bundled && <span className="hint">{status.shell ? T.shown : T.shownPortable}</span>}
             <div className="row">
               <span className="hint grow">{T.home}</span>
               <button className="btn sm" aria-label={`${T.open} Molino`} onClick={() => void window.molino.office.launch('home')}>
                 {T.open}
               </button>
             </div>
-            <div className="row">
-              <button className="btn sm ghost" onClick={() => setConfirmRemove(true)}>
-                <Trash2 size={14} />
-                {T.remove}
-              </button>
-            </div>
+            {!status.bundled && (
+              <div className="row">
+                <button className="btn sm ghost" onClick={() => setConfirmRemove(true)}>
+                  <Trash2 size={14} />
+                  {T.remove}
+                </button>
+              </div>
+            )}
           </>
         )}
         {error && !busy && <span className="error-text">{T.errors[error]}</span>}

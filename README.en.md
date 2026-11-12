@@ -101,9 +101,9 @@ py -m venv engine\.venv
 engine\.venv\Scripts\python.exe -m pip install --no-deps --only-binary :all: --require-hashes -r engine\requirements.txt -r engine\requirements-nodeps.txt
 engine\.venv\Scripts\python.exe -m pip install --only-binary :all: --require-hashes -r engine\requirements-build.txt
 powershell -File scripts\fetch-tessdata.ps1
-npm run dist
+npm run dist:store
 ```
 
-The installer ends up in `dist\`.
+The Microsoft Store package (MSIX, unsigned: the Store signs it) ends up in `dist\`.
 
 </details>

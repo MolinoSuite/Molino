@@ -1,26 +1,20 @@
-# Checks the Molino PDF app as people get it: opens a small PDF and waits until the
-# window has drawn its page, with the document engine running sandboxed. Used by
-# the GitHub build on Windows x64 and on Windows 11 on Arm, where the x64 app
-# runs under emulation.
+# Checks the Molino PDF app as people get it, from its Microsoft Store package:
+# opens a small PDF and waits until the window has drawn its page, with the
+# document engine running sandboxed. Used by the GitHub build on Windows x64 and
+# on Windows 11 on Arm, where the x64 app runs under emulation.
 #
-#   pwsh -File scripts\app-check.ps1 -Zip dist\MolinoPDF-Portable.zip [-Screenshot app.png] [-ExpectEmulated]
-#   pwsh -File scripts\app-check.ps1 -Setup dist\MolinoPDF-Setup.exe [-Screenshot app.png] [-ExpectEmulated]
-#   pwsh -File scripts\app-check.ps1 -Msix dist\MolinoPDF.appx [-ExpectEmulated]
+#   pwsh -File scripts\app-check.ps1 -Msix dist\MolinoPDF.appx [-Screenshot app.png] [-ExpectEmulated]
 #
-# -Zip unzips the portable version in a new temporary folder and runs it there.
-# -Setup installs Molino PDF for the current user (silently), runs it, uninstalls it
-# and checks that nothing is left. It changes the system, so it only runs on
-# GitHub's build machines, which are thrown away after each build.
-# -Msix checks the Microsoft Store package the same way: it signs it with a
-# throwaway certificate trusted only on that machine (the Store signs the real
-# one), installs it, opens the PDF through its command-line alias, checks that the
-# data went to the package's own folder, and uninstalls it. GitHub only, too.
+# It signs the package with a throwaway certificate trusted only on that machine
+# (the Store signs the real one), installs it, opens the PDF through its
+# command-line alias, checks that the data went to the package's own folder, and
+# uninstalls it. It changes the system, so it only runs on GitHub's build
+# machines, which are thrown away after each build.
 # -Screenshot captures only the Molino PDF window (PrintWindow), never the rest of
 # the screen. Everything started here is closed and deleted at the end.
 # ASCII only: Windows PowerShell 5.1 reads scripts without a BOM as ANSI.
 param(
-    [string] $Zip,
-    [string] $Setup,
+    [Parameter(Mandatory = $true)]
     [string] $Msix,
     [string] $Screenshot,
     [switch] $ExpectEmulated,
@@ -117,7 +111,7 @@ function Stop-Molino([System.Diagnostics.Process] $process) {
 # go before the PDF (for example a temporary profile). With $store, $exe is the
 # package's command-line alias and the app is the Molino.exe that Windows starts
 # from the package folder.
-function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $arguments, [bool] $portable, [bool] $store = $false) {
+function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $arguments, [bool] $store = $false) {
     $started = Get-Date
     $process = Start-Process -FilePath $exe -ArgumentList (@($arguments) + @("`"$pdf`"")) -PassThru
     if ($store) {
@@ -145,8 +139,7 @@ function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $ar
         $text -split "`r?`n" | Where-Object { $_ } | ForEach-Object { "  $_" }
 
         if ($process.HasExited) { throw "Molino PDF closed by itself (exit code $($process.ExitCode))." }
-        if ($portable -and $text -notmatch 'iniciado \(portable\)') { throw 'Molino PDF did not start as the portable version.' }
-        if (-not $portable -and $text -notmatch 'iniciado') { throw 'Molino PDF did not start.' }
+        if ($text -notmatch 'iniciado') { throw 'Molino PDF did not start.' }
         if ($text -match 'funciona sin aislamiento') { throw 'The document engine is not sandboxed.' }
         if ($text -notmatch 'documento abierto \(1 p') { throw "The PDF did not open within $TimeoutSeconds s." }
         if ($text -notmatch 'primera p.gina dibujada') { throw "The window did not draw the page within $TimeoutSeconds s." }
@@ -162,9 +155,8 @@ function Test-Molino([string] $exe, [string] $pdf, [string] $log, [string[]] $ar
     finally { Stop-Molino $process }
 }
 
-if (@(@($Zip, $Setup, $Msix) | Where-Object { $_ }).Count -ne 1) { throw 'Give one of -Zip, -Setup or -Msix.' }
-if (($Setup -or $Msix) -and $env:GITHUB_ACTIONS -ne 'true') {
-    throw 'The installer and Store package checks install Molino PDF for the current user: they only run on GitHub build machines.'
+if ($env:GITHUB_ACTIONS -ne 'true') {
+    throw 'The check installs Molino PDF for the current user: it only runs on GitHub build machines.'
 }
 if ($Screenshot) { $Screenshot = Get-FullPath $Screenshot }
 
@@ -173,18 +165,7 @@ New-Item -ItemType Directory -Path $folder | Out-Null
 try {
     $pdf = Join-Path $folder 'check.pdf'
     New-TestPdf $pdf
-    if ($Zip) {
-        $Zip = Get-FullPath $Zip
-        if (-not (Test-Path $Zip)) { throw "No zip at $Zip." }
-        $app = Join-Path $folder 'app'
-        New-Item -ItemType Directory -Path $app | Out-Null
-        # Windows' own tar, fixed arguments, no shell.
-        & "$env:SystemRoot\System32\tar.exe" -x -f $Zip -C $app
-        if ($LASTEXITCODE -ne 0) { throw 'Could not unzip the portable version.' }
-        if (-not (Test-Path (Join-Path $app 'Molino.exe'))) { throw 'The zip has no Molino.exe.' }
-        Test-Molino (Join-Path $app 'Molino.exe') $pdf (Join-Path $app 'MolinoData\logs\molino.log') @() $true
-    }
-    elseif ($Msix) {
+    if ($Msix) {
         $Msix = Get-FullPath $Msix
         if (-not (Test-Path $Msix)) { throw "No Store package at $Msix." }
         # The identity comes from the package itself: the test certificate must carry its publisher.
@@ -226,7 +207,7 @@ try {
             $usual = Join-Path $env:LOCALAPPDATA 'Molino'
             $hadUsual = Test-Path $usual
             $log = Join-Path $data 'logs\molino.log'
-            Test-Molino $alias $pdf $log @() $false $true
+            Test-Molino $alias $pdf $log @() $true
             if ((Read-Log $log) -notmatch 'iniciado \(Microsoft Store\)') { throw 'Molino PDF did not start as the Store version.' }
             if (-not $hadUsual -and (Test-Path $usual)) { throw 'The Store version wrote to %LOCALAPPDATA%\Molino instead of its package folder.' }
             'store package: data in the package folder'
@@ -241,39 +222,6 @@ try {
         if (Get-AppxPackage -Name $identity.Name) { throw 'The Store package is still installed after removing it.' }
         if ($data -and (Test-Path $data)) { throw 'Windows left the package data folder after uninstalling.' }
         'store package: uninstalled, its data folder removed'
-    }
-    else {
-        $Setup = Get-FullPath $Setup
-        if (-not (Test-Path $Setup)) { throw "No installer at $Setup." }
-        # electron-builder names the folder after the executable (executableName).
-        $installed = Join-Path $env:LOCALAPPDATA 'Programs\Molino'
-        $setupRun = Start-Process -FilePath $Setup -ArgumentList @('/S', '/currentuser') -Wait -PassThru
-        if ($setupRun.ExitCode -ne 0) { throw "The installer failed (exit code $($setupRun.ExitCode))." }
-        $exe = Join-Path $installed 'Molino.exe'
-        if (-not (Test-Path $exe)) { throw "Molino PDF was not installed in $installed." }
-        $registered = Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -Name 'Molino PDF' -ErrorAction SilentlyContinue
-        if (-not $registered) { throw 'The installer did not register Molino PDF as a PDF app.' }
-        "installer: installed in $installed and registered"
-        $stray = { Get-Process Molino -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$installed\*" } | Stop-Process -Force }
-        & $stray  # in case the installer opened Molino PDF itself
-
-        # A temporary profile: the check never reads or writes Molino PDF's usual one.
-        $userData = Join-Path $folder 'profile'
-        Test-Molino $exe $pdf (Join-Path $userData 'logs\molino.log') @("--user-data-dir=`"$userData`"") $false
-
-        & $stray
-        Start-Sleep -Seconds 1
-        $uninstaller = Join-Path $installed 'Uninstall Molino.exe'
-        $removeRun = Start-Process -FilePath $uninstaller -ArgumentList @('/S', '/currentuser') -Wait -PassThru
-        if ($removeRun.ExitCode -ne 0) { throw "The uninstaller failed (exit code $($removeRun.ExitCode))." }
-        # The uninstaller copies itself to a temporary folder and goes on from there.
-        $left = { (Test-Path $exe) -or (Test-Path 'HKCU:\Software\CuevasTech\Molino PDF') -or
-            [bool](Get-ItemProperty 'HKCU:\Software\RegisteredApplications' -Name 'Molino PDF' -ErrorAction SilentlyContinue) }
-        $deadline = (Get-Date).AddSeconds(120)
-        while ((Get-Date) -lt $deadline -and (& $left)) { Start-Sleep -Seconds 1 }
-        if (Test-Path $exe) { throw 'Molino PDF is still installed after uninstalling.' }
-        if (& $left) { throw 'The uninstaller left Molino PDF registered in the registry.' }
-        'installer: uninstalled, nothing left in the registry'
     }
 }
 finally {
