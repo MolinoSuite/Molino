@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, session as sessions, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
 import { EngineError, type EngineClient } from './engine'
 import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
@@ -205,7 +205,28 @@ export interface OfficeOptions {
     add(path: string): void
     forget(id: string): void
   }
+  /** La IA local de Molino (Ajustes → IA): su estado y abrir sus ajustes (index.ts). */
+  ai: {
+    status(): Promise<{ on: boolean; ready: boolean }>
+    openSettings(): void
+  }
 }
+
+/**
+ * Las operaciones de IA que puede pedir la interfaz de oficina (ops/officeai.py),
+ * siempre sobre un documento de su ventana.
+ */
+const OFFICE_AI = new Set([
+  'ai.officeTransform',
+  'ai.officeWrite',
+  'ai.officeSummarize',
+  'ai.officeAsk',
+  'ai.formula',
+  'ai.explainFormula',
+  'ai.dataSummary',
+  'ai.slides',
+  'ai.notes'
+])
 
 export class OfficeWindows {
   private readonly windows = new Map<Kind, AppWindow>()
@@ -219,6 +240,8 @@ export class OfficeWindows {
   private readonly piece: OfficePiece
   /** Avance de la pieza nueva que se está instalando sola (en tanto por ciento), para «Abriendo…». */
   private updating: OfficeTabs['updating'] = null
+  /** Las peticiones de IA en curso: número de la interfaz → número del motor (para cancelarlas). */
+  private readonly aiCalls = new Map<number, number>()
 
   constructor(private readonly options: OfficeOptions) {
     rmSync(PRINT_DIR, { recursive: true, force: true, maxRetries: 2 })
@@ -822,6 +845,85 @@ export class OfficeWindows {
       if (!win) return []
       if (typeof raw === 'string') this.options.recents.forget(raw)
       return this.recentFor(win.kind)
+    })
+
+    // Cortar, copiar y pegar desde el menú de Molino: en el marco que tiene el teclado
+    // (el editor), como si se pulsara Ctrl+X, Ctrl+C o Ctrl+V.
+    ipcMain.handle('office:clipboard', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      if (!win || (raw !== 'cut' && raw !== 'copy' && raw !== 'paste')) return false
+      const contents = win.window.webContents
+      if (raw === 'cut') contents.cut()
+      else if (raw === 'copy') contents.copy()
+      else contents.paste()
+      return true
+    })
+
+    // Abrir un vínculo del documento (menú del botón derecho): solo web y correo, y
+    // siempre preguntando con el destino real, como en los PDF (A01:2025).
+    ipcMain.handle('office:openLink', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      if (!win || typeof raw !== 'string' || raw.length > 2000) return false
+      let url: URL
+      try {
+        url = new URL(raw)
+      } catch {
+        return false
+      }
+      if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) return false
+      const answer = await dialog.showMessageBox(win.window, {
+        type: 'question',
+        buttons: [L.common.open, L.common.cancel],
+        defaultId: 1,
+        cancelId: 1,
+        title: L.main.link.title,
+        message: url.protocol === 'mailto:' ? L.main.link.mail : fmt(L.main.link.web, { host: url.host }),
+        detail: url.href.slice(0, 400)
+      })
+      if (answer.response !== 0) return false
+      await shell.openExternal(url.href)
+      return true
+    })
+
+    // ---- la IA local (Ajustes → IA de Molino), sobre un documento de la ventana
+    ipcMain.handle('office:aiStatus', (event) => (this.uiSender(event) ? this.options.ai.status() : { on: false, ready: false }))
+    ipcMain.handle('office:aiSettings', (event) => {
+      if (!this.uiSender(event)) return false
+      this.options.ai.openSettings()
+      return true
+    })
+    ipcMain.handle('office:ai', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { doc, method, params, call } = (raw ?? {}) as { doc?: unknown; method?: unknown; params?: unknown; call?: unknown }
+      const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
+      const callId = typeof call === 'number' && Number.isInteger(call) && call > 0 && call < 2_000_000_000 ? call : 0
+      if (!win || !open || typeof method !== 'string' || !OFFICE_AI.has(method) || !params || typeof params !== 'object' || Array.isArray(params) || !callId) {
+        return { error: { code: 'invalid_params', message: L.main.errors.invalidParams } }
+      }
+      try {
+        const { result } = await this.engine.request(
+          method,
+          { ...(params as Record<string, unknown>), doc: open.doc },
+          {
+            priority: 6,
+            onId: (id) => this.aiCalls.set(callId, id),
+            onProgress: (data) => {
+              if (!win.window.isDestroyed()) win.window.webContents.send('office:aiProgress', { call: callId, ...data })
+            }
+          }
+        )
+        return { result }
+      } catch (error) {
+        const e = error as { code?: unknown; message?: unknown }
+        return { error: { code: typeof e.code === 'string' ? e.code : 'ai_failed', message: typeof e.message === 'string' ? e.message : String(error) } }
+      } finally {
+        this.aiCalls.delete(callId)
+      }
+    })
+    ipcMain.on('office:aiCancel', (event, raw: unknown) => {
+      if (!this.uiSender(event) || typeof raw !== 'number') return
+      const id = this.aiCalls.get(raw)
+      if (id !== undefined) this.engine.cancel(id)
     })
 
     // ---- el puente de cada editor

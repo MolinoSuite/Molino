@@ -17,6 +17,7 @@ import { useActiveDoc, useApp } from './state/app'
 import { useFileDrop, useGlobalShortcuts } from './state/shortcuts'
 import { followDefaultApp } from './state/defaultApp'
 import { followAi } from './state/ai'
+import { setSettingsTab } from './modes/ai'
 import { followOffice } from './state/office'
 import { followUpdates } from './state/updates'
 
@@ -32,6 +33,11 @@ export function App() {
     followAi()
     followOffice()
     followDefaultApp()
+    // Documentos, Hojas o Presentaciones piden los ajustes de la IA (para activarla).
+    return window.molino.ai.onOpenSettings(() => {
+      setSettingsTab('ai')
+      useApp.getState().openDialog({ type: 'settings' })
+    })
   }, [])
 
   // Cada vez que el motor arranca (o rearranca tras un fallo) se mira si quedó algo por recuperar.

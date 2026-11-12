@@ -58,6 +58,19 @@ const ui: OfficeUiApi = {
   installFonts: (doc, names, into) => ipcRenderer.invoke('office:installFonts', { doc, names, into }),
   dismissFonts: (doc, forever) => ipcRenderer.invoke('office:dismissFonts', { doc, forever }),
   legal: (what) => ipcRenderer.invoke('office:legal', what),
+  clipboard: (action) => ipcRenderer.invoke('office:clipboard', action),
+  openLink: (url) => ipcRenderer.invoke('office:openLink', url),
+  ai: {
+    status: () => ipcRenderer.invoke('office:aiStatus'),
+    settings: () => ipcRenderer.invoke('office:aiSettings'),
+    run: (call, doc, method, params) => ipcRenderer.invoke('office:ai', { call, doc, method, params }),
+    cancel: (call) => ipcRenderer.send('office:aiCancel', call),
+    onProgress: (listener) => {
+      const wrapped = (_event: Electron.IpcRendererEvent, progress: { call: number; done: number; total: number; message: string; text?: string }): void => listener(progress)
+      ipcRenderer.on('office:aiProgress', wrapped)
+      return () => ipcRenderer.removeListener('office:aiProgress', wrapped)
+    }
+  },
   onTabs: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, tabs: OfficeTabs): void => listener(tabs)
     ipcRenderer.on('office:tabs', wrapped)

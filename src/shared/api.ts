@@ -248,6 +248,8 @@ export interface MolinoApi {
     onProgress(listener: (progress: AiDownloadProgress | null) => void): () => void
     onChanged(listener: () => void): () => void
     onError(listener: (reason: AiDownloadError) => void): () => void
+    /** Documentos, Hojas o Presentaciones piden abrir Ajustes en la IA. */
+    onOpenSettings(listener: () => void): () => void
   }
   /** Motor de oficina (la pieza de Documentos, Hojas y Presentaciones): añadirla, quitarla y su estado. */
   office: {

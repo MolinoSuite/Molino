@@ -295,6 +295,13 @@ void app.whenReady().then(async () => {
     userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words) },
     fontLicenses: join(app.getPath('userData'), 'fonts-licenses'),
     recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
+    ai: {
+      status: async () => (bridge ? bridge.officeAi() : { on: false, ready: false }),
+      openSettings: () => {
+        showPdfWindow()
+        bridge?.openAiSettings()
+      }
+    },
     // Imprimir un documento de oficina: con el cuadro de imprimir de Molino PDF.
     print: (path) => {
       showPdfWindow()

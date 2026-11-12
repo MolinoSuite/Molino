@@ -46,6 +46,16 @@
       return false
     }
   })()
+  // Los atajos de la ventana, como en Office: Ctrl+F buscar, Ctrl+H reemplazar,
+  // Ctrl+K vínculo, Alt+Q el buscador de órdenes. La misma lista está en OfficeApp.tsx.
+  const molinoShortcut = (e) => {
+    const key = e.key.toLowerCase()
+    if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && key === 'q') return 'palette'
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return null
+    if (key === 'tab') return e.shiftKey ? 'prevTab' : 'nextTab'
+    if (e.shiftKey) return key === 's' ? 'saveAs' : null
+    return { o: 'o', n: 'n', w: 'w', p: 'p', s: 's', f: 'find', h: 'replace', k: 'link' }[key] || null
+  }
   if (molinoUi) {
     const css = w.document.createElement('style')
     // En Hojas se queda la barra de fórmulas del editor (#cell-editing-box), unida a su editor de celdas.
@@ -56,19 +66,7 @@
     w.addEventListener(
       'keydown',
       (e) => {
-        const key = e.key.toLowerCase()
-        const ctrl = (e.ctrlKey || e.metaKey) && !e.altKey
-        const shortcut =
-          ctrl &&
-          (['k', 'o', 'n', 'w', 'p', 's'].includes(key) && !e.shiftKey
-            ? key
-            : key === 's' && e.shiftKey
-              ? 'saveAs'
-              : key === 'tab'
-                ? e.shiftKey
-                  ? 'prevTab'
-                  : 'nextTab'
-                : null)
+        const shortcut = molinoShortcut(e)
         // Ctrl+S es del editor, salvo en un documento sin archivo propio (nuevo o
         // recuperado): ahí Molino pregunta dónde guardarlo.
         if (shortcut === 's' && !(typeof w.top.molinoNeedsSaveAs === 'function' && w.top.molinoNeedsSaveAs())) return

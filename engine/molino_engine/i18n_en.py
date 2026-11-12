@@ -729,6 +729,13 @@ CATALOG: dict[str, str] = {
     'Buscando datos personales…': 'Looking for personal data…',
     'Resumiendo…': 'Summarizing…',
     'Uniendo el resumen…': 'Putting the summary together…',
+    # IA en Documentos, Hojas y Presentaciones (ops/officeai.py)
+    "El documento no tiene texto que la IA pueda leer.": "The document has no text the AI can read.",
+    "Falta la idea.": "The idea is missing.",
+    "Falta el texto.": "The text is missing.",
+    "La IA no ha dado una fórmula. Prueba a pedirlo de otra manera.": "The AI didn’t give a formula. Try asking another way.",
+    "Preparando las diapositivas…": "Preparing the slides…",
+    "La IA no ha preparado ninguna diapositiva. Prueba con otro texto.": "The AI didn’t prepare any slides. Try another text.",
     'IA de Molino PDF': 'Molino PDF AI',
     'Generado con IA (Molino PDF)': 'AI-generated (Molino PDF)',
     # ---------------------------------- Documentos, Hojas y Presentaciones

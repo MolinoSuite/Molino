@@ -287,6 +287,21 @@ export class Bridge {
     return { ...(await this.ai.status(this.store.settings.aiTier)), gpu: this.aiEngine?.gpu ?? null, cpuOk: this.aiEngine?.cpuOk ?? true }
   }
 
+  /**
+   * La IA para Documentos, Hojas y Presentaciones: si está activada en Ajustes
+   * y si ya puede escribir (el modelo de lenguaje está descargado).
+   */
+  async officeAi(): Promise<{ on: boolean; ready: boolean }> {
+    const status = await this.aiStatus()
+    const on = status.tier !== 'off'
+    return { on, ready: on && status.cpuOk !== false && status.components.some((c) => c.kind === 'llm' && c.installed) }
+  }
+
+  /** Abre Ajustes en la pestaña de la IA (lo piden las apps de oficina; la ventana ya está a la vista). */
+  openAiSettings(): void {
+    this.send('ai:openSettings')
+  }
+
   /** Estado de las versiones nuevas (lo emite updates.ts). */
   sendUpdate(status: UpdateStatus): void {
     this.send('updates:status', status)

@@ -77,4 +77,29 @@ export interface OfficeUiApi {
   legal(what: OfficeLegal): Promise<boolean>
   /** «Ahora no» (y, con ``forever``, no volver a avisar de esas fuentes). */
   dismissFonts(doc: string, forever: boolean): Promise<boolean>
+  /** Cortar, copiar o pegar en el editor (como con el teclado), desde el menú del botón derecho de Molino. */
+  clipboard(action: 'cut' | 'copy' | 'paste'): Promise<boolean>
+  /** Abrir un vínculo del documento en el navegador (pregunta antes, con el destino). */
+  openLink(url: string): Promise<boolean>
+  /** La IA local de Molino (la de Ajustes → IA), sobre los documentos de esta ventana. */
+  ai: {
+    status(): Promise<{ on: boolean; ready: boolean }>
+    /** Abre Molino PDF en Ajustes → IA (para activarla o descargar el modelo). */
+    settings(): Promise<boolean>
+    /** Una operación de ops/officeai.py; ``call`` (positivo, distinto en cada una) sirve para cancelarla y para su avance. */
+    run(call: number, doc: string, method: OfficeAiMethod, params: Record<string, unknown>): Promise<{ result?: Record<string, unknown>; error?: { code: string; message: string } }>
+    cancel(call: number): void
+    onProgress(listener: (progress: { call: number; done: number; total: number; message: string; text?: string }) => void): () => void
+  }
 }
+
+export type OfficeAiMethod =
+  | 'ai.officeTransform'
+  | 'ai.officeWrite'
+  | 'ai.officeSummarize'
+  | 'ai.officeAsk'
+  | 'ai.formula'
+  | 'ai.explainFormula'
+  | 'ai.dataSummary'
+  | 'ai.slides'
+  | 'ai.notes'
