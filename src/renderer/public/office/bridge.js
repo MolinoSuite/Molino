@@ -31,6 +31,35 @@
 
   const isEditor = /\/apps\/\w+editor\/main\/index\.html$/.test(location.pathname)
   const where = isEditor ? 'editor' : 'pestaña'
+
+  // -- un fallo de carga de los editores -------------------------------------------
+  // Algunos componentes comunes (ColorPaletteExt, HSBColorPicker, MaskedField…)
+  // usan Common.UI.BaseView sin pedirlo (define([], …)). Si RequireJS los ejecuta
+  // antes que BaseView, el editor no termina de cargar («reading 'extend'»; se vio
+  // en Presentaciones). Se les añade esa dependencia al definirse: se intercepta la
+  // función define de RequireJS (este archivo se carga antes que él).
+  if (isEditor) {
+    let realDefine = null
+    const COMPONENT = /\/web-apps\/apps\/common\/main\/lib\/component\/(?!BaseView\.js)[A-Za-z]+\.js(\?|$)/
+    const fixedDefine = function (name, deps) {
+      const src = (w.document.currentScript && w.document.currentScript.src) || ''
+      if (Array.isArray(name) && name.length === 0 && typeof deps === 'function' && COMPONENT.test(src)) {
+        // Cuántos se han arreglado (a la vista de las pruebas).
+        w.molinoDefineFixes = (w.molinoDefineFixes || 0) + 1
+        return realDefine.call(this, ['common/main/lib/component/BaseView'], deps)
+      }
+      return realDefine.apply(this, arguments)
+    }
+    Object.defineProperty(w, 'define', {
+      configurable: true,
+      enumerable: true,
+      get: () => (realDefine ? fixedDefine : undefined),
+      set: (value) => {
+        realDefine = typeof value === 'function' ? value : null
+        if (realDefine) for (const key of Object.keys(realDefine)) fixedDefine[key] = realDefine[key]
+      }
+    })
+  }
   const log = (...parts) => host.log(`[${where}] ${parts.join(' ')}`)
   w.addEventListener('error', (e) => log('error:', e.message, e.lineno || ''))
   w.addEventListener('unhandledrejection', (e) => log('promesa:', String(e.reason).slice(0, 200)))

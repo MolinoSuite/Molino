@@ -506,7 +506,7 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
     dest = ctx.engine.host.check_output(p.path, office.SAVE_SUFFIXES)
     suffix = Path(dest).suffix.lower()
     code = office.SAVE_FORMATS[item.kind].get(suffix)
-    if code is None:
+    if code is None or (suffix in office.EXPORT_ONLY and not p.export):
         raise invalid(_("Este documento no se puede guardar en ese formato."))
     ctx.progress(0, 0, _("Guardando…"))
     extra = {"m_nCsvTxtEncoding": office.UTF8, "m_nCsvDelimiter": office.CSV_DELIMITERS[";" if language() == "es" else ","]} if code == office.CSV else None

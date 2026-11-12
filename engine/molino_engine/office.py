@@ -55,6 +55,8 @@ SAVE_FORMATS: dict[str, dict[str, int]] = {
     "slide": {".pptx": 129, ".odp": 131, ".ppsx": 132},
 }
 SAVE_SUFFIXES: tuple[str, ...] = tuple(sorted({s for formats in SAVE_FORMATS.values() for s in formats}))
+# Los que solo sirven para exportar una copia (el documento sigue siendo el de antes).
+EXPORT_ONLY = frozenset({".txt", ".html", ".epub", ".ppsx"})
 # Documento nuevo: la plantilla vacia de la pieza para cada editor.
 NEW_FILES = {"word": "new.docx", "cell": "new.xlsx", "slide": "new.pptx"}
 CANVAS = 8192  # Editor.bin, el formato de trabajo de los editores
