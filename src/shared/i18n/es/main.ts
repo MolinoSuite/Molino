@@ -112,7 +112,24 @@ export const main = {
     dontSave: 'No guardar',
     cancel: 'Cancelar',
     removeOpen: 'Cierra los documentos de Documentos, Hojas y Presentaciones antes de quitarlas.',
+    /** Nombre de los documentos nuevos hechos con una plantilla. */
+    templates: { letter: 'Carta', resume: 'Currículum', invoice: 'Factura', quote: 'Presupuesto', budget: 'Presupuesto doméstico', presentation: 'Presentación' },
     filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' },
+    /** «Guardar como»: los formatos que se pueden elegir. */
+    formats: {
+      '.docx': 'Documento de Word',
+      '.odt': 'Documento OpenDocument',
+      '.rtf': 'Texto enriquecido (RTF)',
+      '.txt': 'Texto sin formato',
+      '.html': 'Página web',
+      '.epub': 'Libro electrónico (EPUB)',
+      '.xlsx': 'Libro de Excel',
+      '.ods': 'Hoja de cálculo OpenDocument',
+      '.csv': 'CSV (valores separados)',
+      '.pptx': 'Presentación de PowerPoint',
+      '.odp': 'Presentación OpenDocument',
+      '.ppsx': 'Presentación que se abre presentando'
+    },
     recoveredName: '{stem} (recuperado){suffix}',
     recentMissing: 'No se encuentra «{name}»: puede que se haya movido o borrado. Se quita de los recientes.',
     // En el menú Inicio y en «Aplicaciones predeterminadas» de Windows.

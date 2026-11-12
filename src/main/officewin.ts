@@ -59,6 +59,29 @@ const SAVE_FORMATS: Record<Kind, Record<number, string>> = {
   slide: { 129: '.pptx', 131: '.odp' }
 }
 const DEFAULT_SUFFIX: Record<Kind, string> = { word: '.docx', cell: '.xlsx', slide: '.pptx' }
+/** Las plantillas para empezar de cada app (resources/templates/<idioma>/). */
+const TEMPLATES: Record<Kind, { id: string; file: { es: string; en: string } }[]> = {
+  word: [
+    { id: 'letter', file: { es: 'carta.docx', en: 'letter.docx' } },
+    { id: 'resume', file: { es: 'curriculum.docx', en: 'resume.docx' } }
+  ],
+  cell: [
+    { id: 'invoice', file: { es: 'factura.xlsx', en: 'invoice.xlsx' } },
+    { id: 'quote', file: { es: 'presupuesto.xlsx', en: 'quote.xlsx' } },
+    { id: 'budget', file: { es: 'presupuesto-domestico.xlsx', en: 'household-budget.xlsx' } }
+  ],
+  slide: [{ id: 'presentation', file: { es: 'presentacion.pptx', en: 'presentation.pptx' } }]
+}
+
+/**
+ * «Guardar como PDF» y «Archivo → Exportar»: una copia; el documento abierto
+ * sigue siendo el de antes (exportDoc). En el motor, office.SAVE_FORMATS.
+ */
+const EXPORT_SUFFIXES: Record<Kind, Record<string, string>> = {
+  word: { pdf: '.pdf', txt: '.txt', html: '.html', epub: '.epub' },
+  cell: { pdf: '.pdf' },
+  slide: { pdf: '.pdf', ppsx: '.ppsx' }
+}
 const PDF_FORMAT = 513
 const IMAGE_SUFFIXES = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
 const MAX_IMAGE = 50 * 1024 * 1024
@@ -205,6 +228,8 @@ export interface OfficeOptions {
     add(path: string): void
     forget(id: string): void
   }
+  /** Carpeta de las plantillas para empezar (resources/templates). */
+  templatesDir: string
   /** La IA local de Molino (Ajustes → IA): su estado y abrir sus ajustes (index.ts). */
   ai: {
     status(): Promise<{ on: boolean; ready: boolean }>
@@ -371,6 +396,25 @@ export class OfficeWindows {
   async create(kind: Kind): Promise<boolean> {
     const name = `${L.main.office.filters[kind]}${DEFAULT_SUFFIX[kind]}`
     return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.new', { kind }, { priority: 7 }))
+  }
+
+  /** Las plantillas para empezar de una app que hay en esta instalación (en el idioma de Molino). */
+  templates(kind: Kind): string[] {
+    return TEMPLATES[kind].filter((t) => existsSync(this.templatePath(t))).map((t) => t.id)
+  }
+
+  private templatePath(template: (typeof TEMPLATES)[Kind][number]): string {
+    return join(this.options.templatesDir, lang === 'en' ? 'en' : 'es', template.file[lang === 'en' ? 'en' : 'es'])
+  }
+
+  /** Un documento nuevo a partir de una plantilla: sin archivo propio (Guardar pregunta dónde). */
+  async fromTemplate(kind: Kind, id: string): Promise<boolean> {
+    const template = TEMPLATES[kind].find((t) => t.id === id)
+    if (!template) return false
+    const path = this.templatePath(template)
+    if (!existsSync(path)) return false
+    const name = `${(L.main.office.templates as Record<string, string>)[id] ?? L.main.office.filters[kind]}${extname(path)}`
+    return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path }, { priority: 7 }))
   }
 
   private async load(
@@ -692,6 +736,55 @@ export class OfficeWindows {
     }
   }
 
+  /**
+   * Exportar (PDF, texto, página web, EPUB, .ppsx): lo hace el motor con lo que
+   * tiene (la interfaz ha hecho antes que el editor le mande lo que le quedara).
+   * No pasa por el editor: para él, exportar es «guardar como» y daría el
+   * documento por guardado.
+   */
+  private async exportDoc(win: AppWindow, open: OpenDoc, format: string): Promise<boolean> {
+    const suffix = EXPORT_SUFFIXES[open.kind][format]
+    if (!suffix) return false
+    const T = L.main.office.filters
+    const F = L.main.office.formats as Record<string, string>
+    const folder = open.path ? dirname(open.path) : app.getPath('documents')
+    const picked = await dialog.showSaveDialog(win.window, {
+      defaultPath: join(folder, `${parse(open.name).name}${suffix}`),
+      filters: [{ name: suffix === '.pdf' ? T.pdf : (F[suffix] ?? T[open.kind]), extensions: [suffix.slice(1)] }]
+    })
+    if (picked.canceled || !picked.filePath) return false
+    const dest = extname(picked.filePath).toLowerCase() === suffix ? picked.filePath : `${picked.filePath}${suffix}`
+    try {
+      if (suffix === '.pdf') await this.engine.request('office.exportPdf', { doc: open.doc, path: dest }, { priority: 7 })
+      else await this.engine.request('office.save', { doc: open.doc, path: dest, export: true }, { priority: 7 })
+      return true
+    } catch (error) {
+      log.warn(`oficina: no se pudo exportar (${error instanceof EngineError ? error.code : '?'})`)
+      void dialog.showMessageBox(win.window, {
+        type: 'error',
+        title: L.main.office.apps[open.kind],
+        message: fmt(L.main.office.saveFailed, { name: basename(dest) }),
+        detail: error instanceof EngineError ? error.message : undefined
+      })
+      return false
+    }
+  }
+
+  /** Imprimir: un PDF temporal hecho por el motor, en el cuadro de imprimir de Molino PDF. */
+  private async printDoc(open: OpenDoc): Promise<boolean> {
+    const folder = join(PRINT_DIR, randomBytes(6).toString('hex'))
+    mkdirSync(folder, { recursive: true })
+    const dest = join(folder, `${parse(open.name).name}.pdf`)
+    try {
+      await this.engine.request('office.exportPdf', { doc: open.doc, path: dest }, { priority: 7 })
+    } catch (error) {
+      log.warn(`oficina: no se pudo preparar la impresión (${error instanceof EngineError ? error.code : '?'})`)
+      return false
+    }
+    this.options.print(dest)
+    return true
+  }
+
   /** Guarda como si el usuario pulsara Guardar: así el editor manda antes los cambios que le queden. */
   private saveFromEditor(win: AppWindow, open: OpenDoc): Promise<number> {
     return new Promise((done) => {
@@ -771,7 +864,13 @@ export class OfficeWindows {
     ipcMain.handle('office:print', async (event, raw: unknown) => {
       const win = this.uiSender(event)
       const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
-      return win && open ? this.requestDownload(win, open, 'print') : false
+      return win && open ? this.printDoc(open) : false
+    })
+    ipcMain.handle('office:export', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { doc, format } = (raw ?? {}) as { doc?: unknown; format?: unknown }
+      const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
+      return win && open && typeof format === 'string' ? this.exportDoc(win, open, format) : false
     })
     ipcMain.handle('office:new', async (event) => {
       const win = this.uiSender(event)
@@ -883,6 +982,16 @@ export class OfficeWindows {
       if (answer.response !== 0) return false
       await shell.openExternal(url.href)
       return true
+    })
+
+    // ---- plantillas para empezar
+    ipcMain.handle('office:templates', (event) => {
+      const win = this.uiSender(event)
+      return win ? this.templates(win.kind) : []
+    })
+    ipcMain.handle('office:fromTemplate', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      return win && typeof raw === 'string' ? this.fromTemplate(win.kind, raw) : false
     })
 
     // ---- la IA local (Ajustes → IA de Molino), sobre un documento de la ventana
@@ -1012,6 +1121,7 @@ export class OfficeWindows {
     const intent = open.intent && Date.now() - open.intent.at < INTENT_MS ? open.intent.kind : null
     open.intent = null
     const pdf = format === PDF_FORMAT
+    const exporting = pdf
     const saveAs = askedSaveAs || intent === 'saveAs'
     const printing = intent === 'print' && pdf
     const current = open.path ? extname(open.path).toLowerCase() : ''
@@ -1023,16 +1133,22 @@ export class OfficeWindows {
       const folder = join(PRINT_DIR, randomBytes(6).toString('hex'))
       mkdirSync(folder, { recursive: true })
       dest = join(folder, `${parse(open.name).name}.pdf`)
-    } else if (saveAs || pdf || !dest || suffix !== current) {
+    } else if (saveAs || exporting || !dest || suffix !== current) {
       // Guardar como, PDF, un documento nuevo o uno de un formato que no se escribe (.doc): se pregunta dónde.
       const T = L.main.office.filters
+      const F = L.main.office.formats as Record<string, string>
       const folder = open.path ? dirname(open.path) : app.getPath('documents')
+      // Con «Guardar como», los formatos de la app en los que se sigue trabajando (el del documento, el primero).
+      const editable = Object.values(SAVE_FORMATS[open.kind])
+      const choices = exporting ? [suffix] : saveAs ? [suffix, ...editable.filter((s) => s !== suffix)] : [suffix]
       const picked = await dialog.showSaveDialog(win.window, {
         defaultPath: join(folder, `${parse(open.name).name}${suffix}`),
-        filters: [{ name: pdf ? T.pdf : T[open.kind], extensions: [suffix.slice(1)] }]
+        filters: choices.map((s) => ({ name: s === '.pdf' ? T.pdf : (F[s] ?? T[open.kind]), extensions: [s.slice(1)] }))
       })
       if (picked.canceled || !picked.filePath) return 1
       dest = picked.filePath
+      // Sin una extensión de las que se pueden elegir, la del formato pedido.
+      if (!choices.includes(extname(dest).toLowerCase())) dest = `${dest}${suffix}`
     }
     let options: Record<string, unknown> | undefined
     if (typeof rawOptions === 'string' && rawOptions.length > 0 && rawOptions.length < 65_536) {
@@ -1059,7 +1175,7 @@ export class OfficeWindows {
       this.options.print(dest)
       return 0
     }
-    if (!pdf) {
+    if (!exporting) {
       if (dest !== open.path) this.options.recents.add(dest)
       open.recovered = false
       open.path = dest

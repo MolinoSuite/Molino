@@ -456,6 +456,9 @@ class SaveParams(Params):
     doc: OfficeDocId
     path: PathStr
     options: dict[str, Any] | None = None
+    # Exportar (texto, pagina web, EPUB, .ppsx): una copia; el documento abierto
+    # sigue siendo el de antes, con sus cambios sin guardar.
+    export: bool = False
 
 
 def _export(ctx: Ctx, piece: office.Piece, item: OfficeDoc, code: int, suffix: str, options: str | None, extra: dict[str, object] | None = None) -> Path:
@@ -512,6 +515,8 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
         size, _mtime = ctx.engine.host.install(out, dest)
     finally:
         out.unlink(missing_ok=True)
+    if p.export:
+        return {"path": dest, "size": size}
     # Guardado: lo que haya ahora ya esta en el archivo del usuario.
     item.name, item.dirty = Path(dest).name, False
     item.note()

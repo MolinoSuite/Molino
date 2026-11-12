@@ -35,8 +35,11 @@ const T = L.office
 
 /** Quita acentos y pasa a minúsculas (para buscar órdenes). */
 /** Órdenes del buscador que no van al editor, sino a Molino (imprimir, guardar como). */
-const HOST_COMMANDS: Record<string, (doc: string) => void> = {
-  print: (doc) => void window.molinoOffice.print(doc),
+const HOST_COMMANDS: Record<string, (doc: string, session: EditorSession | null, value?: string) => void> = {
+  // Imprimir y exportar los hace el motor: antes, el editor le manda lo que le quede.
+  print: (doc, session) => void session?.flush().then(() => window.molinoOffice.print(doc)),
+  savePdf: (doc, session) => void session?.flush().then(() => window.molinoOffice.exportDoc(doc, 'pdf')),
+  exportAs: (doc, session, value) => void session?.flush().then(() => window.molinoOffice.exportDoc(doc, value ?? '')),
   saveAs: (doc) => void window.molinoOffice.saveAs(doc)
 }
 
@@ -172,7 +175,7 @@ export function OfficeApp() {
       // Sin archivo propio (nuevo o recuperado), guardar es «Guardar como»: el editor
       // no guarda lo que cree que no ha cambiado.
       const host = HOST_COMMANDS[command === 'save' && !activeHasFile ? 'saveAs' : command]
-      if (host) return tabs?.active ? (host(tabs.active), true) : false
+      if (host) return tabs?.active ? (host(tabs.active, active, value), true) : false
       return active.run(command, value)
     },
     [active, tabs?.active, activeHasFile, kind, togglePanel]
@@ -198,7 +201,7 @@ export function OfficeApp() {
       else if (key === 'find' || key === 'replace' || key === 'link') run(key)
       else if (key === 's') run('save')
       else if (key === 'saveAs' && tabs?.active) void window.molinoOffice.saveAs(tabs.active)
-      else if (key === 'p' && tabs?.active) void window.molinoOffice.print(tabs.active)
+      else if (key === 'p' && tabs?.active) run('print')
       else if (key === 'o') void window.molinoOffice.openDialog()
       else if (key === 'n') void window.molinoOffice.newDoc()
       else if (key === 'w' && tabs?.active) void window.molinoOffice.closeTab(tabs.active)
@@ -254,6 +257,7 @@ export function OfficeApp() {
             minWidth={220}
             onClose={() => setFileMenu(null)}
             entries={fileEntries({
+              kind,
               hasDoc: !empty && Boolean(state?.ready),
               run,
               about: () => setAbout(true),
@@ -295,7 +299,7 @@ export function OfficeApp() {
             aria-label={T.actions.printTip}
             data-tip={T.actions.printTip}
             disabled={!state?.ready}
-            onClick={() => tabs?.active && void window.molinoOffice.print(tabs.active)}
+            onClick={() => run('print')}
           >
             <Printer size={16} />
           </button>
@@ -435,8 +439,19 @@ function statusText(kind: string, state: EditorState | null): string {
 }
 
 /** El menú «Archivo»: lo de siempre de un documento, con sus atajos. */
-function fileEntries({ hasDoc, run, about, doc }: { hasDoc: boolean; run: (command: string) => void; about: () => void; doc: string | null }): MenuEntry[] {
+function fileEntries({ kind, hasDoc, run, about, doc }: { kind: string; hasDoc: boolean; run: (command: string, value?: string) => void; about: () => void; doc: string | null }): MenuEntry[] {
   const F = T.file
+  // Exportar: como el PDF, el documento sigue siendo el de antes.
+  const exports: MenuEntry[] =
+    kind === 'word'
+      ? [
+          { label: F.exportTxt, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('exportAs', 'txt') },
+          { label: F.exportHtml, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('exportAs', 'html') },
+          { label: F.exportEpub, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('exportAs', 'epub') }
+        ]
+      : kind === 'slide'
+        ? [{ label: F.exportPpsx, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('exportAs', 'ppsx') }]
+        : []
   return [
     { label: F.new, icon: <FilePlusCorner size={15} />, kbd: 'Ctrl+N', onSelect: () => void window.molinoOffice.newDoc() },
     { label: F.open, icon: <FolderOpen size={15} />, kbd: 'Ctrl+O', onSelect: () => void window.molinoOffice.openDialog() },
@@ -444,7 +459,8 @@ function fileEntries({ hasDoc, run, about, doc }: { hasDoc: boolean; run: (comma
     { label: F.save, icon: <Save size={15} />, kbd: 'Ctrl+S', disabled: !hasDoc, onSelect: () => run('save') },
     { label: F.saveAs, icon: <SaveAll size={15} />, kbd: 'Ctrl+Mayús+S', disabled: !hasDoc || !doc, onSelect: () => doc && void window.molinoOffice.saveAs(doc) },
     { label: F.savePdf, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('savePdf') },
-    { label: F.print, icon: <Printer size={15} />, kbd: 'Ctrl+P', disabled: !hasDoc || !doc, onSelect: () => doc && void window.molinoOffice.print(doc) },
+    ...exports,
+    { label: F.print, icon: <Printer size={15} />, kbd: 'Ctrl+P', disabled: !hasDoc || !doc, onSelect: () => run('print') },
     'sep',
     { label: F.about, icon: <Info size={15} />, onSelect: about }
   ]
@@ -1052,6 +1068,21 @@ function askFor(command: string, value: string | undefined, session: EditorSessi
       intro: Q.validationIntro,
       fields: [{ key: 'source', label: Q.validationSource, value: '', maxLength: 255, placeholder: Q.validationExample }],
       onOk: (v) => run('validationList', v.source)
+    }
+  }
+  if (command === 'watermark' && value === 'custom') {
+    return {
+      title: Q.watermark,
+      fields: [{ key: 'text', label: Q.watermarkText, value: '', maxLength: 60 }],
+      onOk: (v) => v.text.trim() && run('watermark', `text:${v.text.trim()}`)
+    }
+  }
+  if (command === 'defineName' && !value) {
+    return {
+      title: Q.defineName,
+      intro: Q.defineNameIntro,
+      fields: [{ key: 'name', label: Q.name, value: '', maxLength: 255, placeholder: Q.nameExample }],
+      onOk: (v) => run('defineName', v.name.trim())
     }
   }
   if (command === 'splitCell' && !value) {

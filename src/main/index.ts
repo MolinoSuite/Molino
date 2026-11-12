@@ -289,6 +289,7 @@ void app.whenReady().then(async () => {
     engine,
     piece: office,
     rendererDir: join(__dirname, '../renderer'),
+    templatesDir: app.isPackaged ? join(process.resourcesPath, 'templates') : join(app.getAppPath(), 'resources', 'templates'),
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
     author: () => store.settings.author || windowsUser(),
     ignoredFonts: { list: () => store.ignoredFonts(), add: (names) => store.ignoreFonts(names) },

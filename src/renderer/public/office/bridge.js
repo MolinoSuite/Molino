@@ -204,6 +204,8 @@
 
   const editor = () => (w.Asc && w.Asc.editor) || w.editor
   let saved = true
+  // Las tandas de cambios que van camino del motor (molinoFlush espera a que lleguen).
+  let changesSent = Promise.resolve()
   let delivered = false
   // Cuántos cambios hay apuntados (como m_nCurrentChangesIndex del nativo).
   let applied = 0
@@ -245,7 +247,8 @@
       if ((count | 0) !== list.length) log('aviso: la tanda dice', count | 0, 'cambios y trae', list.length)
       if (from !== null && from < applied) applied = from
       applied += list.length
-      host.changes(info.doc, list, from).catch((e) => log('error: el motor no aceptó una tanda de cambios:', String(e).slice(0, 200)))
+      const sent = host.changes(info.doc, list, from).catch((e) => log('error: el motor no aceptó una tanda de cambios:', String(e).slice(0, 200)))
+      changesSent = changesSent.then(() => sent)
     },
     LocalFileGetOpenChangesCount: () => 0,
     LocalFileSetOpenChangesCount: () => {},
@@ -423,4 +426,17 @@
 
   // Para las pruebas y para la interfaz de Molino (paso 5).
   w.molinoEditor = editor
+  // Exportar e imprimir los hace el motor con lo que ya tiene: antes, el editor
+  // manda los cambios que le queden (como su autoguardado) y se espera a que lleguen.
+  // Así el documento sigue con sus cambios sin guardar (el editor no lo da por guardado).
+  w.molinoFlush = () =>
+    new Promise((resolve) => {
+      const api = editor()
+      try {
+        if (api && api.asc_Save) api.asc_Save(true)
+      } catch {
+        /* sin cambios que mandar */
+      }
+      setTimeout(() => changesSent.then(resolve, resolve), 150)
+    })
 })()

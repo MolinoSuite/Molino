@@ -3,7 +3,7 @@
  * abrir la app desde el menú Inicio (sin documento) o al cerrar la última
  * pestaña, como la de Molino PDF. Nuevo, abrir y los recientes de la app.
  */
-import { FileClock, FilePlus2, FileText, FolderOpen, X } from 'lucide-react'
+import { FileClock, FilePlus2, FileText, FolderOpen, LayoutTemplate, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import type { OfficeKind, OfficeRecent, OfficeRecoverable } from '@shared/officeui'
 import { ICONS } from './icons'
@@ -27,6 +27,10 @@ function formatWhen(timestamp: number): string {
 export function OfficeStart({ kind }: { kind: OfficeKind }) {
   const [recent, setRecent] = useState<OfficeRecent[] | null>(null)
   const [unsaved, setUnsaved] = useState<OfficeRecoverable[]>([])
+  const [templates, setTemplates] = useState<string[]>([])
+  useEffect(() => {
+    void window.molinoOffice.templates().then(setTemplates)
+  }, [])
   const refresh = useCallback(() => {
     void window.molinoOffice.recent().then(setRecent)
     void window.molinoOffice.recoverable().then(setUnsaved)
@@ -52,6 +56,26 @@ export function OfficeStart({ kind }: { kind: OfficeKind }) {
             {S.open}
           </button>
         </div>
+
+        {templates.length > 0 && (
+          <section className="office-templates" aria-label={L.office.templates.title}>
+            <span className="recent-title">{L.office.templates.title}</span>
+            <div className="office-template-list">
+              {templates.map((id) => {
+                const t = (L.office.templates.items as Record<string, { name: string; desc: string }>)[id]
+                return (
+                  <button key={id} className="office-template" onClick={() => void window.molinoOffice.fromTemplate(id)}>
+                    <LayoutTemplate size={18} />
+                    <span className="grow">
+                      <b>{t?.name ?? id}</b>
+                      <span className="hint">{t?.desc}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+        )}
 
         {unsaved.length > 0 && (
           <div className="notice office-recover" role="region" aria-label={S.recover.title}>

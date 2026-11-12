@@ -912,3 +912,44 @@ body,
   border-radius: 4px;
   border: 1px solid var(--border-strong);
 }
+
+/* Plantillas para empezar (pantalla de inicio de cada app). */
+.office-templates {
+  width: 100%;
+  margin-top: 6px;
+}
+.office-template-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.office-template {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  text-align: left;
+}
+.office-template:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.office-template svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent-fg);
+}
+.office-template b {
+  display: block;
+  font-size: 13px;
+}
+.office-template .hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--text-3);
+}

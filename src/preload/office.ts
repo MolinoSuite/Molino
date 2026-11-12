@@ -47,6 +47,7 @@ const ui: OfficeUiApi = {
   openDialog: () => ipcRenderer.invoke('office:openDialog'),
   saveAs: (doc) => ipcRenderer.invoke('office:saveAs', doc),
   print: (doc) => ipcRenderer.invoke('office:print', doc),
+  exportDoc: (doc, format) => ipcRenderer.invoke('office:export', { doc, format }),
   newDoc: () => ipcRenderer.invoke('office:new'),
   recent: () => ipcRenderer.invoke('office:recent'),
   openRecent: (id) => ipcRenderer.invoke('office:openRecent', id),
@@ -60,6 +61,8 @@ const ui: OfficeUiApi = {
   legal: (what) => ipcRenderer.invoke('office:legal', what),
   clipboard: (action) => ipcRenderer.invoke('office:clipboard', action),
   openLink: (url) => ipcRenderer.invoke('office:openLink', url),
+  templates: () => ipcRenderer.invoke('office:templates'),
+  fromTemplate: (id) => ipcRenderer.invoke('office:fromTemplate', id),
   ai: {
     status: () => ipcRenderer.invoke('office:aiStatus'),
     settings: () => ipcRenderer.invoke('office:aiSettings'),

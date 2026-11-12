@@ -37,6 +37,17 @@ export const office: typeof es = {
   loading: 'Opening…',
   updatingDownload: 'Updating Docs, Sheets and Slides (this happens on its own)… {percent}%',
   updatingInstall: 'Installing the new version of Docs, Sheets and Slides… {percent}%',
+  templates: {
+    title: 'Templates',
+    items: {
+      letter: { name: 'Letter', desc: 'Formal: sender, date, subject and signature.' },
+      resume: { name: 'Resume', desc: 'Profile, experience, education and languages.' },
+      invoice: { name: 'Invoice', desc: 'With subtotal, tax and total.' },
+      quote: { name: 'Quote', desc: 'For a client, with validity and signature.' },
+      budget: { name: 'Household budget', desc: 'Income, expenses and savings for the month.' },
+      presentation: { name: 'Simple presentation', desc: 'Title, agenda, points and closing.' }
+    }
+  },
   status: {
     saved: 'Saved',
     unsaved: 'Not saved',
@@ -171,6 +182,10 @@ export const office: typeof es = {
     headings: 'Row and column headings',
     slideSize: 'Slide size',
     notes: 'Speaker notes',
+    endnote: 'Endnote',
+    breaks: 'Breaks',
+    watermark: 'Watermark',
+    defineName: 'Define name',
     more: 'More',
     find: 'Find (Ctrl+F)',
     replace: 'Replace (Ctrl+H)',
@@ -246,6 +261,9 @@ export const office: typeof es = {
     pageColumns: { '1': 'One', '2': 'Two', '3': 'Three' },
     pageNumber: { top: 'Top, centered', bottom: 'Bottom, centered' },
     slideSize: { wide: 'Widescreen (16:9)', standard: 'Standard (4:3)' },
+    breaks: { page: 'Page break', column: 'Column break', nextPage: 'Section break (next page)', continuous: 'Section break (continuous)' },
+    watermark: { custom: 'Custom text…', none: 'Remove watermark' },
+    watermarkTexts: ['DRAFT', 'CONFIDENTIAL', 'COPY', 'URGENT', 'DO NOT COPY'],
     changeCase: { sentence: 'Sentence case.', lower: 'lowercase', upper: 'UPPERCASE', capitalize: 'Capitalize Each Word', toggle: 'tOGGLE cASE' },
     paraSpacing: { none: 'No spacing', compact: 'Compact (4 pt after)', normal: 'Normal (8 pt after)', open: 'Open (6 pt before, 12 after)', wide: 'Wide (12 pt before, 18 after)' },
     shapes: {
@@ -357,6 +375,10 @@ export const office: typeof es = {
     saveAs: 'Save as…',
     savePdf: 'Export to PDF…',
     print: 'Print…',
+    exportTxt: 'Export as plain text…',
+    exportHtml: 'Export as web page…',
+    exportEpub: 'Export as e-book (EPUB)…',
+    exportPpsx: 'Export as PowerPoint show…',
     about: 'About'
   },
   keywords: {
@@ -573,6 +595,12 @@ export const office: typeof es = {
     Cube: 'Cube'
   },
   asks: {
+    watermark: 'Watermark',
+    watermarkText: 'Text (diagonal and semitransparent)',
+    defineName: 'Define name',
+    defineNameIntro: 'A name for the selected cells; then you can use it in formulas (for example, =SUM(Sales)).',
+    name: 'Name',
+    nameExample: 'Sales',
     validation: 'Drop-down list',
     validationIntro: 'The selected cells will only accept these values and will get an arrow to pick them.',
     validationSource: 'Values (separated by commas) or a range',

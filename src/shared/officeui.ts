@@ -60,6 +60,8 @@ export interface OfficeUiApi {
   saveAs(doc: string): Promise<boolean>
   /** Imprimir, con el cuadro de imprimir de Molino PDF. */
   print(doc: string): Promise<boolean>
+  /** Exportar una copia (pdf, txt, html, epub, ppsx): el documento sigue con sus cambios sin guardar. */
+  exportDoc(doc: string, format: string): Promise<boolean>
   newDoc(): Promise<boolean>
   onTabs(listener: (tabs: OfficeTabs) => void): () => void
   recent(): Promise<OfficeRecent[]>
@@ -79,6 +81,10 @@ export interface OfficeUiApi {
   dismissFonts(doc: string, forever: boolean): Promise<boolean>
   /** Cortar, copiar o pegar en el editor (como con el teclado), desde el menú del botón derecho de Molino. */
   clipboard(action: 'cut' | 'copy' | 'paste'): Promise<boolean>
+  /** Las plantillas para empezar de esta app (sus identificadores). */
+  templates(): Promise<string[]>
+  /** Un documento nuevo a partir de una plantilla. */
+  fromTemplate(id: string): Promise<boolean>
   /** Abrir un vínculo del documento en el navegador (pregunta antes, con el destino). */
   openLink(url: string): Promise<boolean>
   /** La IA local de Molino (la de Ajustes → IA), sobre los documentos de esta ventana. */

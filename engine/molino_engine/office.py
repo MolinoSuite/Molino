@@ -48,9 +48,11 @@ OPEN_FORMATS: dict[str, tuple[str, int]] = {
 }
 # Formatos en los que se guarda cada editor.
 SAVE_FORMATS: dict[str, dict[str, int]] = {
-    "word": {".docx": 65, ".odt": 67, ".rtf": 68},
+    # Ademas de los de siempre, para exportar: texto sin formato, pagina web y libro electronico.
+    "word": {".docx": 65, ".odt": 67, ".rtf": 68, ".txt": 69, ".html": 70, ".epub": 72},
     "cell": {".xlsx": 257, ".ods": 259, ".csv": 260},
-    "slide": {".pptx": 129, ".odp": 131},
+    # .ppsx: se abre presentando.
+    "slide": {".pptx": 129, ".odp": 131, ".ppsx": 132},
 }
 SAVE_SUFFIXES: tuple[str, ...] = tuple(sorted({s for formats in SAVE_FORMATS.values() for s in formats}))
 # Documento nuevo: la plantilla vacia de la pieza para cada editor.

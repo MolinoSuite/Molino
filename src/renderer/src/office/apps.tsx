@@ -99,6 +99,9 @@ import {
   Snowflake,
   Sparkle,
   Sparkles,
+  Stamp,
+  Tag,
+  NotebookText,
   SquareFunction,
   SquarePlus,
   StickyNote,
@@ -380,7 +383,21 @@ const word: AppConfig = {
           B('landscape', 'landscape', { icon: <RectangleHorizontal size={ICON} />, caption: true, active: (s) => !s.portrait })
         ],
         [MENU('paraSpacing', 'paraSpacing', O.paraSpacing, <UnfoldVertical size={ICON} />, { caption: true })],
-        [B('pageBreak', 'pageBreak', { icon: <SeparatorHorizontal size={ICON} />, caption: true })]
+        [
+          MENU('breaks', 'breaks', O.breaks, <SeparatorHorizontal size={ICON} />, { caption: true }),
+          {
+            type: 'menu',
+            key: 'watermark',
+            command: 'watermark',
+            icon: <Stamp size={ICON} />,
+            caption: true,
+            options: [
+              ...O.watermarkTexts.map((text) => ({ value: `text:${text}`, label: text })),
+              { value: 'custom', label: O.watermark.custom },
+              { value: 'none', label: O.watermark.none }
+            ]
+          }
+        ]
       ]
     },
     {
@@ -390,7 +407,8 @@ const word: AppConfig = {
       groups: [
         [
           B('toc', 'toc', { icon: <TableOfContents size={ICON} />, caption: true }),
-          B('footnote', 'footnote', { icon: <Superscript size={ICON} />, caption: true })
+          B('footnote', 'footnote', { icon: <Superscript size={ICON} />, caption: true }),
+          B('endnote', 'endnote', { icon: <NotebookText size={ICON} />, caption: true })
         ]
       ]
     },
@@ -560,7 +578,7 @@ const cell: AppConfig = {
       label: M.formulas,
       icon: <SquareFunction size={19} />,
       groups: [
-        [B('insertFunction', 'insertFunction', { icon: <SquareFunction size={ICON} />, caption: true })],
+        [B('insertFunction', 'insertFunction', { icon: <SquareFunction size={ICON} />, caption: true }), B('defineName', 'defineName', { icon: <Tag size={ICON} />, caption: true })],
         [
           SUM,
           B('average', 'func', { value: 'AVERAGE', icon: <Calculator size={ICON} />, caption: true }),

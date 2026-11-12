@@ -102,7 +102,23 @@ export const main: typeof source = {
     dontSave: 'Don’t save',
     cancel: 'Cancel',
     removeOpen: 'Close your Docs, Sheets and Slides documents before removing them.',
+    /** Nombre de los documentos nuevos hechos con una plantilla. */
+    templates: { letter: 'Letter', resume: 'Resume', invoice: 'Invoice', quote: 'Quote', budget: 'Household budget', presentation: 'Presentation' },
     filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' },
+    formats: {
+      '.docx': 'Word document',
+      '.odt': 'OpenDocument text',
+      '.rtf': 'Rich text (RTF)',
+      '.txt': 'Plain text',
+      '.html': 'Web page',
+      '.epub': 'E-book (EPUB)',
+      '.xlsx': 'Excel workbook',
+      '.ods': 'OpenDocument spreadsheet',
+      '.csv': 'CSV (comma separated)',
+      '.pptx': 'PowerPoint presentation',
+      '.odp': 'OpenDocument presentation',
+      '.ppsx': 'PowerPoint show'
+    },
     recoveredName: '{stem} (recovered){suffix}',
     recentMissing: 'Can’t find “{name}”: it may have been moved or deleted. It’s been removed from your recent files.',
     descriptions: {

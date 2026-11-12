@@ -52,6 +52,13 @@ extraResources:
     to: icons
     filter:
       - "*.ico"
+  # Plantillas para empezar de Documentos, Hojas y Presentaciones (src/main/officewin.ts).
+  - from: resources/templates
+    to: templates
+    filter:
+      - "**/*.docx"
+      - "**/*.xlsx"
+      - "**/*.pptx"
   - from: resources/tessdata
     to: assets/tessdata
     filter:

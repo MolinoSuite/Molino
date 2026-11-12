@@ -444,6 +444,23 @@ export class EditorSession {
     this.api.tblApply(props)
   }
 
+  /** Documentos: marca de agua de texto, en diagonal y semitransparente (o ninguna). */
+  private watermark(value: string): void {
+    const A = this.ew.Asc
+    const props = this.api.asc_GetWatermarkProps()
+    if (!props) return
+    if (value === 'none') props.put_Type(A.c_oAscWatermarkType.None)
+    else {
+      const text = value.startsWith('text:') ? value.slice(5).trim().slice(0, 60) : ''
+      if (!text) return
+      props.put_Type(A.c_oAscWatermarkType.Text)
+      props.put_Text(text)
+      props.put_IsDiagonal(true)
+      props.put_Opacity(128)
+    }
+    this.api.asc_SetWatermarkProps(props)
+  }
+
   /** Un relleno de color liso (o sin relleno, con ''), para formas y fondos. */
   private solidFill(hex: string | undefined): Api {
     const A = this.ew.Asc
@@ -801,6 +818,18 @@ export class EditorSession {
           api.asc_AddTableOfContents(null, props)
         },
         footnote: () => api.asc_AddFootnote(),
+        endnote: () => api.asc_AddEndnote(),
+        breaks: (v) => {
+          const S = ew.Asc.c_oAscSectionBreakType
+          const actions: Record<string, () => void> = {
+            page: () => api.put_AddPageBreak(),
+            column: () => api.put_AddColumnBreak(),
+            nextPage: () => api.add_SectionBreak(S.NextPage),
+            continuous: () => api.add_SectionBreak(S.Continuous)
+          }
+          actions[v ?? '']?.()
+        },
+        watermark: (v) => this.watermark(v ?? ''),
         // El editor no avisa al cambiarlas (asc_onShowParaMarks solo llega al cargar):
         // lo que devuelve es lo que queda.
         marks: () => {
@@ -1019,6 +1048,13 @@ export class EditorSession {
         hideSheet: (i) => api.asc_hideWorksheet([Number(i)]),
         showSheet: (i) => api.asc_showWorksheet(Number(i)),
         removeDuplicates: () => this.removeDuplicates(),
+        defineName: (name) => {
+          const clean = String(name ?? '').trim()
+          // Como en Excel: empieza por una letra o _, sin espacios.
+          if (!/^[\p{L}_][\p{L}\p{N}_.]{0,254}$/u.test(clean)) return
+          const current = api.asc_getDefaultDefinedName()
+          api.asc_setDefinedNames(new ew.Asc.asc_CDefName(clean, current.asc_getRef(), null, current.asc_getType(), undefined, undefined, undefined, true))
+        },
         validationList: (src) => this.validationList(src ?? ''),
         goSheet: (i) => api.asc_showWorksheet(Number(i)),
         newSheet: () => api.asc_addWorksheet(this.newSheetName()),
@@ -1243,10 +1279,10 @@ export class EditorSession {
     }
   }
 
-  private common(): Record<string, () => void> {
+  private common(): Record<string, (value?: string) => void> {
     return {
       save: () => this.api.asc_Save(false),
-      savePdf: () => this.api.asc_DownloadAs(new this.ew.Asc.asc_CDownloadOptions(this.ew.Asc.c_oAscFileType.PDF))
+
     }
   }
 
@@ -1276,6 +1312,18 @@ export class EditorSession {
     }
     this.focus()
     return true
+  }
+
+  /**
+   * Antes de exportar o imprimir (que hace el motor con lo que tiene): el editor
+   * manda los cambios que le queden y se espera a que lleguen (bridge.js).
+   */
+  async flush(): Promise<void> {
+    try {
+      await this.ew?.molinoFlush?.()
+    } catch {
+      /* sin cambios que mandar */
+    }
   }
 
   get ready(): boolean {
@@ -1509,22 +1557,39 @@ export class EditorSession {
     if (!this.api) return ''
     try {
       const B = this.api.getJsApi()
-      if (this.kind === 'word') {
-        const doc = B.GetDocument()
-        if (typeof doc.GetText === 'function') return String(doc.GetText(TEXT_OPTIONS) ?? '')
-        const parts: string[] = []
-        for (let i = 0; i < doc.GetElementsCount(); i++) {
-          const el = doc.GetElement(i)
-          if (el && typeof el.GetText === 'function') parts.push(String(el.GetText(TEXT_OPTIONS) ?? ''))
-        }
-        return parts.join('\n')
-      }
+      if (this.kind === 'word') return EditorSession.contentText(B.GetDocument())
       if (this.kind === 'slide') return this.slidesText(B)
       return ''
     } catch (error) {
       console.error('texto del documento:', error)
       return ''
     }
+  }
+
+  /**
+   * El texto de un contenido de la API de documentos (el documento o una
+   * celda), párrafo a párrafo; las tablas, fila a fila con tabuladores. Lo que
+   * no se puede leer se salta (sin que falle lo demás).
+   */
+  private static contentText(content: Api, depth = 0): string {
+    const parts: string[] = []
+    const count = Number(content?.GetElementsCount?.() ?? 0)
+    for (let i = 0; i < count && parts.length < 100_000; i++) {
+      try {
+        const el = content.GetElement(i)
+        if (el?.GetClassType?.() === 'table' && depth < 4) {
+          for (let r = 0; r < el.GetRowsCount(); r++) {
+            const row = el.GetRow(r)
+            const cells: string[] = []
+            for (let c = 0; c < row.GetCellsCount(); c++) cells.push(EditorSession.contentText(row.GetCell(c).GetContent(), depth + 1).replace(/\n/g, ' '))
+            parts.push(cells.join('\t'))
+          }
+        } else if (typeof el?.GetText === 'function') parts.push(String(el.GetText(TEXT_OPTIONS) ?? ''))
+      } catch {
+        /* un elemento que no se puede leer */
+      }
+    }
+    return parts.join('\n')
   }
 
   /** Inserta texto donde está el cursor (o en lugar de lo seleccionado). */

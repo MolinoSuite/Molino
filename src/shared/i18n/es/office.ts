@@ -36,6 +36,18 @@ export const office = {
     remove: 'Quitar «{name}» de los recientes',
     removeTip: 'Quitar de la lista (el archivo no se borra)'
   },
+  /** Las plantillas para empezar (pantalla de inicio de cada app). */
+  templates: {
+    title: 'Plantillas',
+    items: {
+      letter: { name: 'Carta', desc: 'Formal: remitente, fecha, asunto y firma.' },
+      resume: { name: 'Currículum', desc: 'Perfil, experiencia, formación e idiomas.' },
+      invoice: { name: 'Factura', desc: 'Con base imponible, IVA y retención de IRPF.' },
+      quote: { name: 'Presupuesto', desc: 'Para un cliente, con validez y firma de aceptación.' },
+      budget: { name: 'Presupuesto doméstico', desc: 'Ingresos, gastos y ahorro del mes.' },
+      presentation: { name: 'Presentación sencilla', desc: 'Título, índice, puntos y cierre.' }
+    }
+  },
   status: {
     saved: 'Guardado',
     unsaved: 'Sin guardar',
@@ -170,6 +182,10 @@ export const office = {
     headings: 'Encabezados de filas y columnas',
     slideSize: 'Tamaño de diapositiva',
     notes: 'Notas del orador',
+    endnote: 'Nota al final',
+    breaks: 'Saltos',
+    watermark: 'Marca de agua',
+    defineName: 'Definir nombre',
     more: 'Más',
     find: 'Buscar (Ctrl+F)',
     replace: 'Reemplazar (Ctrl+H)',
@@ -246,6 +262,9 @@ export const office = {
     pageColumns: { '1': 'Una', '2': 'Dos', '3': 'Tres' },
     pageNumber: { top: 'Arriba, en el centro', bottom: 'Abajo, en el centro' },
     slideSize: { wide: 'Panorámica (16:9)', standard: 'Estándar (4:3)' },
+    breaks: { page: 'Salto de página', column: 'Salto de columna', nextPage: 'Salto de sección (página siguiente)', continuous: 'Salto de sección (continuo)' },
+    watermark: { custom: 'Texto personalizado…', none: 'Quitar la marca de agua' },
+    watermarkTexts: ['BORRADOR', 'CONFIDENCIAL', 'COPIA', 'URGENTE', 'NO COPIAR'],
     changeCase: { sentence: 'Tipo oración.', lower: 'minúsculas', upper: 'MAYÚSCULAS', capitalize: 'Poner En Mayúsculas Cada Palabra', toggle: 'iNVERTIR mAYÚSCULAS' },
     paraSpacing: { none: 'Sin espacio', compact: 'Compacto (4 pt después)', normal: 'Normal (8 pt después)', open: 'Abierto (6 pt antes, 12 después)', wide: 'Amplio (12 pt antes, 18 después)' },
     shapes: {
@@ -357,6 +376,10 @@ export const office = {
     saveAs: 'Guardar como…',
     savePdf: 'Exportar a PDF…',
     print: 'Imprimir…',
+    exportTxt: 'Exportar como texto sin formato…',
+    exportHtml: 'Exportar como página web…',
+    exportEpub: 'Exportar como libro electrónico (EPUB)…',
+    exportPpsx: 'Exportar como presentación que se abre presentando…',
     about: 'Acerca de'
   },
   /** Palabras con las que también se encuentra cada orden en el buscador (sin acentos). */
@@ -580,6 +603,12 @@ export const office = {
   },
   /** Lo que preguntan algunas herramientas antes de hacerse. */
   asks: {
+    watermark: 'Marca de agua',
+    watermarkText: 'Texto (en diagonal y semitransparente)',
+    defineName: 'Definir nombre',
+    defineNameIntro: 'Un nombre para las celdas seleccionadas; después puedes usarlo en las fórmulas (por ejemplo, =SUMA(Ventas)).',
+    name: 'Nombre',
+    nameExample: 'Ventas',
     validation: 'Lista desplegable',
     validationIntro: 'Las celdas seleccionadas solo aceptarán estos valores y tendrán una flecha para elegirlos.',
     validationSource: 'Valores (separados por punto y coma) o un rango',
