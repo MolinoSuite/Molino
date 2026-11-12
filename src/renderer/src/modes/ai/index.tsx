@@ -159,7 +159,7 @@ function ResultActions({ doc, text, side }: { doc: DocView; text: string; side?:
         data-tip={copyLabel}
         data-tip-side={side}
         onClick={() => {
-          void navigator.clipboard.writeText(text)
+          void window.molino.clipboard.writeText(text)
           setCopied(true)
           window.setTimeout(() => setCopied(false), 1500)
         }}

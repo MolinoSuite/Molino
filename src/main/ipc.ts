@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
 import { z } from 'zod'
 import type { EngineStatus, ExportOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
 import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
@@ -1024,6 +1024,16 @@ export class Bridge {
     })
 
     // ---- enlaces externos
+    // ---- portapapeles: la interfaz no tiene permiso para escribir en él (security.ts
+    // niega todos); el texto que el usuario copia pasa por aquí, solo como texto.
+    ipcMain.handle('clipboard:writeText', (event, raw): boolean => {
+      if (!isTrustedSender(event, this.window?.webContents ?? null)) return false
+      const parsed = z.string().max(5_000_000).safeParse(raw)
+      if (!parsed.success) return false
+      clipboard.writeText(parsed.data)
+      return true
+    })
+
     ipcMain.handle('shell:openExternal', async (event, raw): Promise<boolean> => {
       if (!isTrustedSender(event, this.window?.webContents ?? null)) return false
       const parsed = z.string().max(2000).safeParse(raw)

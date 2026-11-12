@@ -18,6 +18,7 @@ import { useFileDrop, useGlobalShortcuts } from './state/shortcuts'
 import { followDefaultApp } from './state/defaultApp'
 import { followAi } from './state/ai'
 import { setSettingsTab } from './modes/ai'
+import { installCopy } from './modes/annotate/selection'
 import { followOffice } from './state/office'
 import { followUpdates } from './state/updates'
 
@@ -29,6 +30,8 @@ export function App() {
 
   useEffect(() => {
     void initApp()
+    // Ctrl+C sobre el texto de las páginas: con sus espacios y saltos de línea.
+    installCopy()
     followUpdates()
     followAi()
     followOffice()

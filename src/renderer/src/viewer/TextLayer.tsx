@@ -57,6 +57,8 @@ function buildLayer(text: PageText): DocumentFragment {
       style.lineHeight = `${thickness}px`
       style.fontSize = `${size}px`
       style.transform = axis === 0 ? `scaleX(${stretch})` : `rotate(${axis}deg) scaleX(${stretch})`
+      // La última palabra de la línea: al copiar, detrás va un salto de línea.
+      if (!next) span.dataset.eol = '1'
       fragment.append(span)
     }
     // Salto de línea para que al copiar varias líneas no salgan pegadas.

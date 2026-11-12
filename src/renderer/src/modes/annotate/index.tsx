@@ -16,7 +16,7 @@ import {
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Color, MutationResult, PageInfo, Point, Rect } from '@shared/types'
 import { ToolButton } from '@/components/Toolbar'
-import { MenuButton } from '@/components/ui'
+import { Menu, MenuButton } from '@/components/ui'
 import { L } from '@/i18n'
 import { usePageData } from '@/lib/pageData'
 import { colorToCss, formatDate } from '@/lib/util'
@@ -304,6 +304,8 @@ export function AnnotateLayers({ doc, page, pxPerPt, tool }: LayerProps) {
 /** Menú flotante al seleccionar texto (modos Ver y Anotar) y marcado directo con las herramientas de texto. */
 export function SelectionActions({ doc }: { doc: DocView }) {
   const [selected, setSelected] = useState<SelectedText | null>(null)
+  // El botón derecho sobre texto seleccionado: Copiar y el marcado, en un menú.
+  const [menu, setMenu] = useState<{ x: number; y: number; current: SelectedText } | null>(null)
   const direct = doc.mode === 'annotate' && isMarkup(doc.tool) ? doc.tool : null
   const enabled = (doc.mode === 'view' && doc.tool === '') || (doc.mode === 'annotate' && doc.tool === '') || direct !== null
 
@@ -332,51 +334,88 @@ export function SelectionActions({ doc }: { doc: DocView }) {
     if (!viewer) return
     viewer.addEventListener('pointerup', onUp)
     viewer.addEventListener('pointerdown', onDown)
-    const onScroll = (): void => setSelected(null)
+    const onScroll = (): void => {
+      setSelected(null)
+      setMenu(null)
+    }
     viewer.addEventListener('scroll', onScroll, { passive: true })
+    const onContext = (event: MouseEvent): void => {
+      const current = readSelection(doc.id)
+      if (!current) return
+      event.preventDefault()
+      setMenu({ x: event.clientX, y: event.clientY, current })
+    }
+    viewer.addEventListener('contextmenu', onContext)
     return () => {
       viewer.removeEventListener('pointerup', onUp)
       viewer.removeEventListener('pointerdown', onDown)
       viewer.removeEventListener('scroll', onScroll)
+      viewer.removeEventListener('contextmenu', onContext)
     }
   }, [doc.id, enabled, direct])
 
-  if (!selected || direct) return null
+  const canAnnotate = doc.info.permissions.annotate
+  const copy = (text: string): void => {
+    void window.molino.clipboard.writeText(text).then((ok) => {
+      if (ok) useApp.getState().toast('success', L.annotate.selection.copied)
+    })
+  }
+  const contextMenu = menu && (
+    <Menu
+      anchor={{ x: menu.x, y: menu.y }}
+      minWidth={200}
+      onClose={() => setMenu(null)}
+      entries={[
+        { label: L.annotate.selection.copy, icon: <Copy size={15} />, kbd: 'Ctrl+C', onSelect: () => copy(menu.current.text) },
+        ...(canAnnotate
+          ? [
+              'sep' as const,
+              { label: L.annotate.tools.highlight, icon: <Highlighter size={15} />, onSelect: () => void markSelection(doc.id, 'highlight', menu.current) },
+              { label: L.annotate.tools.underline, icon: <Underline size={15} />, onSelect: () => void markSelection(doc.id, 'underline', menu.current) },
+              { label: L.annotate.tools.strikeout, icon: <Strikethrough size={15} />, onSelect: () => void markSelection(doc.id, 'strikeout', menu.current) }
+            ]
+          : [])
+      ]}
+    />
+  )
+  if (!selected || direct) return contextMenu
   const mark = (kind: MarkupKind): void => {
     void markSelection(doc.id, kind, selected)
     setSelected(null)
   }
-  const canAnnotate = doc.info.permissions.annotate
   return (
-    <div
-      className="selection-bar"
-      style={{ left: Math.min(selected.anchor.x + 6, window.innerWidth - 300), top: Math.min(selected.anchor.y + 8, window.innerHeight - 50) }}
-    >
-      <button
-        onClick={() => {
-          void navigator.clipboard.writeText(selected.text)
-          setSelected(null)
-          useApp.getState().toast('success', L.annotate.selection.copied)
-        }}
+    <>
+      {contextMenu}
+      <div
+        className="selection-bar"
+        style={{ left: Math.min(selected.anchor.x + 6, window.innerWidth - 300), top: Math.min(selected.anchor.y + 8, window.innerHeight - 50) }}
       >
-        <Copy size={14} />
-        {L.annotate.selection.copy}
-      </button>
-      {canAnnotate && (
-        <>
-          <button onClick={() => mark('highlight')}>
-            <span className="swatch" style={{ background: colorToCss(useTools.getState().markup.highlight) }} />
-            {L.annotate.tools.highlight}
-          </button>
-          <button onClick={() => mark('underline')} title={L.annotate.tools.underline}>
-            <Underline size={14} />
-          </button>
-          <button onClick={() => mark('strikeout')} title={L.annotate.tools.strikeout}>
-            <Strikethrough size={14} />
-          </button>
-        </>
-      )}
-    </div>
+        <button
+          onClick={() => {
+            const text = selected.text
+            setSelected(null)
+            copy(text)
+          }}
+        >
+          <Copy size={14} />
+          {L.annotate.selection.copy}
+        </button>
+        {canAnnotate && (
+          <>
+            <button onClick={() => mark('highlight')}>
+              <span className="swatch" style={{ background: colorToCss(useTools.getState().markup.highlight) }} />
+              {L.annotate.tools.highlight}
+            </button>
+            <button onClick={() => mark('underline')} title={L.annotate.tools.underline}>
+              <Underline size={14} />
+            </button>
+            <button onClick={() => mark('strikeout')} title={L.annotate.tools.strikeout}>
+              <Strikethrough size={14} />
+            </button>
+          </>
+        )}
+      </div>
+    </>
   )
 }
 

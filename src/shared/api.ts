@@ -217,6 +217,10 @@ export interface MolinoApi {
     /** Abre un enlace externo tras pedir confirmación al usuario. */
     openExternal(url: string): Promise<boolean>
   }
+  /** Copiar texto (la interfaz no tiene permiso para escribir en el portapapeles). */
+  clipboard: {
+    writeText(text: string): Promise<boolean>
+  }
   /** Versiones nuevas de Molino PDF: solo se descarga e instala si el usuario lo pide. */
   updates: {
     status(): Promise<UpdateStatus>
