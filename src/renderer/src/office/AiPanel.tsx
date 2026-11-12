@@ -316,7 +316,7 @@ export function AiPanel({ kind, doc, session, task, setTask }: { kind: OfficeKin
                     {a.label}
                   </button>
                 ))}
-                <button className="btn sm ghost" onClick={() => void navigator.clipboard.writeText(outcome.text)}>
+                <button className="btn sm ghost" onClick={() => void window.molinoOffice.copyText(outcome.text)}>
                   <Copy size={13} />
                   {A.copy}
                 </button>

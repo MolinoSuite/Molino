@@ -81,6 +81,8 @@ export interface OfficeUiApi {
   dismissFonts(doc: string, forever: boolean): Promise<boolean>
   /** Cortar, copiar o pegar en el editor (como con el teclado), desde el menú del botón derecho de Molino. */
   clipboard(action: 'cut' | 'copy' | 'paste'): Promise<boolean>
+  /** Copiar un texto de la interfaz (la página no tiene permiso de portapapeles). */
+  copyText(text: string): Promise<boolean>
   /** Las plantillas para empezar de esta app (sus identificadores). */
   templates(): Promise<string[]>
   /** Un documento nuevo a partir de una plantilla. */

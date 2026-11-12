@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
-import { app, BrowserWindow, dialog, ipcMain, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
 import { EngineError, type EngineClient } from './engine'
 import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
@@ -955,6 +955,13 @@ export class OfficeWindows {
       if (raw === 'cut') contents.cut()
       else if (raw === 'copy') contents.copy()
       else contents.paste()
+      return true
+    })
+
+    // Copiar un texto de la interfaz (el resultado de la IA): sin permiso de portapapeles en la página.
+    ipcMain.handle('office:copyText', (event, raw: unknown) => {
+      if (!this.uiSender(event) || typeof raw !== 'string' || raw.length > 5_000_000) return false
+      clipboard.writeText(raw)
       return true
     })
 

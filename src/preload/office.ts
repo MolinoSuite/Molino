@@ -60,6 +60,7 @@ const ui: OfficeUiApi = {
   dismissFonts: (doc, forever) => ipcRenderer.invoke('office:dismissFonts', { doc, forever }),
   legal: (what) => ipcRenderer.invoke('office:legal', what),
   clipboard: (action) => ipcRenderer.invoke('office:clipboard', action),
+  copyText: (text) => ipcRenderer.invoke('office:copyText', text),
   openLink: (url) => ipcRenderer.invoke('office:openLink', url),
   templates: () => ipcRenderer.invoke('office:templates'),
   fromTemplate: (id) => ipcRenderer.invoke('office:fromTemplate', id),
