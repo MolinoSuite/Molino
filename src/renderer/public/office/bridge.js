@@ -83,7 +83,7 @@
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return null
     if (key === 'tab') return e.shiftKey ? 'prevTab' : 'nextTab'
     if (e.shiftKey) return key === 's' ? 'saveAs' : null
-    return { o: 'o', n: 'n', w: 'w', p: 'p', s: 's', f: 'find', h: 'replace', k: 'link' }[key] || null
+    return { o: 'o', n: 'n', w: 'w', p: 'p', s: 's', f: 'find', h: 'replace', k: 'link', ',': 'settings' }[key] || null
   }
   if (molinoUi) {
     const css = w.document.createElement('style')

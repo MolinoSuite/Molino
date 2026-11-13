@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { userInfo } from 'node:os'
 import { readFile } from 'node:fs/promises'
 import { isAbsolute, join, resolve } from 'node:path'
-import { app, BrowserWindow, dialog, nativeTheme, session } from 'electron'
+import { app, BrowserWindow, dialog, nativeTheme, session, shell } from 'electron'
 import { AiModels } from './aimodels'
 import { HomeWindow } from './home'
 import { EngineClient, type EngineLaunch } from './engine'
@@ -13,10 +13,10 @@ import { legacyModelsDir, migrateFromFolio } from './migrate'
 import { bundledPieceDir, OfficePiece } from './office'
 import type { HomeApp } from '@shared/home'
 import type { OfficeKind } from '@shared/officeui'
-import { OFFICE_KINDS, requestedApp, syncShell } from './officeapps'
+import { requestedApp } from './officeapps'
 import { isOfficeFile, OfficeWindows } from './officewin'
-import { portableDataDir } from './portable'
-import { isStoreApp, storeAppUserModelId, storeDataDir } from './appx'
+import { isStoreApp, storeAppUserModelId, storeDataDir, SUITE_FAMILY } from './appx'
+import { productName } from './edition'
 import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
 import { Store } from './store'
@@ -47,16 +47,12 @@ import { createWindow } from './window'
 app.setAppUserModelId(storeAppUserModelId('pdf') ?? 'org.molinosuite.molino')
 
 // Todos los datos de la aplicación (ajustes, registro y copias de trabajo de los
-// documentos) van a una carpeta local y privada del usuario, no a la itinerante.
-// Es la carpeta de la suite (%LOCALAPPDATA%\Molino): las apps que vengan
-// compartirán ajustes y modelos de IA. En la versión portable, a MolinoData,
-// junto a Molino.exe (ver portable.ts). En la versión de la Microsoft Store, a la
-// carpeta del propio paquete (ver appx.ts).
+// documentos) van a una carpeta local y privada del usuario, no a la itinerante:
+// en la versión de la Microsoft Store, la del propio paquete (ver appx.ts); sin
+// empaquetar, %LOCALAPPDATA%\Molino.
 if (!app.commandLine.hasSwitch('user-data-dir')) {
-  const portable = portableDataDir()
-  const store = portable ? null : storeDataDir()
-  if (portable) app.setPath('userData', portable)
-  else if (store) app.setPath('userData', store)
+  const store = storeDataDir()
+  if (store) app.setPath('userData', store)
   else if (process.env.LOCALAPPDATA) app.setPath('userData', join(process.env.LOCALAPPDATA, 'Molino'))
 }
 
@@ -70,7 +66,7 @@ if (!firstInstance) {
 
 // La primera vez, lo que el usuario tenía en Folio (ver migrate.ts). Tiene que
 // ser aquí, antes de app.ready: después Electron ya ha leído la carpeta de datos.
-const fromFolio = firstInstance ? migrateFromFolio(app.getPath('userData'), portableDataDir() !== null) : null
+const fromFolio = firstInstance ? migrateFromFolio(app.getPath('userData')) : null
 
 registerAppScheme()
 hardenContents()
@@ -99,7 +95,7 @@ let workDir = ''
 let modelsRoot = ''
 /** Carpeta del motor de oficina (la pieza y su índice de fuentes; ver office.ts). */
 let officeRoot = ''
-/** La pieza de oficina que trae el paquete (Molino Suite), si la trae (office.ts). */
+/** La pieza de oficina que trae el paquete (Molino Suite); Molino PDF no la trae (office.ts). */
 const officeBundled = bundledPieceDir()
 let officeWindows: OfficeWindows | null = null
 let homeWindow: HomeWindow | null = null
@@ -110,6 +106,8 @@ let mainWindow: BrowserWindow | null = null
 let appStore: Store | null = null
 let officePiece: OfficePiece | null = null
 let quitting = false
+/** El tema ha podido cambiar: lo llevan las ventanas de oficina y el inicio (se conecta al arrancar). */
+let themeChanged: () => void = () => undefined
 /** Lo que llega de otras instancias antes de que Molino esté listo. */
 const earlyRequests: { argv: string[]; cwd: string }[] = []
 
@@ -194,13 +192,21 @@ async function route(argv: string[], cwd: string): Promise<void> {
   if (files.length > 0) await openPaths(files)
 }
 
-/** ¿Está el motor de oficina? Si no (un acceso que quedó, un «Abrir con»), Molino PDF dice cómo añadirlo. */
+/** ¿Trae este Molino las apps de oficina? Molino PDF no: dice que las trae Molino Suite y ofrece verla en la Store. */
 async function officeReady(): Promise<boolean> {
-  // Con una pieza anterior, la de esta versión se está poniendo sola: la app abre y espera (officewin.ts).
-  if (officePiece && ((await officePiece.ready()) !== null || officePiece.outdated)) return true
+  if (officePiece?.available) return true
   const window = showPdfWindow()
-  const options = { type: 'info' as const, title: 'Molino', message: L.main.office.notInstalled }
-  void (window ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options))
+  const options = {
+    type: 'info' as const,
+    title: 'Molino PDF',
+    message: L.main.office.notInstalled,
+    buttons: [L.main.office.seeSuite, L.common.close],
+    defaultId: 0,
+    cancelId: 1
+  }
+  void (window ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options)).then(({ response }) => {
+    if (response === 0) void shell.openExternal(`ms-windows-store://pdp/?PFN=${SUITE_FAMILY}`).catch(() => undefined)
+  })
   return false
 }
 
@@ -221,22 +227,10 @@ async function openPaths(paths: string[]): Promise<void> {
   }
 }
 
-/** Las apps que se pueden usar: Molino PDF siempre; las de oficina, con la pieza y si el usuario las quiere ver. */
+/** Las apps que se pueden usar: Molino PDF siempre; las de oficina, si este Molino las trae (Molino Suite). */
 async function availableApps(): Promise<Record<HomeApp, boolean>> {
-  const installed = officePiece !== null && ((await officePiece.ready()) !== null || officePiece.outdated)
-  // Con Molino Suite vienen todas: no se eligen.
-  const all = { word: true, cell: true, slide: true }
-  const shown = officePiece?.bundled ? all : (appStore?.settings.officeApps ?? { word: false, cell: false, slide: false })
-  return { pdf: true, word: installed && shown.word, cell: installed && shown.cell, slide: installed && shown.slide }
-}
-
-/** Pone en Windows las apps de oficina que se ven (con la pieza instalada): accesos, tipos de archivo, nombre. */
-async function syncOfficeApps(): Promise<void> {
-  if (!appStore || !officePiece) return
-  // Mientras se pone al día una pieza anterior, las apps siguen en Windows.
-  const installed = (await officePiece.ready()) !== null || officePiece.outdated
-  const shown = appStore.settings.officeApps
-  await syncShell(Object.fromEntries(OFFICE_KINDS.map((kind) => [kind, installed && shown[kind]])) as typeof shown)
+  const office = officePiece?.available ?? false
+  return { pdf: true, word: office, cell: office, slide: office }
 }
 
 app.on('second-instance', (_event, argv, cwd) => {
@@ -250,20 +244,14 @@ app.on('before-quit', (event) => {
   quitting = true
   event.preventDefault()
   // El motor borra sus copias de trabajo al cerrar cada documento y al salir.
-  const finish = (): void => {
-    // Una versión nueva que el usuario ya descargó se instala al salir, sin
-    // volver a abrir Molino PDF. El instalador cierra lo que quede; por si no
-    // llegara a arrancar, se sale igualmente al poco.
-    if (updates?.install(false)) setTimeout(() => app.exit(0), 5000)
-    else app.exit(0)
-  }
+  const finish = (): void => app.exit(0)
   if (engine) engine.stop().then(finish, finish)
   else finish()
 })
 
 void app.whenReady().then(async () => {
   initLog(join(localBase(), 'logs'))
-  log.info(`Molino PDF ${app.getVersion()} iniciado${portableDataDir() ? ' (portable)' : isStoreApp() ? ' (Microsoft Store)' : ''}`)
+  log.info(`${productName} ${app.getVersion()} iniciado${isStoreApp() ? ' (Microsoft Store)' : ''}`)
   // Sin rutas en el registro: solo qué archivos se trajeron.
   if (fromFolio) {
     log.info(`datos traídos de Folio: ${fromFolio.copied.join(', ') || 'ninguno'}${fromFolio.signaturesSkipped ? `; firmas no (${fromFolio.signaturesSkipped})` : ''}`)
@@ -278,20 +266,12 @@ void app.whenReady().then(async () => {
   const aiModels = new AiModels(
     app.getPath('userData'),
     (progress) => bridge?.sendAiProgress(progress),
-    legacyModelsDir(portableDataDir() !== null)
+    legacyModelsDir()
   )
   modelsRoot = aiModels.root
   await aiModels.load()
-  // El motor de oficina (Documentos, Hojas y Presentaciones), si se ha añadido.
-  const office = new OfficePiece(
-    app.getPath('userData'),
-    (progress) => {
-      bridge?.sendOfficeProgress(progress)
-      officeWindows?.pieceProgress(progress)
-    },
-    officeBundled
-  )
-  await office.load()
+  // El motor de oficina (Documentos, Hojas y Presentaciones), si este Molino lo trae.
+  const office = new OfficePiece(app.getPath('userData'), officeBundled)
   officeRoot = office.root
   officePiece = office
   engine = new EngineClient(engineLaunch)
@@ -300,7 +280,7 @@ void app.whenReady().then(async () => {
   updates = new Updates((status) => bridge?.sendUpdate(status))
   bridge = new Bridge(engine, store, printer, updates, aiModels, office)
   // Documentos, Hojas y Presentaciones: sus ventanas, y el motor configurado con
-  // la pieza (al arrancar el motor y al añadirla o quitarla).
+  // la pieza (cada vez que arranca).
   const editors = new OfficeWindows({
     engine,
     piece: office,
@@ -309,7 +289,17 @@ void app.whenReady().then(async () => {
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
     author: () => store.settings.author || windowsUser(),
     ignoredFonts: { list: () => store.ignoredFonts(), add: (names) => store.ignoreFonts(names) },
-    userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words) },
+    userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words), remove: (words) => store.removeUserWords(words) },
+    // Ajustes desde Documentos, Hojas y Presentaciones: los mismos de Molino; Molino PDF se entera y el tema cambia en todas.
+    settings: {
+      get: () => ({ theme: store.settings.theme, language: store.settings.language, author: store.settings.author }),
+      set: (patch) => {
+        store.updateSettings(patch)
+        bridge?.sendSettings()
+        themeChanged()
+      },
+      authorDefault: () => windowsUser()
+    },
     fontLicenses: join(app.getPath('userData'), 'fonts-licenses'),
     recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
     ai: {
@@ -337,19 +327,19 @@ void app.whenReady().then(async () => {
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors)
   })
   homeWindow = home
+  // El tema (de Ajustes, en cualquier ventana, o el de Windows con «Como Windows»), al momento en todas.
+  const isDark = (): boolean => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors)
+  let shownDark = isDark()
+  themeChanged = () => {
+    const dark = isDark()
+    if (dark === shownDark) return
+    shownDark = dark
+    editors.setDark(dark)
+    home.setDark(dark)
+  }
+  bridge.onTheme = () => themeChanged()
+  nativeTheme.on('updated', () => themeChanged())
   bridge.officeLaunch = (which) => (which === 'home' ? home.show() : editors.showApp(which))
-  // Cada app de oficina, un programa de Windows (officeapps.ts): al arrancar, al
-  // añadir o quitar la pieza y al elegir en Ajustes qué apps se ven.
-  bridge.onOfficeApps = () => {
-    void syncOfficeApps()
-    home.notify()
-  }
-  office.onUpdate = () => bridge?.sendOfficeChanged()
-  office.onChange = () => {
-    void editors.configure()
-    void syncOfficeApps()
-    home.notify()
-  }
   engine.on('ready', () => void editors.configure())
   // Cada vez que el motor arranca (o rearranca) recibe en memoria las fuentes
   // extra que haya en este equipo (Aptos); después la interfaz recarga la lista.
@@ -359,7 +349,7 @@ void app.whenReady().then(async () => {
   engine.start().catch(() => log.error('el motor no arrancó'))
 
   // Al poco de abrir, y solo si el usuario no lo ha desactivado: mirar si hay
-  // versión nueva (solo se avisa; descargar e instalar lo decide él).
+  // versión nueva (solo se avisa; se actualiza en la Store).
   setTimeout(() => {
     if (store.settings.checkUpdates) updates?.check(false)
   }, 6000)
@@ -371,13 +361,7 @@ void app.whenReady().then(async () => {
   const recheckDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_AI_RECHECK_MS) : NaN
   setTimeout(() => void bridge?.recheckAi(), Number.isInteger(recheckDelay) && recheckDelay >= 0 ? recheckDelay : 60_000)
 
-  // Una pieza nueva (Molino se ha actualizado y trae otra) se instala sola, sin
-  // estorbar el arranque. En pruebas se adelanta con MOLINO_TEST_OFFICE_UPDATE_MS.
-  const updateDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_OFFICE_UPDATE_MS) : NaN
-  setTimeout(() => office.autoUpdate(), Number.isInteger(updateDelay) && updateDelay >= 0 ? updateDelay : 15_000)
-
   // Lo que se pidió al abrir Molino (y lo que llegó de otras instancias mientras arrancaba).
   await route(process.argv, process.cwd())
   for (const { argv, cwd } of earlyRequests.splice(0)) await route(argv, cwd)
-  void syncOfficeApps()
 })

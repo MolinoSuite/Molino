@@ -29,6 +29,11 @@ const api: HomeApi = {
     const wrapped = (): void => listener()
     ipcRenderer.on('home:changed', wrapped)
     return () => ipcRenderer.removeListener('home:changed', wrapped)
+  },
+  onTheme: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, dark: boolean): void => listener(dark === true)
+    ipcRenderer.on('home:theme', wrapped)
+    return () => ipcRenderer.removeListener('home:theme', wrapped)
   }
 }
 contextBridge.exposeInMainWorld('molinoHome', api)

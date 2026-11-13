@@ -105,11 +105,6 @@ export function Home() {
               {H.names[app]}
             </button>
           ))}
-          <div className="grow" />
-          <div className="home-local">
-            <strong>{H.local.title}</strong>
-            {H.local.text}
-          </div>
         </nav>
 
         <main className="home-main">
@@ -136,7 +131,6 @@ export function Home() {
                   </span>
                 </button>
               </div>
-              {apps && office.length === 0 && <p className="hint">{H.addApps}</p>}
             </section>
 
             <section className="home-section" aria-labelledby="home-recent">

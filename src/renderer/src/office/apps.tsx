@@ -552,7 +552,7 @@ const cell: AppConfig = {
         ],
         CELLS,
         [SUM, PAINTER, MENU('clear', 'clear', O.clear, <Eraser size={ICON} />)],
-        [FIND[0]]
+        FIND
       ]
     },
     {

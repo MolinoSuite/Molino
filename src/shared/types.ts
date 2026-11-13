@@ -233,8 +233,6 @@ export interface Settings {
   aiTier: AiTier
   /** Usar una tarjeta gráfica dedicada para la IA (si la hay). */
   aiGpu: boolean
-  /** Documentos, Hojas y Presentaciones que se ven en el menú Inicio y en «Abrir con» (con el motor de oficina añadido). */
-  officeApps: { word: boolean; cell: boolean; slide: boolean }
 }
 
 /** Una impresora instalada en Windows. */
@@ -268,15 +266,10 @@ export type DateStyle = 'short' | 'shortTime' | 'medium' | 'long' | 'full' | 'is
 
 /** Estado de las versiones nuevas de Molino PDF (ver src/main/updates.ts). */
 export interface UpdateStatus {
-  /** unavailable: esta copia no se actualiza sola (sin empaquetar); current: ya es la última. */
-  state: 'unavailable' | 'idle' | 'checking' | 'available' | 'current' | 'downloading' | 'ready' | 'error'
+  /** unavailable: esta copia no mira versiones nuevas (sin empaquetar); current: ya es la última. */
+  state: 'unavailable' | 'idle' | 'checking' | 'available' | 'current' | 'error'
   version?: string
-  percent?: number
   message?: string
-  /** Versión portable: la nueva se descarga en el navegador (no se instala desde Molino PDF). */
-  portable?: boolean
-  /** Versión de la Microsoft Store: las nuevas llegan por la Store. */
-  store?: boolean
 }
 
 export interface RecentFile {

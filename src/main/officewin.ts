@@ -8,9 +8,8 @@ import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
 import { log } from './log'
 import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
-import type { OfficeProgress } from '@shared/office'
-import type { OfficeTabs } from '@shared/officeui'
-import { fontTargets, type FontTarget, installFonts, lookupFont } from './fontcatalog'
+import type { OfficeTabs, OfficeSettingsInfo } from '@shared/officeui'
+import { installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
 import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontIndex, ownFontsDir, saveFontIndex } from './officefonts'
 
@@ -219,7 +218,14 @@ export interface OfficeOptions {
   /** Fuentes de las que no se vuelve a avisar (store.ts). */
   ignoredFonts: { list(): string[]; add(names: string[]): void }
   /** El diccionario personal del corrector (store.ts). */
-  userWords: { list(): string[]; add(words: string[]): void }
+  userWords: { list(): string[]; add(words: string[]): void; remove(words: string[]): void }
+  /** Los ajustes de Molino que se cambian desde aquí (tema, idioma, autor); al cambiar, index.ts los reparte. */
+  settings: {
+    get(): { theme: 'system' | 'light' | 'dark'; language: 'auto' | 'es' | 'en'; author: string }
+    set(patch: { theme?: 'system' | 'light' | 'dark'; language?: 'auto' | 'es' | 'en'; author?: string }): void
+    /** El usuario de Windows: el autor si no se pone otro. */
+    authorDefault(): string
+  }
   /** Carpeta donde quedan las licencias de las fuentes instaladas. */
   fontLicenses: string
   /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
@@ -264,7 +270,6 @@ export class OfficeWindows {
   private readonly engine: EngineClient
   private readonly piece: OfficePiece
   /** Avance de la pieza nueva que se está instalando sola (en tanto por ciento), para «Abriendo…». */
-  private updating: OfficeTabs['updating'] = null
   /** Las peticiones de IA en curso: número de la interfaz → número del motor (para cancelarlas). */
   private readonly aiCalls = new Map<number, number>()
 
@@ -282,15 +287,17 @@ export class OfficeWindows {
     this.registerIpc()
   }
 
-  /** El avance de la pieza (office.ts): las ventanas que esperan lo enseñan. Solo cuando cambia el tanto por ciento. */
-  pieceProgress(progress: OfficeProgress | null): void {
-    const next = progress ? { phase: progress.phase, percent: Math.floor((progress.done / Math.max(progress.total, 1)) * 100) } : null
-    if (next?.phase === this.updating?.phase && next?.percent === this.updating?.percent) return
-    this.updating = next
-    for (const win of this.windows.values()) if (win.opening > 0) this.sendTabs(win)
+  /** El tema ha cambiado: cada ventana (su barra de título y su interfaz, con los editores dentro) sin volver a cargarse. */
+  setDark(dark: boolean): void {
+    for (const win of this.windows.values()) {
+      if (win.window.isDestroyed()) continue
+      win.window.setBackgroundColor(dark ? '#1c1d20' : '#ffffff')
+      win.window.setTitleBarOverlay({ color: dark ? '#1c1d20' : '#ffffff', symbolColor: dark ? '#e5e7eb' : '#1f2937', height: 40 })
+      win.window.webContents.send('office:theme', dark)
+    }
   }
 
-  /** ¿Hay algún documento de oficina abierto? (entonces la pieza no se puede quitar). */
+  /** ¿Hay algún documento de oficina abierto? */
   get busy(): boolean {
     return [...this.windows.values()].some((w) => w.docs.size > 0)
   }
@@ -432,15 +439,8 @@ export class OfficeWindows {
     try {
       await Promise.race([this.firstConfigured, new Promise((done) => setTimeout(done, 90_000))])
       await this.configuring
-      if (!this.setup && this.piece.outdated) {
-        // Molino se ha actualizado y trae otra pieza: se está instalando sola (o
-        // falló antes y se intenta otra vez). La ventana espera con su avance.
-        await this.piece.install().catch(() => undefined)
-        await this.configure()
-      }
       if (!this.setup) {
-        const installed = (await this.piece.ready()) !== null
-        const message = installed ? L.main.office.preparing : this.piece.outdated ? L.main.office.updateFailed : L.main.office.notInstalled
+        const message = this.piece.available ? L.main.office.preparing : L.main.office.notInstalled
         void dialog.showMessageBox(win.window, { type: 'info', title: 'Molino', message })
         return false
       }
@@ -598,7 +598,6 @@ export class OfficeWindows {
       kind: win.kind,
       active: win.active,
       opening: win.opening > 0,
-      updating: win.opening > 0 ? this.updating : null,
       tabs: win.order.flatMap((doc) => {
         const open = win.docs.get(doc)
         return open
@@ -631,10 +630,10 @@ export class OfficeWindows {
    * índice y vuelve a abrir los documentos sin cambios que las usaban, para
    * que se vean con ellas.
    */
-  private async installFonts(open: OpenDoc, names: string[], into: FontTarget): Promise<{ installed: string[]; failed: string[] }> {
+  private async installFonts(open: OpenDoc, names: string[]): Promise<{ installed: string[]; failed: string[] }> {
     const missing = new Set(this.missingFonts(open))
     const wanted = names.filter((n) => missing.has(n)).slice(0, 30)
-    const result = await installFonts(wanted, this.options.fontLicenses, into, ownFontsDir(this.piece.root))
+    const result = await installFonts(wanted, this.options.fontLicenses, ownFontsDir(this.piece.root))
     if (result.installed.length === 0) return result
     log.info(`fuentes: instaladas ${result.installed.length}`)
     await this.configure()
@@ -913,15 +912,37 @@ export class OfficeWindows {
     ipcMain.handle('office:fontsInfo', (event, raw: unknown) => {
       const win = this.uiSender(event)
       const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
-      return { targets: fontTargets(), fonts: open ? this.missingFonts(open).map(lookupFont) : [] }
+      return { fonts: open ? this.missingFonts(open).map(lookupFont) : [] }
     })
     ipcMain.handle('office:installFonts', async (event, raw: unknown) => {
       const win = this.uiSender(event)
-      const { doc, names, into } = (raw ?? {}) as { doc?: unknown; names?: unknown; into?: unknown }
+      const { doc, names } = (raw ?? {}) as { doc?: unknown; names?: unknown }
       const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
-      const where = fontTargets().find((t) => t === into)
-      if (!win || !open || !Array.isArray(names) || !where) return { installed: [], failed: [] }
-      return this.installFonts(open, names.filter((n): n is string => typeof n === 'string'), where)
+      if (!win || !open || !Array.isArray(names)) return { installed: [], failed: [] }
+      return this.installFonts(open, names.filter((n): n is string => typeof n === 'string'))
+    })
+    // Ajustes de Documentos, Hojas y Presentaciones: tema, idioma, autor y el diccionario personal.
+    const settingsInfo = async (): Promise<OfficeSettingsInfo> => ({
+      ...this.options.settings.get(),
+      authorDefault: this.options.settings.authorDefault(),
+      ai: await this.options.ai.status()
+    })
+    ipcMain.handle('office:settingsGet', (event) => (this.uiSender(event) ? settingsInfo() : null))
+    ipcMain.handle('office:settingsSet', (event, raw: unknown) => {
+      if (!this.uiSender(event) || typeof raw !== 'object' || raw === null) return null
+      const { theme, language, author } = raw as Record<string, unknown>
+      const patch: Parameters<OfficeOptions['settings']['set']>[0] = {}
+      if (theme === 'system' || theme === 'light' || theme === 'dark') patch.theme = theme
+      if (language === 'auto' || language === 'es' || language === 'en') patch.language = language
+      if (typeof author === 'string') patch.author = author.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100)
+      this.options.settings.set(patch)
+      return settingsInfo()
+    })
+    ipcMain.handle('office:dictionary', (event) => (this.uiSender(event) ? this.options.userWords.list() : []))
+    ipcMain.handle('office:dictionaryRemove', (event, raw: unknown) => {
+      if (!this.uiSender(event) || !Array.isArray(raw)) return []
+      this.options.userWords.remove(raw.filter((w): w is string => typeof w === 'string' && w.length <= 64).slice(0, 5000))
+      return this.options.userWords.list()
     })
     ipcMain.handle('office:legal', async (event, raw: unknown) => {
       const legal = ['notice', 'license', 'thirdParty', 'source', 'original'] as const

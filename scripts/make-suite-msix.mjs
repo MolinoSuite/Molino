@@ -6,7 +6,8 @@
 //    dist-suite\win-unpacked (electron-builder --win dir).
 // 2. Monta el paquete en dist-suite\layout: el programa en app\, la pieza de
 //    oficina en app\resources\office (la arma office\build.py en dist-office),
-//    las imágenes y el manifiesto (build\suite) y resources.pri (makepri).
+//    los iconos de las apps y las plantillas, las imágenes y el manifiesto
+//    (build\suite) y resources.pri (makepri).
 // 3. Deja dist-suite\MolinoSuite.msix (makeappx), sin firmar: la Store lo firma.
 //
 // --prepackaged: no vuelve a compilar (usa dist-suite\win-unpacked tal cual).
@@ -90,6 +91,9 @@ const copyTree = (from, to) => cpSync(from, to, { recursive: true })
 rmSync(layout, { recursive: true, force: true })
 copyTree(unpacked, join(layout, 'app'))
 copyTree(piece, join(layout, 'app', 'resources', 'office'))
+// Lo demás de Documentos, Hojas y Presentaciones: los iconos de sus ventanas y las plantillas para empezar.
+copyTree(join(root, 'build', 'icons'), join(layout, 'app', 'resources', 'icons'))
+copyTree(join(root, 'resources', 'templates'), join(layout, 'app', 'resources', 'templates'))
 copyTree(join(root, 'build', 'suite', 'assets'), join(layout, 'assets'))
 const windowsVersion = `${version}.0`
 const manifest = readFileSync(join(root, 'build', 'suite', 'AppxManifest.xml'), 'utf8')

@@ -27,4 +27,6 @@ export interface HomeApi {
   openDialog(only?: 'pdf'): Promise<boolean>
   /** Cambió algo que muestra el inicio (apps añadidas, recientes). */
   onChanged(listener: () => void): () => void
+  /** Ha cambiado el tema: oscuro o no. */
+  onTheme(listener: (dark: boolean) => void): () => void
 }

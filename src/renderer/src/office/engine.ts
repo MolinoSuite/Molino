@@ -231,6 +231,12 @@ function parseLink(json: string | undefined): { text: string; url: string; tip: 
 export class EditorSession {
   readonly state: EditorState = initialState()
   private ew: Api = null
+
+  /** Cambia el tema del editor (claro u oscuro) sin volver a cargarlo, como hace ONLYOFFICE de escritorio. */
+  setTheme(dark: boolean): void {
+    const w = this.ew
+    if (w && typeof w.on_native_message === 'function') w.on_native_message('theme:changed', dark ? 'theme-dark' : 'theme-light')
+  }
   private api: Api = null
   private readonly listeners = new Set<() => void>()
   private pending = 0

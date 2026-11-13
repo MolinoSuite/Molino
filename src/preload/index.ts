@@ -1,9 +1,8 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
 import type { EngineStatus, MolinoApi } from '@shared/api'
-import type { OfficeFailure, OfficeProgress } from '@shared/office'
 import { LOCALE_RE, type Lang } from '@shared/i18n'
-import type { ProgressInfo, UpdateStatus } from '@shared/types'
+import type { ProgressInfo, Settings, UpdateStatus } from '@shared/types'
 
 /**
  * Único punto de contacto entre la interfaz y el resto de la aplicación.
@@ -100,7 +99,8 @@ const api: MolinoApi = {
 
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
-    set: (patch) => ipcRenderer.invoke('settings:set', patch)
+    set: (patch) => ipcRenderer.invoke('settings:set', patch),
+    onChanged: (listener) => subscribe<Settings>('settings:changed', listener)
   },
   recent: {
     list: () => ipcRenderer.invoke('recent:list'),
@@ -116,8 +116,7 @@ const api: MolinoApi = {
   updates: {
     status: () => ipcRenderer.invoke('updates:status'),
     check: () => ipcRenderer.send('updates:check'),
-    download: () => ipcRenderer.send('updates:download'),
-    install: () => ipcRenderer.send('updates:install'),
+    openStore: () => ipcRenderer.invoke('updates:openStore'),
     onStatus: (listener) => subscribe<UpdateStatus>('updates:status', listener)
   },
   about: {
@@ -136,12 +135,6 @@ const api: MolinoApi = {
   },
   office: {
     status: () => ipcRenderer.invoke('office:status'),
-    install: () => ipcRenderer.invoke('office:install'),
-    cancel: () => ipcRenderer.invoke('office:cancel'),
-    remove: () => ipcRenderer.invoke('office:remove'),
-    onProgress: (listener) => subscribe<OfficeProgress | null>('office:progress', listener),
-    onChanged: (listener) => subscribe<void>('office:changed', () => listener()),
-    onError: (listener) => subscribe<OfficeFailure>('office:error', listener),
     launch: (app) => ipcRenderer.invoke('office:launch', app),
     defaultApps: (app) => ipcRenderer.invoke('office:defaultApps', app),
     userWords: () => ipcRenderer.invoke('office:userWordsList'),

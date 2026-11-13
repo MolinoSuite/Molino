@@ -4,7 +4,7 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { ChevronDown, Ellipsis, FilePlusCorner, FileText, FolderOpen, Info, Minus, Plus, Printer, Save, SaveAll, Search, StickyNote, X } from 'lucide-react'
+import { ChevronDown, Ellipsis, FilePlusCorner, FileText, FolderOpen, Info, Minus, Plus, Printer, Save, SaveAll, Search, Settings2, StickyNote, X } from 'lucide-react'
 import { type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { OfficeTabs } from '@shared/officeui'
 import { Dialog, Menu, type MenuEntry } from '@/components/ui'
@@ -16,6 +16,7 @@ import { type ContextInfo, type EditorNotice, EditorSession, type EditorState } 
 import { env, fmt, L } from './i18n'
 import { ICONS } from './icons'
 import { FontsDialog, FontsNotice } from './MissingFonts'
+import { OfficeSettings } from './OfficeSettings'
 import { OfficeStart } from './OfficeStart'
 
 const FONTS = ['Aptos', 'Calibri', 'Arial', 'Cambria', 'Georgia', 'Times New Roman', 'Verdana', 'Segoe UI', 'Courier New', 'Carlito', 'Open Sans']
@@ -63,7 +64,7 @@ function shortcutOf(event: globalThis.KeyboardEvent): string | null {
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return null
   if (key === 'tab') return event.shiftKey ? 'prevTab' : 'nextTab'
   if (event.shiftKey) return key === 's' ? 'saveAs' : null
-  return ({ o: 'o', n: 'n', w: 'w', p: 'p', s: 's', f: 'find', h: 'replace', k: 'link' } as Record<string, string>)[key] ?? null
+  return ({ o: 'o', n: 'n', w: 'w', p: 'p', s: 's', f: 'find', h: 'replace', k: 'link', ',': 'settings' } as Record<string, string>)[key] ?? null
 }
 
 export function OfficeApp() {
@@ -74,27 +75,37 @@ export function OfficeApp() {
   const [mode, setMode] = useState(app.modes[0].id)
   const [palette, setPalette] = useState(false)
   const [about, setAbout] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  // El tema puede cambiar con la ventana abierta (Ajustes de cualquier app, o Windows).
+  const [dark, setDark] = useState(env.dark)
+  // Cada pestaña se carga con el tema de cuando se abrió: su dirección no cambia (si cambiara, se volvería a cargar).
+  const frameDark = useRef(new Map<string, boolean>())
+  const frameTheme = (doc: string): boolean => {
+    if (!frameDark.current.has(doc)) frameDark.current.set(doc, dark)
+    return frameDark.current.get(doc) ?? dark
+  }
   const [presenting, setPresenting] = useState(false)
   const [fontsFor, setFontsFor] = useState<string | null>(null)
   const [fileMenu, setFileMenu] = useState<DOMRect | null>(null)
   const [find, setFind] = useState<{ replace: boolean } | null>(null)
   const [dialog, setDialog] = useState<OfficeDialog | null>(null)
   const [aiTask, setAiTask] = useState<AiTask>(AI_TASKS[kind][0])
-  const [aiOn, setAiOn] = useState(false)
   const [menu, setMenu] = useState<{ doc: string; info: ContextInfo } | null>(null)
   const [notice, setNotice] = useState<EditorNotice | null>(null)
-  // El modo «IA» sale si la IA está activada en Ajustes (se mira otra vez al volver a la ventana).
-  useEffect(() => {
-    const check = (): void => void window.molinoOffice.ai.status().then((s) => setAiOn(s.on))
-    check()
-    window.addEventListener('focus', check)
-    return () => window.removeEventListener('focus', check)
-  }, [])
-
   useEffect(() => {
     void window.molinoOffice.tabs().then((t) => t && setTabs(t))
     return window.molinoOffice.onTabs(setTabs)
   }, [])
+
+  useEffect(
+    () =>
+      window.molinoOffice.onTheme((next) => {
+        document.documentElement.dataset.theme = next ? 'dark' : 'light'
+        setDark(next)
+        for (const s of sessions.current.values()) s.setTheme(next)
+      }),
+    []
+  )
 
   // Las sesiones de las pestañas que se cierran se sueltan.
   useEffect(() => {
@@ -205,6 +216,7 @@ export function OfficeApp() {
       else if (key === 'o') void window.molinoOffice.openDialog()
       else if (key === 'n') void window.molinoOffice.newDoc()
       else if (key === 'w' && tabs?.active) void window.molinoOffice.closeTab(tabs.active)
+      else if (key === 'settings') setSettingsOpen(true)
       else if (key === 'nextTab') step(1)
       else if (key === 'prevTab') step(-1)
     },
@@ -228,7 +240,8 @@ export function OfficeApp() {
 
   // Las pestañas de contexto (tabla, imagen…) solo con su objeto seleccionado; si
   // se deja de seleccionar, se vuelve a la última de las de siempre.
-  const modes = [...app.modes.filter((m) => !m.context || Boolean(state?.objects.includes(m.context))), ...(aiOn ? [aiMode(kind)] : [])]
+  // El modo «IA» siempre está: si la IA está desactivada, su panel dice cómo activarla.
+  const modes = [...app.modes.filter((m) => !m.context || Boolean(state?.objects.includes(m.context))), aiMode(kind)]
   const lastPlain = useRef(app.modes[0].id)
   const plainMode = app.modes.find((m) => m.id === mode && !m.context)
   if (plainMode) lastPlain.current = plainMode.id
@@ -261,6 +274,7 @@ export function OfficeApp() {
               hasDoc: !empty && Boolean(state?.ready),
               run,
               about: () => setAbout(true),
+              settings: () => setSettingsOpen(true),
               doc: tabs?.active ?? null
             })}
           />
@@ -294,6 +308,9 @@ export function OfficeApp() {
         )}
         <div className="titlebar-fill" />
         <div className="office-actions" hidden={empty}>
+          <button className="icon-btn sm" aria-label={T.actions.findTip} data-tip={T.actions.findTip} onClick={() => run('find')}>
+            <Search size={16} />
+          </button>
           <button
             className="icon-btn sm"
             aria-label={T.actions.printTip}
@@ -322,7 +339,7 @@ export function OfficeApp() {
         ) : (
           <div className="office-loading office-opening">
             <span className="spinner" />
-            {tabs?.updating ? fmt(tabs.updating.phase === 'download' ? T.updatingDownload : T.updatingInstall, { percent: tabs.updating.percent }) : T.loading}
+            {T.loading}
           </div>
         )
       ) : (
@@ -334,6 +351,10 @@ export function OfficeApp() {
               <span>{m.label}</span>
             </button>
           ))}
+          <div className="rail-spacer" />
+          <button className="icon-btn" aria-label={T.file.settings.replace('…', '')} data-tip={T.file.settings.replace('…', '')} data-tip-side="right" onClick={() => setSettingsOpen(true)}>
+            <Settings2 size={18} />
+          </button>
         </nav>
         <div className="office-main">
           <ToolBar key={currentMode.id} mode={currentMode} state={state} run={run} />
@@ -343,7 +364,7 @@ export function OfficeApp() {
                 key={tab.doc}
                 className={cn('office-frame', tab.doc === tabs.active && 'on')}
                 title={tab.name}
-                src={`/__molino__/frame.html?${new URLSearchParams({ doc: tab.doc, kind, name: tab.name, ext: tab.ext, lang: env.lang, dark: env.dark ? '1' : '0', author: env.author })}`}
+                src={`/__molino__/frame.html?${new URLSearchParams({ doc: tab.doc, kind, name: tab.name, ext: tab.ext, lang: env.lang, dark: frameTheme(tab.doc) ? '1' : '0', author: env.author })}`}
                 onLoad={(event) => session(tab.doc).attach(event.currentTarget)}
               />
             ))}
@@ -389,9 +410,11 @@ export function OfficeApp() {
           </button>
         )}
         {activeTab && <span className={activeTab.modified ? 'warn' : 'ok'}>{activeTab.modified ? T.status.unsaved : T.status.saved}</span>}
-        <button className="office-credit" onClick={() => setAbout(true)}>
-          {T.status.basedOn}
-        </button>
+        {empty && (
+          <button className="office-credit" onClick={() => setAbout(true)}>
+            {T.status.basedOn}
+          </button>
+        )}
         <div className="office-zoom" hidden={empty}>
           <button className="icon-btn sm" aria-label={T.status.zoomOut} data-tip={T.status.zoomOut} onClick={() => run('zoomOut')}>
             <Minus size={14} />
@@ -408,6 +431,7 @@ export function OfficeApp() {
         active?.focus()
       }} />}
       {about && <AboutOffice onClose={() => setAbout(false)} />}
+      {settingsOpen && <OfficeSettings onClose={() => setSettingsOpen(false)} />}
       {fontsFor && <FontsDialog doc={fontsFor} onClose={() => setFontsFor(null)} />}
       {dialog?.type === 'prompt' && <PromptDialog spec={dialog.spec} onClose={closeDialog} />}
       {menu && active && menu.doc === tabs?.active && state && (
@@ -439,7 +463,21 @@ function statusText(kind: string, state: EditorState | null): string {
 }
 
 /** El menú «Archivo»: lo de siempre de un documento, con sus atajos. */
-function fileEntries({ kind, hasDoc, run, about, doc }: { kind: string; hasDoc: boolean; run: (command: string, value?: string) => void; about: () => void; doc: string | null }): MenuEntry[] {
+function fileEntries({
+  kind,
+  hasDoc,
+  run,
+  about,
+  settings,
+  doc
+}: {
+  kind: string
+  hasDoc: boolean
+  run: (command: string, value?: string) => void
+  about: () => void
+  settings: () => void
+  doc: string | null
+}): MenuEntry[] {
   const F = T.file
   // Exportar: como el PDF, el documento sigue siendo el de antes.
   const exports: MenuEntry[] =
@@ -462,6 +500,7 @@ function fileEntries({ kind, hasDoc, run, about, doc }: { kind: string; hasDoc: 
     ...exports,
     { label: F.print, icon: <Printer size={15} />, kbd: 'Ctrl+P', disabled: !hasDoc || !doc, onSelect: () => run('print') },
     'sep',
+    { label: F.settings, icon: <Settings2 size={15} />, kbd: 'Ctrl+,', onSelect: settings },
     { label: F.about, icon: <Info size={15} />, onSelect: about }
   ]
 }
@@ -974,20 +1013,14 @@ function AboutOffice({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="office-about">
-        <p>{A.free}</p>
-        <p>
-          <b>{A.engine}</b>
-          <br />
-          <i lang="en">{A.based}</i>
-        </p>
-        <p>{A.modified}</p>
-        {env.piece && <p className="hint">{fmt(A.version, { version: env.piece, molino: env.version })}</p>}
+        <p>{A.based}</p>
+        <p className="hint">{fmt(A.version, { version: env.piece ?? '', molino: env.version })}</p>
         <div className="row wrap">
-          <button className="btn sm" onClick={() => void window.molinoOffice.legal('notice')}>
-            {A.notice}
-          </button>
           <button className="btn sm" onClick={() => void window.molinoOffice.legal('license')}>
             {A.license}
+          </button>
+          <button className="btn sm" onClick={() => void window.molinoOffice.legal('notice')}>
+            {A.notice}
           </button>
           <button className="btn sm" onClick={() => void window.molinoOffice.legal('thirdParty')}>
             {A.thirdParty}
@@ -995,11 +1028,7 @@ function AboutOffice({ onClose }: { onClose: () => void }) {
           <button className="btn sm" onClick={() => void window.molinoOffice.legal('source')}>
             {A.source}
           </button>
-          <button className="btn sm" onClick={() => void window.molinoOffice.legal('original')}>
-            {A.original}
-          </button>
         </div>
-        <p className="hint">{A.trademark}</p>
       </div>
     </Dialog>
   )

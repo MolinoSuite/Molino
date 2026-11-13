@@ -14,7 +14,7 @@ Lee, rellena, firma, edita y organiza tus PDF en Windows. Gratis, sin anuncios, 
 </p>
 
 > [!NOTE]
-> **La primera versión sale muy pronto.** Para enterarte, pulsa **Watch → Custom → Releases** en [el repositorio](https://github.com/MolinoSuite/Molino).
+> **Ya está en la [Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N).** También con `winget install 9NRTWZFHG67N`.
 
 ## ✍️ Rellena y firma
 
@@ -57,10 +57,10 @@ Molino PDF funciona sin conexión y no te pide una cuenta. Solo usa Internet cua
 
 Para Windows 10 y 11 de 64 bits, también en portátiles con Windows 11 ARM. En español y en inglés: sigue el idioma de Windows.
 
-1. Busca **Molino PDF** en la Microsoft Store y pulsa **Obtener**. No hace falta ser administrador ni tener cuenta.
+1. Abre [Molino PDF en la Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N) y pulsa **Obtener**. No hace falta ser administrador ni tener cuenta.
 2. Listo. Las versiones nuevas llegan solas por la Store.
 
-También con winget: `winget install "Molino PDF" --source msstore`.
+También con winget: `winget install 9NRTWZFHG67N`.
 
 ## 💬 ¿Ideas o algo que no va bien?
 

@@ -102,21 +102,11 @@ export const shell = {
     working: 'Trabajando…'
   },
   update: {
-    available: 'Hay una versión nueva de Molino PDF',
-    availableVersion: 'Hay una versión nueva de Molino PDF ({version})',
+    available: 'Hay una versión nueva de {app}',
+    availableVersion: 'Hay una versión nueva de {app} ({version})',
+    hint: 'Se actualiza desde la Microsoft Store.',
     update: 'Actualizar',
-    downloadPortable: 'Descargar',
-    portableHint: 'Se descarga en tu navegador. Descomprímela encima de esta carpeta: tus ajustes se conservan.',
-    notNow: 'Ahora no',
-    downloading: 'Descargando Molino PDF…',
-    downloadingVersion: 'Descargando Molino PDF {version}…',
-    ready: 'La actualización de Molino PDF está lista',
-    readyVersion: 'Molino PDF {version} está listo para instalarse',
-    restart: 'Reiniciar y actualizar',
-    laterTip: 'Se instalará al cerrar Molino PDF',
-    later: 'Más tarde',
-    failed: 'No se pudo actualizar Molino PDF',
-    tryLater: 'Inténtalo más tarde.'
+    notNow: 'Ahora no'
   },
   recovery: {
     title: 'Recuperar documentos',

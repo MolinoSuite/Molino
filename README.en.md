@@ -21,7 +21,7 @@
 
 ## The apps
 
-Each sail of the windmill is an app. Install only the ones you need: the others can be added for free to the same installation.
+Each sail of the windmill is an app. In the Microsoft Store: **Molino PDF**, if you only want PDF, or **Molino Suite**, with all of them.
 
 <table>
   <tr>
@@ -29,7 +29,7 @@ Each sail of the windmill is an app. Install only the ones you need: the others 
       <a href="docs/pdf.en.md"><img src=".github/marca/pdf.svg" width="96" alt=""></a>
       <h3><a href="docs/pdf.en.md">Molino PDF</a></h3>
       <p>Read, fill in, sign, edit and organize your PDFs.</p>
-      <img src="https://img.shields.io/badge/-coming%20soon-B92B32?style=flat-square" alt="Coming soon">
+      <a href="https://apps.microsoft.com/detail/9NRTWZFHG67N"><img src="https://img.shields.io/badge/-in%20the%20Microsoft%20Store-2A9358?style=flat-square" alt="In the Microsoft Store"></a>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/en/docs/"><img src=".github/marca/documentos.svg" width="96" alt=""></a>
@@ -75,9 +75,12 @@ Each sail of the windmill is an app. Install only the ones you need: the others 
 
 <p align="center">Forms that do the math for you, digital certificate signatures, scanning with your phone and AI that never leaves your computer.<br><b><a href="docs/pdf.en.md">Everything Molino PDF does →</a></b></p>
 
-## Download
+## Install
 
-**The first version of Molino PDF is coming very soon.** To hear about it on day one, click **Watch → Custom → Releases** at the top, or give it a ⭐.
+- **Molino PDF**: [in the Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), or with `winget install 9NRTWZFHG67N`. Free, no account and no administrator rights; new versions arrive on their own through the Store.
+- **Molino Suite** (Molino PDF, Docs, Sheets and Slides): coming soon to the Microsoft Store. To hear about it, click **Watch → Custom → Releases** at the top, or give it a ⭐.
+
+For 64-bit Windows 10 and 11. Linux, later on.
 
 ## Support Molino
 
@@ -92,7 +95,7 @@ Molino is free software under the [GNU AGPL, version 3 or later](LICENSE), and c
 
 <br>
 
-Today the repository holds Molino PDF. You need Node 22.12 or later and Python 3.12 or later. In PowerShell:
+You need Node 22.12 or later and Python 3.12 or later. In PowerShell:
 
 ```powershell
 npm ci --ignore-scripts
@@ -104,6 +107,6 @@ powershell -File scripts\fetch-tessdata.ps1
 npm run dist:store
 ```
 
-The Microsoft Store package (MSIX, unsigned: the Store signs it) ends up in `dist\`.
+The Molino PDF package for the Microsoft Store (MSIX, unsigned: the Store signs it) ends up in `dist\`. The Molino Suite one, with Docs, Sheets and Slides, also needs the office engine (`engine\.venv\Scripts\python.exe -I office\build.py`) and comes out with `npm run dist:suite`, in `dist-suite\`.
 
 </details>

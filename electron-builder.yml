@@ -27,35 +27,12 @@ extraFiles:
   - from: LICENSE
     to: LICENSE.txt
 
-# Versiones nuevas: se publican en GitHub Releases y la aplicación las
-# encuentra ahí (src/main/updates.ts). Con esto electron-builder
-# genera latest.yml junto al instalador y app-update.yml dentro de la aplicación.
-# Cuando el instalador vaya firmado, añadir en win.signtoolOptions el
-# publisherName: la aplicación exigirá entonces que las versiones nuevas
-# vengan firmadas por el mismo editor.
-# El repositorio es el de la suite (github.com/MolinoSuite/Molino).
-publish:
-  provider: github
-  owner: MolinoSuite
-  repo: Molino
-  releaseType: release
-
 extraResources:
   - from: dist-engine/molino-engine
     to: engine
-  # Iconos de Documentos, Hojas y Presentaciones (y de la suite): sus accesos en el
-  # menu Inicio, sus ventanas y sus tipos de archivo apuntan a ellos (src/main/officeapps.ts y, en la Store, el manifiesto del paquete).
-  - from: build/icons
-    to: icons
-    filter:
-      - "*.ico"
-  # Plantillas para empezar de Documentos, Hojas y Presentaciones (src/main/officewin.ts).
-  - from: resources/templates
-    to: templates
-    filter:
-      - "**/*.docx"
-      - "**/*.xlsx"
-      - "**/*.pptx"
+  # Lo de Documentos, Hojas y Presentaciones (iconos de sus ventanas, plantillas y el
+  # motor de oficina) solo va en el paquete de Molino Suite: lo añade
+  # scripts/make-suite-msix.mjs. El de Molino PDF es solo el PDF.
   - from: resources/tessdata
     to: assets/tessdata
     filter:
@@ -76,7 +53,7 @@ win:
 # Versión de la Microsoft Store (MSIX): npm run dist:store (o, con la app ya
 # compilada, electron-builder --win appx --prepackaged dist\win-unpacked). La
 # Store firma el paquete al publicarlo. Los datos de la app van en la carpeta del
-# paquete y las versiones nuevas llegan por la Store (src/main/appx.ts).
+# paquete y las versiones nuevas llegan por la Store (src/main/appx.ts, updates.ts).
 appx:
   # La identidad del producto en Partner Center (Producto → Administración del
   # producto → Identidad del producto): tiene que coincidir tal cual, o la

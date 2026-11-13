@@ -56,11 +56,7 @@ const SettingsSchema = z.object({
   language: z.enum(['auto', 'es', 'en']).default('auto'),
   // IA local: apagada hasta que el usuario la activa y descarga los modelos.
   aiTier: z.enum(['off', 'basic', 'advanced']).default('off'),
-  aiGpu: z.boolean().default(true),
-  // Documentos, Hojas y Presentaciones que se ven (menú Inicio, «Abrir con»), con el motor de oficina añadido.
-  officeApps: z
-    .object({ word: z.boolean().default(true), cell: z.boolean().default(true), slide: z.boolean().default(true) })
-    .default({ word: true, cell: true, slide: true })
+  aiGpu: z.boolean().default(true)
 })
 
 const BoundsSchema = z.object({

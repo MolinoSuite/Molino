@@ -11,6 +11,9 @@ import { env } from './i18n'
 const root = document.documentElement
 root.lang = env.lang
 root.dataset.theme = env.dark ? 'dark' : 'light'
+window.molinoHome.onTheme((dark) => {
+  root.dataset.theme = dark ? 'dark' : 'light'
+})
 document.title = 'Molino'
 
 const mount = document.getElementById('root')

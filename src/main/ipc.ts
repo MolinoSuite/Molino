@@ -7,13 +7,13 @@ import { z } from 'zod'
 import type { EngineStatus, ExportOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
 import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
 import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
-import type { OfficeApp, OfficeProgress } from '@shared/office'
+import type { OfficeApp } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
 import { EngineClient, EngineError } from './engine'
 import { fmt, L, lang } from './i18n'
 import { log } from './log'
-import { OfficeError, openOfficeLegal, type OfficePiece } from './office'
-import { openDefaultApps, shellIntegration } from './officeapps'
+import { openOfficeLegal, type OfficePiece } from './office'
+import { openDefaultApps } from './officeapps'
 import type { PrintService } from './print'
 import { isTrustedSender } from './security'
 import type { Store } from './store'
@@ -201,17 +201,12 @@ export class Bridge {
   officeBusy: () => boolean = () => false
   /** Abre la ventana de una app de oficina (index.ts lo conecta con officewin.ts). */
   officeLaunch: (app: OfficeApp | 'home') => void = () => undefined
-  /** Ha cambiado qué apps de oficina se ven (index.ts vuelve a ponerlas en Windows). */
-  onOfficeApps: () => void = () => undefined
+  /** Ha cambiado el tema en Ajustes de Molino PDF (index.ts lo lleva a las demás ventanas). */
+  onTheme: () => void = () => undefined
 
-  /** Avance de la descarga e instalación del motor de oficina (lo emite office.ts). */
-  sendOfficeProgress(progress: OfficeProgress | null): void {
-    this.send('office:progress', progress)
-  }
-
-  /** La pieza ha empezado o acabado de instalarse sola (una nueva): Ajustes vuelve a mirar su estado. */
-  sendOfficeChanged(): void {
-    this.send('office:changed')
+  /** Los ajustes han cambiado en otra ventana (Documentos, Hojas o Presentaciones): la interfaz los vuelve a leer. */
+  sendSettings(): void {
+    this.send('settings:changed', this.store.settings)
   }
 
   /** Lo que el motor dice de la IA al configurarla: gráfica en uso y si el procesador sirve. */
@@ -946,7 +941,7 @@ export class Bridge {
       const after = this.store.updateSettings(raw)
       // Cambiar el nivel de IA o la gráfica cambia lo que el motor puede cargar.
       if (after.aiTier !== before.aiTier || after.aiGpu !== before.aiGpu) void this.configureAi()
-      if (JSON.stringify(after.officeApps) !== JSON.stringify(before.officeApps)) this.onOfficeApps()
+      if (after.theme !== before.theme) this.onTheme()
       return after
     })
 
@@ -977,8 +972,8 @@ export class Bridge {
       await this.configureAi()
       return true
     })
-    // ---- motor de oficina (Documentos, Hojas y Presentaciones): añadirlo y quitarlo
-    this.handle('office:status', z.undefined(), async () => ({ ...(await this.office.status()), shell: shellIntegration() }))
+    // ---- Documentos, Hojas y Presentaciones (si este Molino las trae: Molino Suite)
+    this.handle('office:status', z.undefined(), () => this.office.status())
     this.handle('office:launch', z.enum(['word', 'cell', 'slide', 'home']), async (app) => {
       if ((await this.office.ready()) === null) return false
       this.officeLaunch(app)
@@ -989,27 +984,6 @@ export class Bridge {
     this.handle('office:removeUserWords', z.array(z.string().max(64)).max(5000), (words) => {
       this.store.removeUserWords(words)
       return this.store.userWords()
-    })
-    this.handle('office:install', z.undefined(), () => {
-      // Sigue en segundo plano; el avance llega por «office:progress» y el final
-      // por «office:changed» (y «office:error» si falla).
-      void this.office
-        .install()
-        .catch((error: unknown) => this.send('office:error', error instanceof OfficeError ? error.reason : 'network'))
-        .finally(() => this.send('office:changed'))
-      this.send('office:changed')
-      return true
-    })
-    this.handle('office:cancel', z.undefined(), () => {
-      this.office.cancel()
-      return true
-    })
-    this.handle('office:remove', z.undefined(), async () => {
-      // Con documentos abiertos, sus editores están leyendo la pieza.
-      if (this.officeBusy()) throw new EngineError({ code: 'busy', message: L.main.office.removeOpen })
-      await this.office.remove()
-      this.send('office:changed')
-      return true
     })
     ipcMain.handle('recent:list', (event) =>
       isTrustedSender(event, this.window?.webContents ?? null) ? this.store.recentList() : []
@@ -1079,23 +1053,17 @@ export class Bridge {
       void this.closeEngineDocs().finally(() => this.window?.close())
     })
 
-    // ---- versiones nuevas: la interfaz solo puede pedir estas cuatro cosas
+    // ---- versiones nuevas: la interfaz solo puede pedir estas tres cosas
     ipcMain.handle('updates:status', (event) =>
       isTrustedSender(event, this.window?.webContents ?? null) ? this.updates.current() : { state: 'unavailable' }
     )
     ipcMain.on('updates:check', (event) => {
       if (isTrustedSender(event, this.window?.webContents ?? null)) this.updates.check(true)
     })
-    ipcMain.on('updates:download', (event) => {
-      if (isTrustedSender(event, this.window?.webContents ?? null)) this.updates.download()
-    })
-    ipcMain.on('updates:install', (event) => {
-      if (!isTrustedSender(event, this.window?.webContents ?? null) || !this.updates.pending) return
-      // La interfaz ya ha cerrado los documentos preguntando qué guardar; los
-      // que queden en el motor se cierran igual que en una salida normal.
-      this.allowClose = true
-      void this.closeEngineDocs().finally(() => this.updates.install(true))
-    })
+    // «Actualizar»: la página de Molino en la Microsoft Store.
+    ipcMain.handle('updates:openStore', (event) =>
+      isTrustedSender(event, this.window?.webContents ?? null) ? this.updates.openStore() : false
+    )
 
     // ---- comentarios: el texto va al servicio de comentarios (feedback.ts), acotado aquí
     ipcMain.handle('feedback:available', (event) => isTrustedSender(event, this.window?.webContents ?? null) && feedbackAvailable())

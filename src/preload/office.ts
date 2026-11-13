@@ -56,7 +56,7 @@ const ui: OfficeUiApi = {
   recover: (id) => ipcRenderer.invoke('office:recover', id),
   discardRecovery: (id) => ipcRenderer.invoke('office:discardRecovery', id),
   fontsInfo: (doc) => ipcRenderer.invoke('office:fontsInfo', doc),
-  installFonts: (doc, names, into) => ipcRenderer.invoke('office:installFonts', { doc, names, into }),
+  installFonts: (doc, names) => ipcRenderer.invoke('office:installFonts', { doc, names }),
   dismissFonts: (doc, forever) => ipcRenderer.invoke('office:dismissFonts', { doc, forever }),
   legal: (what) => ipcRenderer.invoke('office:legal', what),
   clipboard: (action) => ipcRenderer.invoke('office:clipboard', action),
@@ -79,6 +79,15 @@ const ui: OfficeUiApi = {
     const wrapped = (_event: Electron.IpcRendererEvent, tabs: OfficeTabs): void => listener(tabs)
     ipcRenderer.on('office:tabs', wrapped)
     return () => ipcRenderer.removeListener('office:tabs', wrapped)
+  },
+  settings: () => ipcRenderer.invoke('office:settingsGet'),
+  setSettings: (patch) => ipcRenderer.invoke('office:settingsSet', patch),
+  dictionary: () => ipcRenderer.invoke('office:dictionary'),
+  removeFromDictionary: (words) => ipcRenderer.invoke('office:dictionaryRemove', words),
+  onTheme: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, dark: boolean): void => listener(dark === true)
+    ipcRenderer.on('office:theme', wrapped)
+    return () => ipcRenderer.removeListener('office:theme', wrapped)
   }
 }
 contextBridge.exposeInMainWorld('molinoOffice', ui)

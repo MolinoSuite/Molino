@@ -16,9 +16,6 @@ export interface OfficeTab {
 }
 
 /** Qué se puede hacer con una fuente que falta (src/main/fontcatalog.ts). */
-/** Dónde se instala una fuente: en Windows (para todos los programas) o solo en Molino. */
-export type OfficeFontTarget = 'windows' | 'molino'
-
 export type OfficeFontInfo =
   | { name: string; status: 'free'; license: 'ofl' | 'apache' | 'ufl'; size: number; files: number }
   | { name: string; status: 'microsoft'; substitute: string | null }
@@ -30,7 +27,6 @@ export interface OfficeTabs {
   /** Se está abriendo algún documento (sin pestañas aún, la interfaz muestra «Abriendo…»). */
   opening: boolean
   /** Mientras se abre: la pieza nueva que se está instalando sola, y cuánto lleva. */
-  updating: { phase: 'download' | 'install'; percent: number } | null
   tabs: OfficeTab[]
 }
 
@@ -49,6 +45,16 @@ export interface OfficeRecoverable {
   time: string
 }
 
+/** Lo que se ve en Ajustes de Documentos, Hojas y Presentaciones (los mismos ajustes de Molino). */
+export interface OfficeSettingsInfo {
+  theme: 'system' | 'light' | 'dark'
+  language: 'auto' | 'es' | 'en'
+  /** Nombre para los comentarios y cambios ('' = el usuario de Windows, ``authorDefault``). */
+  author: string
+  authorDefault: string
+  ai: { on: boolean; ready: boolean }
+}
+
 export interface OfficeUiApi {
   /** ``piece``: la versión del motor de oficina (para «Acerca de»). */
   env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; piece: string; author: string }
@@ -64,6 +70,13 @@ export interface OfficeUiApi {
   exportDoc(doc: string, format: string): Promise<boolean>
   newDoc(): Promise<boolean>
   onTabs(listener: (tabs: OfficeTabs) => void): () => void
+  /** Ajustes (tema, idioma, autor) y el diccionario personal. */
+  settings(): Promise<OfficeSettingsInfo>
+  setSettings(patch: Partial<Pick<OfficeSettingsInfo, 'theme' | 'language' | 'author'>>): Promise<OfficeSettingsInfo>
+  dictionary(): Promise<string[]>
+  removeFromDictionary(words: string[]): Promise<string[]>
+  /** Ha cambiado el tema (en cualquier ventana de Molino o en Windows): oscuro o no. */
+  onTheme(listener: (dark: boolean) => void): () => void
   recent(): Promise<OfficeRecent[]>
   openRecent(id: string): Promise<boolean>
   forgetRecent(id: string): Promise<OfficeRecent[]>
@@ -71,10 +84,10 @@ export interface OfficeUiApi {
   recoverable(): Promise<OfficeRecoverable[]>
   recover(id: string): Promise<boolean>
   discardRecovery(id: string): Promise<OfficeRecoverable[]>
-  /** Las fuentes que faltan en un documento, qué se puede hacer con cada una y dónde se pueden instalar (la primera, la propuesta). */
-  fontsInfo(doc: string): Promise<{ targets: OfficeFontTarget[]; fonts: OfficeFontInfo[] }>
-  /** Instala esas (del catálogo) en Windows o solo en Molino; el documento se vuelve a abrir con ellas si no tiene cambios. */
-  installFonts(doc: string, names: string[], into: OfficeFontTarget): Promise<{ installed: string[]; failed: string[] }>
+  /** Las fuentes que faltan en un documento y qué se puede hacer con cada una. */
+  fontsInfo(doc: string): Promise<{ fonts: OfficeFontInfo[] }>
+  /** Instala esas (del catálogo) solo en Molino; el documento se vuelve a abrir con ellas si no tiene cambios. */
+  installFonts(doc: string, names: string[]): Promise<{ installed: string[]; failed: string[] }>
   /** Abre un aviso legal del motor de oficina (cambios de Molino, licencia de ONLYOFFICE, terceros, código). */
   legal(what: OfficeLegal): Promise<boolean>
   /** «Ahora no» (y, con ``forever``, no volver a avisar de esas fuentes). */

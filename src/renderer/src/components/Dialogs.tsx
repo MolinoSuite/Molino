@@ -458,9 +458,7 @@ function CloseManySettings() {
 const UPDATE_TEXT: Partial<Record<UpdateStatus['state'], string>> = {
   unavailable: L.dialogs.settings.updates.unavailable,
   checking: L.dialogs.settings.updates.checking,
-  current: L.dialogs.settings.updates.current,
-  downloading: L.dialogs.settings.updates.downloading,
-  ready: L.dialogs.settings.updates.ready
+  current: L.dialogs.settings.updates.current
 }
 
 function UpdatesSettings() {
@@ -475,17 +473,9 @@ function UpdatesSettings() {
       : status.state === 'error'
         ? (status.message ?? '')
         : (UPDATE_TEXT[status.state] ?? '')
-  const busy = ['unavailable', 'checking', 'downloading', 'ready'].includes(status.state)
-  // La versión de la Microsoft Store la actualiza la Store: aquí solo se dice.
-  if (status.store) {
-    return (
-      <Field label={T.label}>
-        <span className="hint">{T.store}</span>
-      </Field>
-    )
-  }
+  const busy = ['unavailable', 'checking'].includes(status.state)
   return (
-    <Field label={T.label}>
+    <Field label={T.label} hint={T.store}>
       <Checkbox checked={settings.checkUpdates} onChange={(checkUpdates) => void updateSettings({ checkUpdates })}>
         {T.check}
       </Checkbox>
@@ -493,6 +483,11 @@ function UpdatesSettings() {
         <button className="btn sm" disabled={busy} onClick={() => window.molino.updates.check()}>
           {T.checkNow}
         </button>
+        {status.state === 'available' && (
+          <button className="btn sm primary" onClick={() => void window.molino.updates.openStore()}>
+            {T.openStore}
+          </button>
+        )}
         {text && <span className="hint">{text}</span>}
       </div>
     </Field>
@@ -546,7 +541,7 @@ function AboutDialog() {
             {T.notices}
           </button>
         </div>
-        {office?.installed && (
+        {office?.available && (
           <div className="about-office">
             <p>
               <b>{T.officeTitle}</b>

@@ -67,8 +67,6 @@ export const main = {
   },
   /** Versiones nuevas (updates.ts). */
   updates: {
-    mismatch: 'La descarga no coincide con la versión publicada y se ha descartado. No se ha instalado nada.',
-    downloadFailed: 'No se pudo descargar la versión nueva. Inténtalo más tarde.',
     checkFailed: 'No se pudo comprobar si hay una versión nueva. Revisa la conexión a Internet.'
   },
   /** Impresión (print.ts). */
@@ -101,9 +99,9 @@ export const main = {
   /** Documentos, Hojas y Presentaciones: las ventanas de los editores (officewin.ts). */
   office: {
     apps: { word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones' },
-    notInstalled: 'Para abrir este archivo, añade Documentos, Hojas y Presentaciones en Ajustes → Aplicaciones.',
+    notInstalled: 'Molino PDF solo abre PDF e imágenes. Los documentos de Word, Excel y PowerPoint se abren con Molino Suite, que trae Documentos, Hojas y Presentaciones.',
+    seeSuite: 'Ver Molino Suite en la Store',
     preparing: 'Documentos, Hojas y Presentaciones se están preparando. Vuelve a intentarlo en un momento.',
-    updateFailed: 'No se pudo actualizar Documentos, Hojas y Presentaciones. Comprueba la conexión a Internet y vuelve a intentarlo (o en Ajustes → Aplicaciones, «Actualizar»).',
     openFailed: 'No se pudo abrir «{name}».',
     saveFailed: 'No se pudo guardar «{name}».',
     unsaved: '¿Guardar los cambios de «{name}»?',
@@ -111,7 +109,6 @@ export const main = {
     save: 'Guardar',
     dontSave: 'No guardar',
     cancel: 'Cancelar',
-    removeOpen: 'Cierra los documentos de Documentos, Hojas y Presentaciones antes de quitarlas.',
     /** Nombre de los documentos nuevos hechos con una plantilla. */
     templates: { letter: 'Carta', resume: 'Currículum', invoice: 'Factura', quote: 'Presupuesto', budget: 'Presupuesto doméstico', presentation: 'Presentación' },
     filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' },

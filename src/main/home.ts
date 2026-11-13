@@ -84,6 +84,15 @@ export class HomeWindow {
     void window.loadURL(devUrl ? `${devUrl}/home.html` : HOME_PAGE)
   }
 
+  /** El tema ha cambiado: su barra de título y su página, sin volver a cargarla. */
+  setDark(dark: boolean): void {
+    const window = this.window
+    if (!window || window.isDestroyed()) return
+    window.setBackgroundColor(dark ? '#1c1d20' : '#ffffff')
+    window.setTitleBarOverlay({ color: dark ? '#1c1d20' : '#ffffff', symbolColor: dark ? '#e5e7eb' : '#1f2937', height: 40 })
+    window.webContents.send('home:theme', dark)
+  }
+
   /** Algo de lo que muestra ha cambiado (apps añadidas o quitadas). */
   notify(): void {
     const contents = this.window && !this.window.isDestroyed() ? this.window.webContents : null

@@ -13,10 +13,8 @@ export const office = {
     placeholder: 'Escribe lo que quieres hacer…',
     empty: 'No hay ninguna orden con ese nombre.'
   },
-  actions: { save: 'Guardar', savePdf: 'Guardar como PDF', present: 'Presentar', printTip: 'Imprimir (Ctrl+P)' },
+  actions: { save: 'Guardar', savePdf: 'Guardar como PDF', present: 'Presentar', printTip: 'Imprimir (Ctrl+P)', findTip: 'Buscar y reemplazar (Ctrl+F)' },
   loading: 'Abriendo…',
-  updatingDownload: 'Actualizando Documentos, Hojas y Presentaciones (se hace solo)… {percent} %',
-  updatingInstall: 'Instalando la versión nueva de Documentos, Hojas y Presentaciones… {percent} %',
   start: {
     subtitle: {
       word: 'Escribe documentos y abre los de Word y OpenDocument.',
@@ -60,17 +58,12 @@ export const office = {
   },
   about: {
     title: 'Acerca de Documentos, Hojas y Presentaciones',
-    free: 'Molino es software libre: puedes usarlo, estudiarlo, cambiarlo y compartirlo según la licencia AGPL-3.0.',
-    engine: 'Documentos, Hojas y Presentaciones usan una versión modificada de los editores de ONLYOFFICE.',
-    based: 'Based on ONLYOFFICE software developed by Ascensio System SIA. © 2009-2026 Ascensio System SIA.',
-    modified: 'Modificada por Molino: interfaz propia, puente con la aplicación de escritorio, conversor aislado y cambios en Hojas (ajustar a la página y orden de las páginas al imprimir).',
-    trademark: 'ONLYOFFICE es una marca de Ascensio System SIA. Molino no está afiliado a Ascensio System SIA ni cuenta con su respaldo.',
-    version: 'Motor de oficina {version}, en Molino {molino}. Se actualiza solo cuando Molino trae uno nuevo.',
+    version: 'Molino {molino} · motor de oficina {version} · software libre (AGPL-3.0)',
+    based: 'Basado en el software ONLYOFFICE de Ascensio System SIA (© 2009-2026), en una versión modificada por Molino.',
     notice: 'Cambios de Molino',
-    license: 'Licencia de ONLYOFFICE',
+    license: 'Licencia',
     thirdParty: 'Componentes de terceros',
-    source: 'Código del motor',
-    original: 'Código de ONLYOFFICE',
+    source: 'Código fuente',
     close: 'Cerrar'
   },
   modes: {
@@ -380,7 +373,29 @@ export const office = {
     exportHtml: 'Exportar como página web…',
     exportEpub: 'Exportar como libro electrónico (EPUB)…',
     exportPpsx: 'Exportar como presentación que se abre presentando…',
-    about: 'Acerca de'
+    about: 'Acerca de',
+    settings: 'Ajustes…'
+  },
+  /** Ajustes de Documentos, Hojas y Presentaciones (los mismos de Molino). */
+  settings: {
+    title: 'Ajustes',
+    theme: 'Tema',
+    themes: { system: 'Como Windows', light: 'Claro', dark: 'Oscuro' },
+    language: 'Idioma',
+    languages: { auto: 'Automático (como Windows)' },
+    languageHint: 'Se aplica la próxima vez que abras Molino.',
+    author: 'Tu nombre',
+    authorHint: 'Firma los comentarios y los cambios que hagas en los documentos que abras desde ahora.',
+    ai: 'IA',
+    aiOff: 'Está desactivada. Actívala para escribir, resumir y hacer fórmulas o diapositivas con ella, sin Internet.',
+    aiNotReady: 'Está activada, pero falta descargar sus modelos.',
+    aiReady: 'Lista: la tienes en el modo «IA» de cada app.',
+    aiSettings: 'Ajustes de la IA',
+    dictionary: 'Diccionario personal',
+    dictionaryEmpty: 'Las palabras que añadas al corregir saldrán aquí.',
+    dictionaryCount: '{n} palabras: el corrector las da por buenas.',
+    dictionaryRemove: 'Quitar «{word}» del diccionario',
+    done: 'Listo'
   },
   /** Palabras con las que también se encuentra cada orden en el buscador (sin acentos). */
   keywords: {
@@ -499,13 +514,6 @@ export const office = {
     find: 'Buscar e instalar',
     notNow: 'Ahora no',
     title: 'Fuentes que faltan',
-    intro: 'Las libres se descargan del catálogo de Google Fonts que lleva Molino y se instalan solo para ti, sin permisos de administrador. Después, el documento se vuelve a abrir con ellas.',
-    introMolino: 'Las libres se descargan del catálogo de Google Fonts que lleva Molino y se instalan solo en Molino: las usan Documentos, Hojas y Presentaciones, sin tocar Windows. Después, el documento se vuelve a abrir con ellas.',
-    where: 'Dónde instalarlas',
-    inWindows: 'En Windows',
-    inMolino: 'Solo en Molino',
-    whereWindows: 'Para todos tus programas, como si las instalaras tú.',
-    whereMolino: 'Solo las ven Documentos, Hojas y Presentaciones. Windows y tus otros programas no cambian.',
     free: 'Libre ({license}) · {size}',
     licenses: { ofl: 'SIL Open Font License', apache: 'Licencia Apache 2.0', ufl: 'Ubuntu Font Licence' },
     microsoft: 'De Microsoft: no se puede descargar.',
@@ -515,7 +523,6 @@ export const office = {
     install: 'Instalar ({n})',
     installing: 'Descargando e instalando…',
     done: 'Instaladas: {fonts}. Los documentos sin cambios que las usan se han vuelto a abrir con ellas; los demás, guárdalos y vuelve a abrirlos.',
-    doneWindows: 'Tus otros programas las verán la próxima vez que los abras.',
     failed: 'No se pudieron instalar: {fonts}.',
     cancel: 'Cancelar',
     close: 'Cerrar'

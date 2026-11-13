@@ -7,10 +7,6 @@ export const home = {
   open: 'Abrir un archivo…',
   apps: 'Las apps',
   names: { word: 'Documentos', cell: 'Hojas', slide: 'Presentaciones', pdf: 'PDF' },
-  local: {
-    title: 'Todo en tu equipo',
-    text: 'Tus archivos no se suben a ningún sitio. Ni siquiera hace falta Internet.'
-  },
   create: 'Crea algo nuevo',
   cards: {
     word: { title: 'Documento', sub: 'Cartas, informes, trabajos' },
@@ -18,7 +14,6 @@ export const home = {
     slide: { title: 'Presentación', sub: 'Para contar una idea' },
     pdf: { title: 'Abrir un PDF', sub: 'Rellenar, firmar, organizar' }
   },
-  addApps: 'Para escribir documentos, hacer cuentas o presentaciones, añade Documentos, Hojas y Presentaciones desde Molino PDF: Ajustes → Aplicaciones.',
   recent: 'Recientes',
   noRecent: 'Aquí aparecerán los últimos archivos que abras, de todas las apps.',
   noMatch: 'Ningún reciente coincide con «{query}».',

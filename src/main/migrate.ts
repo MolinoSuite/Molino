@@ -36,13 +36,12 @@ const FOLIO_ACCENT = '#4f5bd5'
 
 /**
  * Carpeta de datos de Folio en este equipo, o null si no hay que mirar.
- * - Versión instalada o en desarrollo: %LOCALAPPDATA%\Folio.
- * - Versión portable: ninguna (su carpeta FolioData está junto a otro Folio.exe).
+ * - Lo normal: %LOCALAPPDATA%\Folio (la de Folio instalado; la de su versión
+ *   portable, FolioData, está junto a su Folio.exe y no se busca).
  * - Con --user-data-dir (pruebas y comprobaciones): ninguna, salvo en pruebas
  *   sin empaquetar con MOLINO_TEST_FOLIO_DATA, que apunta a una carpeta de prueba.
  */
-export function legacyDataDir(portable: boolean): string | null {
-  if (portable) return null
+export function legacyDataDir(): string | null {
   let dir: string | null = null
   if (app.commandLine.hasSwitch('user-data-dir')) {
     const test = !app.isPackaged ? process.env.MOLINO_TEST_FOLIO_DATA : undefined
@@ -54,8 +53,8 @@ export function legacyDataDir(portable: boolean): string | null {
 }
 
 /** Carpeta de modelos de IA de Folio, si existe (AiModels copia de ahí lo que coincida). */
-export function legacyModelsDir(portable: boolean): string | null {
-  const dir = legacyDataDir(portable)
+export function legacyModelsDir(): string | null {
+  const dir = legacyDataDir()
   const models = dir ? join(dir, 'models') : null
   return models && isFolder(models) ? models : null
 }
@@ -72,9 +71,9 @@ export interface MigrationReport {
  * se trajo, o null si no había nada que hacer. Nunca lanza: un fallo deja la
  * carpeta como estaba (Molino PDF arranca con sus valores por defecto).
  */
-export function migrateFromFolio(userData: string, portable: boolean): MigrationReport | null {
+export function migrateFromFolio(userData: string): MigrationReport | null {
   try {
-    const from = legacyDataDir(portable)
+    const from = legacyDataDir()
     if (!from || (!isFile(join(from, CONFIG)) && !isFile(join(from, SIGNATURES)))) return null
     if (existsSync(join(userData, MARKER))) return null
     // Solo en una carpeta sin usar: si Molino PDF ya tiene sus datos, no se tocan.

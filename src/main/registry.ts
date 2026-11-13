@@ -2,12 +2,10 @@ import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 
 /**
- * El registro de Windows, con reg.exe: ruta absoluta del sistema y argumentos
- * fijos, sin intérprete de órdenes (nada de lo que llega se interpreta como
- * orden). Los datos van como argumentos de Windows (Unicode), así que se
- * escriben bien aunque lleven letras como «é»; al leer, en cambio, reg.exe
- * escribe en la página de códigos de la consola: lo leído solo se compara con
- * textos sin esas letras o con lo que el propio Molino escribió.
+ * Leer el registro de Windows, con reg.exe: ruta absoluta del sistema y
+ * argumentos fijos, sin intérprete de órdenes (nada de lo que llega se
+ * interpreta como orden). reg.exe escribe en la página de códigos de la
+ * consola: lo leído solo se compara con textos sin letras como «é».
  */
 
 const REG_EXE = join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'reg.exe')
@@ -32,27 +30,4 @@ export function parseRegValue(stdout: string, value: string): string | null {
 export async function regQuery(key: string, value: string): Promise<string | null> {
   const { ok, stdout } = await reg(['query', key, '/v', value])
   return ok ? parseRegValue(stdout, value) : null
-}
-
-/**
- * El valor predeterminado de una clave, tal cual lo da reg.exe (null si la
- * clave no existe). Sin valor puesto, reg.exe da un texto traducido: solo
- * sirve para comparar con lo que se espera.
- */
-export async function regDefault(key: string): Promise<string | null> {
-  const { ok, stdout } = await reg(['query', key, '/ve'])
-  if (!ok) return null
-  const match = /^\s+\S.*?\s+REG_SZ\s+(.*?)\s*$/m.exec(stdout)
-  return match ? match[1] : null
-}
-
-/** Escribe un valor de texto (``name`` null: el predeterminado de la clave). */
-export async function regSet(key: string, name: string | null, data: string): Promise<boolean> {
-  const which = name === null ? ['/ve'] : ['/v', name]
-  return (await reg(['add', key, ...which, '/t', 'REG_SZ', '/d', data, '/f'])).ok
-}
-
-/** Borra una clave entera o, con ``name``, solo ese valor. No es un error que no esté. */
-export async function regDelete(key: string, name?: string): Promise<void> {
-  await reg(['delete', key, ...(name === undefined ? [] : ['/v', name]), '/f'])
 }

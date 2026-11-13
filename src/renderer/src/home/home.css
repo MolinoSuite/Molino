@@ -105,19 +105,6 @@ body,
 .home-nav .grow {
   flex: 1;
 }
-.home-local {
-  padding: 12px;
-  border-radius: 12px;
-  background: var(--accent-soft);
-  color: var(--text-2);
-  font-size: 12px;
-  line-height: 1.45;
-}
-.home-local strong {
-  display: block;
-  margin-bottom: 2px;
-  color: var(--text);
-}
 
 .home-main {
   overflow-x: hidden;

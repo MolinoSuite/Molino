@@ -14,7 +14,7 @@ export const office: typeof es = {
     placeholder: 'Type what you want to do…',
     empty: 'No command has that name.'
   },
-  actions: { save: 'Save', savePdf: 'Save as PDF', present: 'Present', printTip: 'Print (Ctrl+P)' },
+  actions: { save: 'Save', savePdf: 'Save as PDF', present: 'Present', printTip: 'Print (Ctrl+P)', findTip: 'Find and replace (Ctrl+F)' },
   start: {
     subtitle: {
       word: 'Write documents and open Word and OpenDocument files.',
@@ -35,8 +35,6 @@ export const office: typeof es = {
     removeTip: 'Remove from the list (the file isn’t deleted)'
   },
   loading: 'Opening…',
-  updatingDownload: 'Updating Docs, Sheets and Slides (this happens on its own)… {percent}%',
-  updatingInstall: 'Installing the new version of Docs, Sheets and Slides… {percent}%',
   templates: {
     title: 'Templates',
     items: {
@@ -60,17 +58,12 @@ export const office: typeof es = {
   },
   about: {
     title: 'About Docs, Sheets and Slides',
-    free: 'Molino is free software: you can use, study, change and share it under the AGPL-3.0 license.',
-    engine: 'Docs, Sheets and Slides use a modified version of the ONLYOFFICE editors.',
-    based: 'Based on ONLYOFFICE software developed by Ascensio System SIA. © 2009-2026 Ascensio System SIA.',
-    modified: 'Modified by Molino: its own interface, a bridge to the desktop app, a sandboxed converter and changes in Sheets (fit to page and page order when printing).',
-    trademark: 'ONLYOFFICE is a trademark of Ascensio System SIA. Molino is not affiliated with or endorsed by Ascensio System SIA.',
-    version: 'Office engine {version}, in Molino {molino}. It updates on its own when Molino brings a new one.',
+    version: 'Molino {molino} · office engine {version} · free software (AGPL-3.0)',
+    based: 'Based on ONLYOFFICE software developed by Ascensio System SIA (© 2009-2026), in a version modified by Molino.',
     notice: 'Molino’s changes',
-    license: 'ONLYOFFICE license',
+    license: 'License',
     thirdParty: 'Third-party components',
-    source: 'Engine source code',
-    original: 'ONLYOFFICE source code',
+    source: 'Source code',
     close: 'Close'
   },
   modes: {
@@ -379,7 +372,28 @@ export const office: typeof es = {
     exportHtml: 'Export as web page…',
     exportEpub: 'Export as e-book (EPUB)…',
     exportPpsx: 'Export as PowerPoint show…',
-    about: 'About'
+    about: 'About',
+    settings: 'Settings…'
+  },
+  settings: {
+    title: 'Settings',
+    theme: 'Theme',
+    themes: { system: 'Like Windows', light: 'Light', dark: 'Dark' },
+    language: 'Language',
+    languages: { auto: 'Automatic (like Windows)' },
+    languageHint: 'It applies the next time you open Molino.',
+    author: 'Your name',
+    authorHint: 'It signs the comments and changes you make in the documents you open from now on.',
+    ai: 'AI',
+    aiOff: 'It’s off. Turn it on to write, summarize and make formulas or slides with it, offline.',
+    aiNotReady: 'It’s on, but its models still need to be downloaded.',
+    aiReady: 'Ready: it’s in each app’s “AI” mode.',
+    aiSettings: 'AI settings',
+    dictionary: 'Personal dictionary',
+    dictionaryEmpty: 'The words you add while spellchecking will show up here.',
+    dictionaryCount: '{n} words: the spellchecker accepts them.',
+    dictionaryRemove: 'Remove “{word}” from the dictionary',
+    done: 'Done'
   },
   keywords: {
     bold: 'strong heavy',
@@ -497,13 +511,6 @@ export const office: typeof es = {
     find: 'Find and install',
     notNow: 'Not now',
     title: 'Missing fonts',
-    intro: 'Free fonts are downloaded from the Google Fonts catalog that comes with Molino and installed just for you, without administrator rights. The document is then reopened with them.',
-    introMolino: 'Free fonts are downloaded from the Google Fonts catalog that comes with Molino and installed only in Molino: Docs, Sheets and Slides use them, and Windows stays as it is. The document is then reopened with them.',
-    where: 'Where to install them',
-    inWindows: 'In Windows',
-    inMolino: 'Only in Molino',
-    whereWindows: 'For all your programs, as if you installed them yourself.',
-    whereMolino: 'Only Docs, Sheets and Slides see them. Windows and your other programs stay as they are.',
     free: 'Free ({license}) · {size}',
     licenses: { ofl: 'SIL Open Font License', apache: 'Apache License 2.0', ufl: 'Ubuntu Font Licence' },
     microsoft: 'By Microsoft: it can’t be downloaded.',
@@ -513,7 +520,6 @@ export const office: typeof es = {
     install: 'Install ({n})',
     installing: 'Downloading and installing…',
     done: 'Installed: {fonts}. Unchanged documents that use them have been reopened with them; save the others and open them again.',
-    doneWindows: 'Your other programs will see them the next time you open them.',
     failed: 'Couldn’t install: {fonts}.',
     cancel: 'Cancel',
     close: 'Close'

@@ -71,6 +71,9 @@ export function storePackageFamily(): string | null {
   return family
 }
 
+/** La familia del paquete de Molino Suite (Partner Center: CuevasTech.MolinoSuite, del mismo editor): para abrirla en la Store desde Molino PDF. */
+export const SUITE_FAMILY = 'CuevasTech.MolinoSuite_txf9mqjyats40'
+
 /**
  * Cada app del paquete: el Id de su <Application> en el manifiesto. El paquete
  * de Molino PDF solo lleva la suya; el de Molino Suite, todas

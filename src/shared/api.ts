@@ -7,7 +7,7 @@
  */
 
 import type { AiDownloadError, AiDownloadProgress, AiStatus } from './ai'
-import type { OfficeApp, OfficeFailure, OfficeLegal, OfficeProgress, OfficeStatus } from './office'
+import type { OfficeApp, OfficeLegal, OfficeStatus } from './office'
 import type { Lang } from './i18n'
 import type {
   DocDescriptor,
@@ -207,6 +207,8 @@ export interface MolinoApi {
   settings: {
     get(): Promise<Settings>
     set(patch: Partial<Settings>): Promise<Settings>
+    /** Han cambiado en otra ventana de Molino. */
+    onChanged(listener: (settings: Settings) => void): () => void
   }
   recent: {
     list(): Promise<RecentFile[]>
@@ -221,14 +223,13 @@ export interface MolinoApi {
   clipboard: {
     writeText(text: string): Promise<boolean>
   }
-  /** Versiones nuevas de Molino PDF: solo se descarga e instala si el usuario lo pide. */
+  /** Versiones nuevas: Molino avisa y se actualiza en la Microsoft Store. */
   updates: {
     status(): Promise<UpdateStatus>
     /** Mirar ahora si hay versión nueva (lo pide el usuario). */
     check(): void
-    download(): void
-    /** Instalar la versión descargada y abrir Molino PDF de nuevo. Antes hay que cerrar los documentos. */
-    install(): void
+    /** Abre la página de Molino en la Microsoft Store, donde se actualiza. */
+    openStore(): Promise<boolean>
     onStatus(listener: (status: UpdateStatus) => void): () => void
   }
   /** Molino PDF como programa predeterminado para PDF: lo elige siempre el usuario en Configuración de Windows. */
@@ -255,15 +256,9 @@ export interface MolinoApi {
     /** Documentos, Hojas o Presentaciones piden abrir Ajustes en la IA. */
     onOpenSettings(listener: () => void): () => void
   }
-  /** Motor de oficina (la pieza de Documentos, Hojas y Presentaciones): añadirla, quitarla y su estado. */
+  /** Documentos, Hojas y Presentaciones (las trae Molino Suite; Molino PDF no). */
   office: {
     status(): Promise<Envelope<OfficeStatus>>
-    install(): Promise<Envelope<boolean>>
-    cancel(): Promise<Envelope<boolean>>
-    remove(): Promise<Envelope<boolean>>
-    onProgress(listener: (progress: OfficeProgress | null) => void): () => void
-    onChanged(listener: () => void): () => void
-    onError(listener: (reason: OfficeFailure) => void): () => void
     /** Abre la ventana de una app (Documentos, Hojas o Presentaciones) o «Molino», el inicio común. */
     launch(app: OfficeApp | 'home'): Promise<Envelope<boolean>>
     /** Abre su página en «Aplicaciones predeterminadas» de Windows. */
