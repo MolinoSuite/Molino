@@ -93,6 +93,14 @@ export const main: typeof source = {
     lampOff: 'The scanner lamp is off.'
   },
   office: {
+    presenter: 'Presenter view',
+    media: {
+      pickVideo: 'Insert a video',
+      pickAudio: 'Insert an audio file',
+      videos: 'Videos',
+      audios: 'Audio',
+      tooBig: 'That file is too big (300 MB at most).'
+    },
     password: {
       title: 'Password-protected document',
       message: '“{name}” is password-protected. Type the password to open it.',

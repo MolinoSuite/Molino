@@ -120,6 +120,8 @@ contextBridge.exposeInMainWorld('molinoHost', {
   save: (doc: unknown, options: Record<string, unknown>) => ipcRenderer.invoke('office:save', { ...options, doc }),
   /** Elegir una imagen para insertar: devuelve su nombre dentro del documento. */
   pickImage: (doc: unknown) => ipcRenderer.invoke('office:pickImage', doc),
+  /** Elegir un vídeo o un audio: su nombre dentro del documento y el de su portada. */
+  pickMedia: (doc: unknown, kind: unknown) => ipcRenderer.invoke('office:pickMedia', { doc, kind }),
   modified: (doc: unknown, value: unknown) => ipcRenderer.send('office:modified', { doc, value: value === true }),
   ready: (doc: unknown) => ipcRenderer.send('office:ready', doc),
   fullscreen: (doc: unknown, value: unknown) => ipcRenderer.send('office:fullscreen', { doc, value: value === true }),

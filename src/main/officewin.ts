@@ -1,8 +1,9 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
+import { crc32, deflateSync } from 'node:zlib'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
-import { app, BrowserWindow, clipboard, dialog, ipcMain, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session, type WebContents } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, screen, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session, type WebContents } from 'electron'
 import { EngineError, type EngineClient } from './engine'
 import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
@@ -61,6 +62,53 @@ const SAVE_FORMATS: Record<Kind, Record<number, string>> = {
   slide: { 129: '.pptx', 131: '.odp' }
 }
 const DEFAULT_SUFFIX: Record<Kind, string> = { word: '.docx', cell: '.xlsx', slide: '.pptx' }
+/**
+ * La portada de un vídeo o un audio insertado (la imagen que se ve en la
+ * diapositiva hasta que se reproduce): un PNG sencillo, hecho aquí, con el
+ * símbolo de reproducir (vídeo) o de un altavoz (audio).
+ */
+function mediaPoster(kind: 'video' | 'audio'): Buffer {
+  const video = kind === 'video'
+  const width = video ? 320 : 96
+  const height = video ? 180 : 96
+  const back = video ? [31, 36, 48] : [224, 106, 26]
+  const raw = Buffer.alloc((width * 3 + 1) * height)
+  for (let y = 0; y < height; y++) {
+    const row = y * (width * 3 + 1)
+    raw[row] = 0
+    for (let x = 0; x < width; x++) {
+      let white = false
+      if (video) {
+        // Un triángulo de reproducir en el centro.
+        const cx = x - (width / 2 - 14)
+        const cy = Math.abs(y - height / 2)
+        white = cx >= 0 && cx <= 34 && cy <= 22 - (cx * 22) / 34
+      } else {
+        // Un altavoz: el cuerpo y la bocina.
+        const body = x >= 28 && x <= 40 && y >= 38 && y <= 58
+        const horn = x > 40 && x <= 60 && Math.abs(y - 48) <= 10 + ((x - 40) * 14) / 20
+        white = body || horn
+      }
+      const color = white ? [255, 255, 255] : back
+      raw.set(color, row + 1 + x * 3)
+    }
+  }
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const length = Buffer.alloc(4)
+    length.writeUInt32BE(data.length)
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data])
+    const crc = Buffer.alloc(4)
+    crc.writeUInt32BE(crc32(body) >>> 0)
+    return Buffer.concat([length, body, crc])
+  }
+  const header = Buffer.alloc(13)
+  header.writeUInt32BE(width, 0)
+  header.writeUInt32BE(height, 4)
+  header[8] = 8
+  header[9] = 2
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+}
+
 /** Una contraseña de documento: texto de 1 a 255 caracteres, sin caracteres de control. */
 function validPassword(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 255 && !/[\u0000-\u001f\u007f]/.test(value)
@@ -97,7 +145,13 @@ const DOC_ID = /^o[0-9a-f]{16}$/
 const PRINT_DIR = join(app.getPath('temp'), 'Molino-imprimir')
 /** Lo que Molino pide al editor vale este tiempo (si no llega a guardar, no se queda colgado para la próxima vez). */
 const INTENT_MS = 60_000
-const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$/i
+const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp|mp4|m4v|mov|webm|mp3|wav|m4a|ogg)$/i
+/** La página de la vista del moderador que trae el editor de presentaciones. */
+const REPORTER_URL = /^molino:\/\/office\/web-apps\/apps\/presentationeditor\/main\/index\.reporter\.html(\?|$)/
+/** Vídeo y audio de Presentaciones: los formatos que se pueden insertar y su tamaño máximo. */
+const VIDEO_SUFFIXES = ['.mp4', '.m4v', '.mov', '.webm']
+const AUDIO_SUFFIXES = ['.mp3', '.wav', '.m4a', '.ogg']
+const MAX_AV = 300 * 1024 * 1024
 /** Una letra incrustada en el índice propio de un documento: su carpeta del motor, fonts\eNN.ttf. */
 const EMBEDDED_FONT = /[\\/](o[0-9a-f]{16})[\\/]fonts[\\/](e[0-9]{2}\.(?:ttf|otf))$/i
 
@@ -621,6 +675,36 @@ export class OfficeWindows {
       }
     })
     window.removeMenu()
+    // La vista del moderador (Presentaciones, bridge.js): solo su página, en otra ventana
+    // y, si hay otra pantalla, en ella (la presentación sigue en esta).
+    if (kind === 'slide') {
+      let otherScreen = false
+      window.webContents.setWindowOpenHandler(({ url }) => {
+        if (!REPORTER_URL.test(url)) return { action: 'deny' }
+        const here = screen.getDisplayMatching(window.getBounds())
+        const other = screen.getAllDisplays().find((d) => d.id !== here.id)
+        otherScreen = Boolean(other)
+        const area = (other ?? here).workArea
+        return {
+          action: 'allow',
+          overrideBrowserWindowOptions: {
+            x: area.x + 40,
+            y: area.y + 40,
+            width: Math.min(1280, area.width - 80),
+            height: Math.min(820, area.height - 80),
+            title: L.main.office.presenter,
+            icon: appIcon('slide'),
+            autoHideMenuBar: true,
+            backgroundColor: '#1c1d20'
+          }
+        }
+      })
+      window.webContents.on('did-create-window', (child) => {
+        child.removeMenu()
+        child.on('page-title-updated', (event) => event.preventDefault())
+        if (otherScreen) child.maximize()
+      })
+    }
     // Cada app es un programa aparte en la barra de tareas: su grupo, su icono y,
     // si se ancla, se vuelve a abrir esa app (officeapps.ts).
     if (process.platform === 'win32') window.setAppDetails(windowDetails(kind))
@@ -1211,6 +1295,37 @@ export class OfficeWindows {
         const { result } = await this.engine.request<{ name?: unknown }>('office.addMedia', { doc: found.open.doc, ext }, { binary: data, priority: 7 })
         return { name: typeof result.name === 'string' && MEDIA_NAME.test(result.name) ? result.name : '' }
       } catch {
+        return { name: '' }
+      }
+    })
+    // Vídeo o audio (Presentaciones): el medio y una portada sencilla, los dos al documento.
+    ipcMain.handle('office:pickMedia', async (event, raw: unknown) => {
+      const { doc, kind } = (typeof raw === 'object' && raw !== null ? raw : {}) as { doc?: unknown; kind?: unknown }
+      const found = this.editorDoc(event, doc)
+      if (!found || found.open.kind !== 'slide' || (kind !== 'video' && kind !== 'audio')) return { name: '' }
+      const suffixes = kind === 'video' ? VIDEO_SUFFIXES : AUDIO_SUFFIXES
+      const picked = await dialog.showOpenDialog(found.win.window, {
+        title: kind === 'video' ? L.main.office.media.pickVideo : L.main.office.media.pickAudio,
+        properties: ['openFile'],
+        filters: [{ name: kind === 'video' ? L.main.office.media.videos : L.main.office.media.audios, extensions: suffixes.map((s) => s.slice(1)) }]
+      })
+      const file = picked.canceled ? undefined : picked.filePaths[0]
+      const ext = file ? extname(file).toLowerCase() : ''
+      if (!file || !suffixes.includes(ext)) return { name: '' }
+      try {
+        if ((await stat(file)).size > MAX_AV) {
+          this.notify(found.win, 'warning', L.main.office.media.tooBig)
+          return { name: '' }
+        }
+        const data = await readFile(file)
+        const media = await this.engine.request<{ name?: unknown }>('office.addMedia', { doc: found.open.doc, ext }, { binary: data, priority: 7 })
+        const cover = await this.engine.request<{ name?: unknown }>('office.addMedia', { doc: found.open.doc, ext: '.png' }, { binary: mediaPoster(kind), priority: 7 })
+        const name = typeof media.result.name === 'string' && MEDIA_NAME.test(media.result.name) ? media.result.name : ''
+        const poster = typeof cover.result.name === 'string' && MEDIA_NAME.test(cover.result.name) ? cover.result.name : ''
+        return name && poster ? { name, poster } : { name: '' }
+      } catch (error) {
+        log.warn(`oficina: no se pudo insertar el medio (${error instanceof EngineError ? error.code : '?'})`)
+        if (error instanceof EngineError) this.notify(found.win, 'error', error.message)
         return { name: '' }
       }
     })

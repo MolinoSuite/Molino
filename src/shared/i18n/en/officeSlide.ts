@@ -2,6 +2,8 @@ import type { officeSlide as source } from '../es/officeSlide'
 
 export const officeSlide: typeof source = {
   groups: {
+    media: 'Media',
+    presenter: 'Presenter',
     spacing: 'Indent and spacing',
     textBox: 'Text in shape',
     crop: 'Crop',
@@ -19,6 +21,9 @@ export const officeSlide: typeof source = {
   },
   modes: { view: 'View' },
   tools: {
+    video: 'Video',
+    audio: 'Audio',
+    presenterView: 'Presenter view',
     textDirection: 'Text direction',
     cropFill: 'Fill',
     cropFit: 'Fit',

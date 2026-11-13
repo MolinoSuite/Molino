@@ -60,6 +60,10 @@
       }
     })
   }
+  // Las portadas de los vídeos y audios elegidos (nombre del medio → nombre de su imagen).
+  const posters = new Map()
+  // La ventana de la vista del moderador, si está abierta.
+  let reporter = null
   const log = (...parts) => host.log(`[${where}] ${parts.join(' ')}`)
   w.addEventListener('error', (e) => log('error:', e.message, e.lineno || ''))
   w.addEventListener('unhandledrejection', (e) => log('promesa:', String(e.reason).slice(0, 200)))
@@ -189,7 +193,7 @@
       true
     )
   }
-  const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$/i
+  const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp|mp4|m4v|mov|webm|mp3|wav|m4a|ogg)$/i
 
   // -- el corrector ----------------------------------------------------------------
   // El editor manda «clear» al empezar y espera «clear» de vuelta; después,
@@ -399,7 +403,16 @@
     LocalFileGetImageUrl: (p) => (MEDIA_NAME.test(String(p || '')) ? String(p) : ''),
     OpenFilenameDialog(filter, multiple, done) {
       const images = /image/i.test(String(filter || ''))
-      const answer = images ? host.pickImage(info.doc) : Promise.resolve({ name: '' })
+      // Vídeo y audio (Presentaciones): el medio y su portada van al documento; AddVideo/AddAudio los usan.
+      const media = /^(video|audio)$/i.test(String(filter || '')) ? String(filter).toLowerCase() : null
+      const answer = images
+        ? host.pickImage(info.doc)
+        : media && typeof host.pickMedia === 'function'
+          ? host.pickMedia(info.doc, media).then((r) => {
+              if (r && r.name && r.poster) posters.set(r.name, r.poster)
+              return r
+            })
+          : Promise.resolve({ name: '' })
       answer
         .then((r) => {
           const name = (r && r.name) || ''
@@ -451,10 +464,54 @@
     OpenWorkbook: () => undefined,
     onFileLockedClose: () => undefined,
     nativeClipboardWrite: () => undefined,
+    // El medio elegido (su nombre en el documento) con su portada: el editor los inserta juntos.
+    AddVideo: (name, done) => {
+      const media = String(name || '')
+      if (typeof done === 'function') done(MEDIA_NAME.test(media) ? posters.get(media) || '' : '', MEDIA_NAME.test(media) ? media : '')
+    },
+    AddAudio: (name, done) => {
+      const media = String(name || '')
+      if (typeof done === 'function') done(MEDIA_NAME.test(media) ? posters.get(media) || '' : '', MEDIA_NAME.test(media) ? media : '')
+    },
     MediaStart: () => undefined,
-    startReporter: () => undefined,
-    endReporter: () => undefined,
-    sendToReporter: () => undefined,
+    // Vista del moderador: la página del moderador que trae el editor, en otra ventana
+    // (el proceso principal la pone en la otra pantalla, si la hay). Habla con el editor
+    // por mensajes: la página se los manda a sí misma y este los escucha.
+    startReporter: (href) => {
+      try {
+        const url = new URL(String(href || w.location.href))
+        url.pathname = url.pathname.replace(/index\.html$/, 'index.reporter.html')
+        if (!/\/apps\/presentationeditor\/main\/index\.reporter\.html$/.test(url.pathname)) return
+        reporter = w.open(url.toString(), 'molinoReporter')
+        if (!reporter) return
+        reporter.addEventListener('message', (event) => {
+          if (event.source !== reporter) return
+          try {
+            if (w.editor && typeof w.editor.DemonstrationReporterMessages === 'function') w.editor.DemonstrationReporterMessages(event)
+          } catch (error) {
+            log('moderador:', String(error && error.message).slice(0, 120))
+          }
+        })
+        reporter.addEventListener('unload', () => {
+          setTimeout(() => {
+            if (reporter && reporter.closed) reporter = null
+          }, 500)
+        })
+      } catch {
+        reporter = null
+      }
+    },
+    endReporter: () => {
+      try {
+        if (reporter && !reporter.closed) reporter.close()
+      } catch {
+        /* ya cerrada */
+      }
+      reporter = null
+    },
+    sendToReporter: (message) => {
+      if (reporter && !reporter.closed) reporter.postMessage(message, '*')
+    },
     sendFromReporter: () => undefined,
     PluginUninstall: () => false,
     IsCachedPdfCloudPrintFileInfo: () => false,

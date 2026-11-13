@@ -79,7 +79,10 @@ FONTS_PATH = re.compile(r"^f[0-9a-f]{16}$")
 DOC_INDEX_PATH = re.compile(r"^(o[0-9a-f]{16})/index$")
 # Cada cambio que manda el editor: «longitud;base64» (asi los escribe el nativo).
 CHANGE = re.compile(r"^[0-9]{1,10};[A-Za-z0-9+/]*={0,2}$")
-MEDIA_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp)$", re.IGNORECASE)
+MEDIA_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp|mp4|m4v|mov|webm|mp3|wav|m4a|ogg)$", re.IGNORECASE)
+# Video y audio de Presentaciones: sus extensiones y su tamano maximo.
+AV_SUFFIXES = (".mp4", ".m4v", ".mov", ".webm", ".mp3", ".wav", ".m4a", ".ogg")
+MAX_AV = 300 * 1024 * 1024
 
 
 # --------------------------------------------------------------- CSV

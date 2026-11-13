@@ -413,7 +413,22 @@ def office_font(ctx: Ctx, p: FontParams) -> Reply:
 
 class AddMediaParams(Params):
     doc: OfficeDocId
-    ext: Literal[".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"]
+    ext: Literal[".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".mp4", ".m4v", ".mov", ".webm", ".mp3", ".wav", ".m4a", ".ogg"]
+
+
+def _is_av(ext: str, data: bytes) -> bool:
+    """¿Es de verdad un video o un audio de ese tipo? (por su cabecera)."""
+    if ext in (".mp4", ".m4v", ".mov", ".m4a"):
+        return data[4:8] == b"ftyp" or data[4:8] in (b"moov", b"mdat", b"wide", b"free")
+    if ext == ".webm":
+        return data.startswith(b"\x1a\x45\xdf\xa3")
+    if ext == ".mp3":
+        return data.startswith(b"ID3") or (len(data) > 1 and data[0] == 0xFF and (data[1] & 0xE0) == 0xE0)
+    if ext == ".wav":
+        return data.startswith(b"RIFF") and data[8:12] == b"WAVE"
+    if ext == ".ogg":
+        return data.startswith(b"OggS")
+    return False
 
 
 @method("office.addMedia", AddMediaParams)
@@ -421,6 +436,14 @@ def office_add_media(ctx: Ctx, p: AddMediaParams) -> dict[str, Any]:
     """Anade una imagen (la que el usuario elige para insertar) y devuelve su nombre en el documento."""
     item = _doc(ctx, p.doc)
     data = ctx.binary
+    if p.ext in office.AV_SUFFIXES:
+        # Video o audio (Presentaciones): por su cabecera y con su propio limite.
+        if not data or len(data) > office.MAX_AV or not _is_av(p.ext, data):
+            raise EngineError("invalid_file", _("Ese vídeo o audio no se puede usar."))
+        name = f"media-{secrets.token_hex(6)}{p.ext}"
+        with open(item.doc / "media" / name, "xb") as out:
+            out.write(data)
+        return {"name": name}
     if not data or len(data) > office.MAX_MEDIA or not data.startswith(_IMAGES[p.ext]):
         raise EngineError("invalid_file", _("Esa imagen no se puede usar."))
     if p.ext == ".webp" and data[8:12] != b"WEBP":

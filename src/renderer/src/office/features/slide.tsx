@@ -9,6 +9,7 @@ import {
   Crop,
   Expand,
   Eye,
+  Film,
   FilePlus2,
   Grid2x2,
   Grid3x3,
@@ -18,6 +19,8 @@ import {
   ListIndentDecrease,
   ListIndentIncrease,
   Magnet,
+  MonitorPlay,
+  Music,
   Maximize,
   Minimize2,
   Network,
@@ -641,15 +644,30 @@ function slideListen(ctx: FeatureContext, on: (name: string, fn: (...args: Api[]
 // ------------------------------------------------------------------ la función
 
 export const slideFeature: Feature = {
-  commands: (ctx) => slideCommands(ctx),
+  // Vídeo y audio: el editor pide el archivo (Molino lo elige y lo mete en el documento, bridge.js).
+  commands: (ctx) => ({ ...slideCommands(ctx), video: () => ctx.api.asc_AddVideo(), audio: () => ctx.api.asc_AddAudio() }),
   listen: (ctx, on) => slideListen(ctx, on),
   tools: {
     home: { at: 4, groups: [SPACING, TEXT_BOX], names: [S.groups.spacing, S.groups.textBox] },
-    insert: { at: 1, groups: [[WORDART, SMARTART]], names: [S.groups.art] },
+    insert: {
+      at: 1,
+      groups: [
+        [WORDART, SMARTART],
+        [B('video', 'video', { label: ST.video, icon: <Film size={ICON} />, caption: true }), B('audio', 'audio', { label: ST.audio, icon: <Music size={ICON} />, caption: true })]
+      ],
+      names: [S.groups.art, S.groups.media]
+    },
     design: { at: 1, groups: [[COLOR_SCHEMES]], names: [S.groups.colors] },
     // Las animaciones, antes de la galería de siempre (que cambia la de lo seleccionado).
     transitions: { at: 2, groups: [ANIMATIONS], names: [S.groups.animations] },
-    present: { groups: [[B('rehearse', 'panel', { label: ST.rehearse, value: 'rehearse', icon: <Timer size={ICON} />, caption: true })]], names: [S.groups.rehearse] },
+    present: {
+      at: 1,
+      groups: [
+        [B('presenterView', 'present', { label: ST.presenterView, value: 'presenter', icon: <MonitorPlay size={ICON} />, caption: true })],
+        [B('rehearse', 'panel', { label: ST.rehearse, value: 'rehearse', icon: <Timer size={ICON} />, caption: true })]
+      ],
+      names: [S.groups.presenter, S.groups.rehearse]
+    },
     shape: { groups: [TEXT_BOX], names: [S.groups.textBox] },
     image: { at: 0, groups: [IMAGE_CROP, IMAGE_SIZE, IMAGE_PICTURE], names: [S.groups.crop, S.groups.size, S.groups.picture] }
   },

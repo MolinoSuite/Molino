@@ -615,6 +615,8 @@ export class EditorSession {
   private static shapesText(slide: Api): string {
     const parts: string[] = []
     for (const shape of slide?.GetAllShapes?.() ?? []) {
+      // Sin texto, no se pide (GetDocContent le crearía uno, fuera de un paso para deshacer).
+      if (shape?.HasTextContent && !shape.HasTextContent()) continue
       const content = shape.GetDocContent?.()
       const text = content?.GetText?.({ ParaSeparator: '\n', NewLineSeparator: '\n', TabSymbol: '\t' })
       if (typeof text === 'string' && text.trim()) parts.push(text.trim())
@@ -1343,7 +1345,8 @@ export class EditorSession {
         const [cols, rows] = String(v || '2x1').split('x').map(Number)
         if (api.CheckBeforeSplitCells() && cols > 0 && rows > 0) api.SplitCell(Math.min(cols, 20), Math.min(rows, 20))
       },
-      present: (from) => ew.Common.NotificationCenter.trigger('preview:start', from === 'here' ? api.getCurrentPage() : 0, false, false, from === 'here'),
+      // Presentar desde el principio, desde aquí o con la vista del moderador (otra ventana, bridge.js).
+      present: (from) => ew.Common.NotificationCenter.trigger('preview:start', from === 'here' ? api.getCurrentPage() : 0, from === 'presenter', false, from === 'here'),
       fit: () => api.zoomFitToPage()
     }
   }
@@ -2478,6 +2481,8 @@ export class EditorSession {
             }
           }
         }
+        // Una imagen también llega como forma (sus propiedades): solo cuenta como imagen.
+        if (found.has('image')) found.delete('shape')
         s.objects = [...found]
       })
     }

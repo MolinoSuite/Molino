@@ -103,6 +103,14 @@ export const main = {
   },
   /** Documentos, Hojas y Presentaciones: las ventanas de los editores (officewin.ts). */
   office: {
+    presenter: 'Vista del moderador',
+    media: {
+      pickVideo: 'Insertar un vídeo',
+      pickAudio: 'Insertar un audio',
+      videos: 'Vídeos',
+      audios: 'Audios',
+      tooBig: 'Ese archivo es demasiado grande (como mucho, 300 MB).'
+    },
     password: {
       title: 'Documento con contraseña',
       message: '«{name}» está protegido con contraseña. Escríbela para abrirlo.',
