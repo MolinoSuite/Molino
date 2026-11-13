@@ -1,0 +1,297 @@
+/* Funciones de Presentaciones (features/slide.tsx): galerías, panel de animación, ensayo y SmartArt. */
+
+/* ------------------------------------------------- miniaturas de las galerías */
+
+/* Un efecto: su dibujo, del color de su grupo (entrada, énfasis, salida, trayectoria). */
+.slide-fx {
+  --fx: var(--accent);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--fx) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--fx) 12%, var(--bg-surface));
+  color: var(--fx);
+}
+.slide-fx-entrance {
+  --fx: var(--success);
+}
+.slide-fx-emphasis {
+  --fx: var(--warning);
+}
+.slide-fx-exit {
+  --fx: var(--danger);
+}
+.slide-fx-path {
+  --fx: var(--accent);
+}
+.slide-fx-other {
+  --fx: var(--text-3);
+}
+
+/* WordArt: la vista previa del editor. */
+.slide-wordart {
+  display: block;
+  width: 96px;
+  height: 44px;
+  object-fit: contain;
+}
+
+/* Una combinación de colores: sus cinco colores de acento. */
+.slide-scheme {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.slide-scheme i {
+  width: 12px;
+  height: 14px;
+}
+
+/* Texto girado 270°: de abajo arriba. */
+.glyph-text.vertical.slide-vert270 {
+  transform: rotate(180deg);
+}
+
+/* ------------------------------------------------------- panel de animación */
+
+.slide-anim {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.slide-anim-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.slide-anim-head .hint {
+  margin: 0;
+}
+.slide-anim-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.slide-anim-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text);
+  text-align: left;
+}
+.slide-anim-row:hover {
+  background: var(--bg-subtle);
+}
+.slide-anim-row.on {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+}
+.slide-anim-n {
+  min-width: 16px;
+  color: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.slide-anim-dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fx);
+}
+.slide-anim-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.slide-anim-text b,
+.slide-anim-text small {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.slide-anim-text b {
+  font-weight: 600;
+}
+.slide-anim-text small {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.slide-anim-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.slide-anim-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.slide-anim-edit .field {
+  margin: 0;
+}
+.slide-anim-times {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 8px;
+}
+.slide-anim-actions,
+.slide-rehearse-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ------------------------------------------------------------------ ensayo */
+
+.slide-rehearse {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.slide-rehearse section + section {
+  margin-top: 0;
+}
+.slide-rehearse-clock {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.slide-rehearse-clock div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.slide-rehearse-clock span {
+  color: var(--text-3);
+  font-size: 11px;
+}
+.slide-rehearse-clock strong {
+  font-size: 20px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.slide-rehearse-page {
+  flex: 1;
+  color: var(--text-2);
+  font-size: 12px;
+  text-align: center;
+}
+.slide-rehearse-notes,
+.slide-rehearse-next p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.slide-rehearse-notes {
+  max-height: 260px;
+  overflow: auto;
+  font-size: 13.5px;
+}
+.slide-rehearse-next {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+.slide-rehearse-next p {
+  max-height: 120px;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+/* ---------------------------------------------------------------- SmartArt */
+
+.slide-smartart {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.slide-smartart-sections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.slide-smartart-sections .chip {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-surface);
+  color: var(--text-2);
+  font-size: 12px;
+}
+.slide-smartart-sections .chip.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+}
+.slide-smartart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  gap: 8px;
+  max-height: min(56vh, 460px);
+  overflow: auto;
+  padding: 2px;
+}
+.slide-smartart-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-2);
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: center;
+}
+.slide-smartart-item:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--text);
+}
+.slide-smartart-item img,
+.slide-smartart-wait {
+  display: block;
+  width: 96px;
+  height: 64px;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #fff;
+}
+.slide-smartart-wait {
+  background: var(--bg-subtle);
+}
