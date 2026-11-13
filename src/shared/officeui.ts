@@ -4,6 +4,13 @@ import type { OfficeLegal } from './office'
 
 export type OfficeKind = 'word' | 'cell' | 'slide'
 
+/** Un script del usuario: su nombre y su código (la API de documentos de ONLYOFFICE). */
+export interface OfficeScript {
+  id: string
+  name: string
+  code: string
+}
+
 /** Un aviso o una pregunta del proceso principal, que la app muestra con su aspecto (no el cuadro de Windows). */
 export interface OfficeAsk {
   id: number
@@ -70,6 +77,11 @@ export interface OfficeUiApi {
   saveAs(doc: string): Promise<boolean>
   /** Imprimir: el motor hace un PDF temporal y llega por ``onPrint`` para el cuadro de imprimir de esta app. */
   print(doc: string): Promise<boolean>
+  /** Mis scripts de esta app (pestaña Programador). */
+  scripts(): Promise<OfficeScript[]>
+  /** Guarda uno (sin id, uno nuevo): su id, o null si no se pudo. */
+  saveScript(script: { id?: string; name: string; code: string }): Promise<string | null>
+  removeScript(id: string): Promise<boolean>
   /** Muestra el archivo en el Explorador (solo si tiene archivo propio). */
   showInFolder(doc: string): Promise<boolean>
   onPrint(listener: (pdf: DocDescriptor) => void): () => void

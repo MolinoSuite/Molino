@@ -16,7 +16,7 @@ export interface PromptField {
   label: string
   value: string
   /** «number» con sus límites; «text» con su largo máximo. */
-  type?: 'text' | 'number'
+  type?: 'text' | 'number' | 'textarea' | 'password'
   min?: number
   max?: number
   step?: number
@@ -99,10 +99,20 @@ export function PromptDialog({ spec, onClose }: { spec: PromptSpec; onClose: () 
                   </option>
                 ))}
               </select>
+            ) : f.type === 'textarea' ? (
+              <textarea
+                className="textarea"
+                rows={6}
+                value={values[f.key]}
+                maxLength={f.maxLength ?? 4000}
+                placeholder={f.placeholder}
+                spellCheck={false}
+                onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
+              />
             ) : (
               <input
                 className="input"
-                type="text"
+                type={f.type === 'password' ? 'password' : 'text'}
                 inputMode={f.type === 'number' ? 'decimal' : undefined}
                 value={values[f.key]}
                 maxLength={f.maxLength ?? 2000}

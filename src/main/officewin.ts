@@ -224,6 +224,12 @@ export interface OfficeOptions {
   ignoredFonts: { list(): string[]; add(names: string[]): void }
   /** El diccionario personal del corrector (store.ts). */
   userWords: { list(): string[]; add(words: string[]): void }
+  /** Mis scripts (store.ts). */
+  scripts: {
+    list(kind: Kind): { id: string; name: string; code: string }[]
+    save(entry: { id?: string; kind: Kind; name: string; code: string }): string | null
+    remove(id: string): void
+  }
   /** Carpeta donde quedan las licencias de las fuentes instaladas. */
   fontLicenses: string
   /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
@@ -912,6 +918,24 @@ export class OfficeWindows {
       const win = this.uiSender(event)
       const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
       return win && open ? this.printDoc(win, open) : false
+    })
+    // Mis scripts de esta app: solo desde la página de su interfaz.
+    ipcMain.handle('office:scripts', (event) => {
+      const win = this.uiSender(event)
+      return win ? this.options.scripts.list(win.kind) : []
+    })
+    ipcMain.handle('office:scriptSave', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      if (!win || typeof raw !== 'object' || raw === null) return null
+      const { id, name, code } = raw as { id?: unknown; name?: unknown; code?: unknown }
+      if (typeof name !== 'string' || typeof code !== 'string' || (id !== undefined && typeof id !== 'string')) return null
+      return this.options.scripts.save({ id: id as string | undefined, kind: win.kind, name, code })
+    })
+    ipcMain.handle('office:scriptRemove', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      if (!win || typeof raw !== 'string') return false
+      this.options.scripts.remove(raw)
+      return true
     })
     ipcMain.handle('office:showInFolder', (event, raw: unknown) => {
       const win = this.uiSender(event)

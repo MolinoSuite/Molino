@@ -103,13 +103,49 @@ export interface EditorState {
   lineWidth: number
   /** El panel lateral abierto (lo pone la ventana, no el editor). */
   sidePanel: boolean
+  /** El panel «Mis scripts» abierto (lo pone la ventana). */
+  scriptsOpen: boolean
   /** Sube con cada cambio del documento (para volver a contar las palabras). */
   edits: number
+  /** Documentos: el control de contenido donde está el cursor (su tipo), o null. */
+  control: ControlType | null
+  /** Documentos: protegido para que solo se puedan rellenar los controles. */
+  formsOnly: boolean
+  /** Hojas: la hoja está protegida. */
+  sheetProtected: boolean
+}
+
+/** Los controles de contenido de Word (pestaña Programador). */
+export type ControlType = 'text' | 'rich' | 'check' | 'combo' | 'list' | 'date' | 'picture'
+
+/** Lo que se puede cambiar de un control de contenido (su cuadro de Propiedades). */
+export interface ControlInfo {
+  type: ControlType
+  title: string
+  tag: string
+  placeholder: string
+  /** 'none' | 'delete' (no se puede borrar) | 'edit' (no se puede cambiar el contenido) | 'both'. */
+  lock: 'none' | 'delete' | 'edit' | 'both'
+  /** Las opciones de una lista o un cuadro combinado. */
+  items: string[]
+  /** El formato de una fecha (p. ej. dd/MM/yyyy). */
+  dateFormat: string
+}
+
+/** Lo que devuelve un script del usuario. */
+export interface ScriptOutcome {
+  ok: boolean
+  output: string[]
+  error: string
 }
 
 function initialState(): EditorState {
   return {
+    scriptsOpen: false,
     edits: 0,
+    control: null,
+    formsOnly: false,
+    sheetProtected: false,
     ready: false,
     modified: false,
     bold: false,
@@ -788,6 +824,14 @@ export class EditorSession {
     if (this.kind === 'word') {
       return {
         ...text,
+        // Programador: controles de contenido (como en Word) y «solo rellenar».
+        control: (type) => this.addControl(type as ControlType),
+        controlRemove: () => {
+          const props = api.asc_IsContentControl() ? api.asc_GetContentControlProperties() : null
+          if (props) api.asc_RemoveContentControlWrapper(props.get_InternalId())
+        },
+        controlProps: (json) => this.setControl(json ?? ''),
+        formsOnly: (password) => this.setFormsOnly(password),
         style: (n) => api.put_Style(n),
         clearFormat: () => api.ClearFormating(),
         table: (d) => {
@@ -926,6 +970,11 @@ export class EditorSession {
     }
     if (this.kind === 'cell') {
       return {
+        // Programador: validar lo que se escribe, bloquear celdas y proteger la hoja.
+        validate: (json) => this.validate(json ?? ''),
+        lockCells: () => api.asc_setCellLocked(true),
+        unlockCells: () => api.asc_setCellLocked(false),
+        protectSheet: (password) => this.protectSheet(password),
         bold: () => api.asc_setCellBold(!s.bold),
         italic: () => api.asc_setCellItalic(!s.italic),
         underline: () => api.asc_setCellUnderline(!s.underline),
@@ -1428,6 +1477,247 @@ export class EditorSession {
   }
 
   // --------------------------------------------------------- cuadros de Molino
+
+  // --------------------------------------------------------- Programador
+
+  /** El tipo de un control a partir de sus propiedades. */
+  private controlType(props: Api): ControlType {
+    const A = this.ew.Asc
+    const T = A.c_oAscContentControlSpecificType
+    switch (props.get_SpecificType()) {
+      case T.CheckBox:
+        return 'check'
+      case T.ComboBox:
+        return 'combo'
+      case T.DropDownList:
+        return 'list'
+      case T.DateTime:
+        return 'date'
+      case T.Picture:
+        return 'picture'
+      default:
+        return props.get_ContentControlType() === A.c_oAscSdtLevelType.Block ? 'rich' : 'text'
+    }
+  }
+
+  /** Documentos: ¿hay un control de contenido donde está el cursor? */
+  private readControl(): void {
+    try {
+      const props = this.api.asc_IsContentControl() ? this.api.asc_GetContentControlProperties() : null
+      this.state.control = props ? this.controlType(props) : null
+    } catch {
+      this.state.control = null
+    }
+  }
+
+  /** Inserta un control de contenido como los de la pestaña Programador de Word. */
+  private addControl(type: ControlType): void {
+    const api = this.api
+    const A = this.ew.Asc
+    if (type === 'text' || type === 'rich') api.asc_AddContentControl(type === 'text' ? A.c_oAscSdtLevelType.Inline : A.c_oAscSdtLevelType.Block)
+    else if (type === 'check') api.asc_AddContentControlCheckBox()
+    else if (type === 'combo' || type === 'list') api.asc_AddContentControlList(type === 'combo')
+    else if (type === 'date') api.asc_AddContentControlDatePicker()
+    else if (type === 'picture') api.asc_AddContentControlPicture()
+    this.readControl()
+  }
+
+  /** Las propiedades del control donde está el cursor (para su cuadro), o null. */
+  controlInfo(): ControlInfo | null {
+    if (!this.api || this.kind !== 'word') return null
+    try {
+      if (!this.api.asc_IsContentControl()) return null
+      const props = this.api.asc_GetContentControlProperties()
+      if (!props) return null
+      const type = this.controlType(props)
+      const L = this.ew.Asc.c_oAscSdtLockType
+      const lock = props.get_Lock()
+      const items: string[] = []
+      const list = type === 'combo' ? props.get_ComboBoxPr() : type === 'list' ? props.get_DropDownListPr() : null
+      if (list) for (let i = 0; i < list.get_ItemsCount(); i++) items.push(String(list.get_ItemDisplayText(i)))
+      const date = type === 'date' ? props.get_DateTimePr() : null
+      return {
+        type,
+        title: String(props.get_Alias() ?? ''),
+        tag: String(props.get_Tag() ?? ''),
+        placeholder: String(props.get_PlaceholderText?.() ?? '').trim(),
+        lock: lock === L.SdtContentLocked ? 'both' : lock === L.SdtLocked ? 'delete' : lock === L.ContentLocked ? 'edit' : 'none',
+        items,
+        dateFormat: date ? String(date.get_DateFormat() ?? '') : ''
+      }
+    } catch {
+      return null
+    }
+  }
+
+  /** Cambia el control donde está el cursor (lo que llega del cuadro Propiedades, en JSON). */
+  private setControl(json: string): void {
+    const api = this.api
+    let wanted: Partial<ControlInfo>
+    try {
+      wanted = JSON.parse(json) as Partial<ControlInfo>
+    } catch {
+      return
+    }
+    if (!api.asc_IsContentControl()) return
+    const current = api.asc_GetContentControlProperties()
+    if (!current) return
+    const type = this.controlType(current)
+    const props = new this.ew.AscCommon.CContentControlPr()
+    const text = (v: unknown, max: number): string => String(v ?? '').replace(/[\u0000-\u001f]/g, ' ').slice(0, max)
+    props.put_Alias(text(wanted.title, 64))
+    props.put_Tag(text(wanted.tag, 64))
+    if (type === 'text' || type === 'rich' || type === 'combo' || type === 'list' || type === 'date') props.put_PlaceholderText(text(wanted.placeholder, 255) || '    ')
+    const L = this.ew.Asc.c_oAscSdtLockType
+    props.put_Lock({ both: L.SdtContentLocked, delete: L.SdtLocked, edit: L.ContentLocked, none: L.Unlocked }[wanted.lock ?? 'none'] ?? L.Unlocked)
+    if ((type === 'combo' || type === 'list') && Array.isArray(wanted.items)) {
+      const list = type === 'combo' ? current.get_ComboBoxPr() : current.get_DropDownListPr()
+      list.clear()
+      for (const item of wanted.items.map((i) => text(i, 255).trim()).filter(Boolean).slice(0, 200)) list.add_Item(item, item)
+      if (type === 'combo') props.put_ComboBoxPr(list)
+      else props.put_DropDownListPr(list)
+    }
+    if (type === 'date' && wanted.dateFormat) {
+      const date = current.get_DateTimePr()
+      date.put_DateFormat(text(wanted.dateFormat, 64))
+      props.put_DateTimePr(date)
+    }
+    api.asc_SetContentControlProperties(props, current.get_InternalId())
+  }
+
+  /**
+   * Documentos: «Solo rellenar» (como Restringir la edición → Rellenar
+   * formularios de Word: se guarda en el .docx). Con el documento ya
+   * protegido, lo quita (con su contraseña, si la tiene).
+   */
+  private setFormsOnly(password?: string): void {
+    const api = this.api
+    const A = this.ew.Asc
+    const current = api.asc_getDocumentProtection ? api.asc_getDocumentProtection() : null
+    const on = Boolean(current && current.asc_getEditType() === A.c_oAscEDocProtect.Forms)
+    const props = current || new this.ew.AscCommonWord.CDocProtect()
+    props.asc_setEditType(on ? A.c_oAscEDocProtect.None : A.c_oAscEDocProtect.Forms)
+    if (password) props.asc_setPassword(String(password).slice(0, 15))
+    api.asc_setDocumentProtection(props)
+    this.readProtection()
+  }
+
+  private readProtection(): void {
+    try {
+      if (this.kind === 'word') {
+        const p = this.api.asc_getDocumentProtection ? this.api.asc_getDocumentProtection() : null
+        this.state.formsOnly = Boolean(p && p.asc_getEditType() === this.ew.Asc.c_oAscEDocProtect.Forms)
+      } else if (this.kind === 'cell') {
+        this.state.sheetProtected = Boolean(this.api.asc_isProtectedSheet())
+      }
+    } catch {
+      // sin cambios
+    }
+  }
+
+  /** ¿Tiene contraseña la protección puesta? (para pedirla al quitarla). */
+  protectionHasPassword(): boolean {
+    try {
+      if (this.kind === 'word') {
+        const p = this.api.asc_getDocumentProtection ? this.api.asc_getDocumentProtection() : null
+        return Boolean(p && p.asc_getIsPassword())
+      }
+      if (this.kind === 'cell') return Boolean(this.api.asc_getProtectedSheet().asc_isPassword())
+    } catch {
+      return false
+    }
+    return false
+  }
+
+  /** Hojas: proteger la hoja (solo se cambian las celdas desbloqueadas) o quitar la protección. */
+  private protectSheet(password?: string): void {
+    const props = this.api.asc_getProtectedSheet()
+    if (this.api.asc_isProtectedSheet()) props.asc_setSheet(password ? String(password).slice(0, 255) : undefined)
+    else props.asc_setSheet(password ? String(password).slice(0, 255) : '')
+    this.api.asc_setProtectedSheet(props)
+    this.readProtection()
+  }
+
+  /**
+   * Hojas: qué se puede escribir en las celdas seleccionadas (número entero o
+   * decimal entre dos valores, fecha, largo del texto, una lista) y el mensaje
+   * de ayuda que sale al elegirlas. type 'none' quita la regla.
+   */
+  private validate(json: string): void {
+    let rule: { type?: string; min?: string; max?: string; source?: string; title?: string; message?: string }
+    try {
+      rule = JSON.parse(json) as typeof rule
+    } catch {
+      return
+    }
+    const A = this.ew.Asc
+    const V = A.c_oAscEDataValidationType
+    const types: Record<string, number> = { none: V.None, whole: V.Whole, decimal: V.Decimal, date: V.Date, length: V.TextLength, list: V.List }
+    const type = types[rule.type ?? 'none']
+    if (type === undefined) return
+    const props = this.api.asc_getDataValidationProps()
+    props.asc_setType(type)
+    const formula = (value: string): Api => {
+      const f = new A.CDataFormula()
+      f.asc_setValue(value)
+      return f
+    }
+    if (type === V.List) {
+      props.asc_setFormula1(formula(String(rule.source ?? '').slice(0, 255)))
+      props.asc_setShowDropDown(false)
+    } else if (type !== V.None) {
+      props.asc_setOperator(A.EDataValidationOperator.Between)
+      props.asc_setFormula1(formula(String(rule.min ?? '').slice(0, 64)))
+      props.asc_setFormula2(formula(String(rule.max ?? '').slice(0, 64)))
+    }
+    const title = String(rule.title ?? '').slice(0, 32)
+    const message = String(rule.message ?? '').slice(0, 255)
+    props.asc_setShowInputMessage(type !== V.None && Boolean(title || message))
+    props.asc_setPromptTitle(title)
+    props.asc_setPrompt(message)
+    props.asc_setShowErrorMessage(type !== V.None)
+    this.api.asc_setDataValidation(props)
+  }
+
+  /**
+   * Mis scripts: corre código del usuario con la API de documentos de
+   * ONLYOFFICE (Api.GetDocument(), Api.GetActiveSheet()…), como sus macros.
+   * Solo el que escribe el usuario: Molino nunca ejecuta las macros que traen
+   * los documentos. Se deshace de una vez. ``print(...)`` escribe en la salida.
+   */
+  runScript(code: string): ScriptOutcome {
+    const api = this.api
+    if (!api || typeof api.native_callCommand !== 'function') return { ok: false, output: [], error: 'unavailable' }
+    // El editor ejecuta el código aparte (sin la ventana): lo que escribe print()
+    // y el error vuelven como lo que devuelve la función.
+    const source = [
+      'function () {',
+      '  var __out = [], __error = "";',
+      '  var print = function () { if (__out.length < 500) __out.push(Array.prototype.map.call(arguments, function (a) { try { return typeof a === "string" ? a : JSON.stringify(a) } catch (e) { return String(a) } }).join(" ").slice(0, 2000)) };',
+      '  try {',
+      code,
+      '  } catch (e) { __error = String((e && e.message) || e).slice(0, 500) }',
+      '  return JSON.stringify({ output: __out, error: __error });',
+      '}'
+    ].join(String.fromCharCode(10))
+    let reply: unknown
+    try {
+      reply = api.native_callCommand(source, {})
+    } catch (error) {
+      return { ok: false, output: [], error: String(error instanceof Error ? error.message : error).slice(0, 500) }
+    }
+    this.changed()
+    try {
+      const parsed = JSON.parse(String(reply)) as { output?: unknown; error?: unknown }
+      const output = Array.isArray(parsed.output) ? parsed.output.map((line) => String(line)).slice(0, 500) : []
+      const error = typeof parsed.error === 'string' ? parsed.error : ''
+      return { ok: !error, output, error }
+    } catch {
+      // Sin respuesta: el código no se pudo ni leer (un error de sintaxis).
+      return { ok: false, output: [], error: 'syntax' }
+    }
+  }
+
 
   /** Documentos: páginas, palabras, caracteres y párrafos (el editor los cuenta poco a poco). */
   stats(): Promise<Record<string, number>> {
@@ -1998,6 +2288,10 @@ export class EditorSession {
       })
     }
     if (this.kind === 'word') {
+      on('asc_onFocusObject', () => {
+        this.readControl()
+        this.readProtection()
+      })
       on('asc_onParaStyleName', (n) => (s.style = n))
       on('asc_onPageOrient', (v) => (s.portrait = !!v))
       on('asc_onShowParaMarks', (v) => (s.marks = !!v))
@@ -2129,6 +2423,7 @@ export class EditorSession {
       })
       readCell = (info: Api): void => {
         if (!info) return
+        this.readProtection()
         const xfs = info.asc_getXfs()
         s.bold = !!xfs.asc_getFontBold()
         s.italic = !!xfs.asc_getFontItalic()

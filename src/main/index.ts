@@ -292,6 +292,11 @@ void app.whenReady().then(async () => {
     author: () => store.settings.author || windowsUser(),
     ignoredFonts: { list: () => store.ignoredFonts(), add: (names) => store.ignoreFonts(names) },
     userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words) },
+    scripts: {
+      list: (kind) => store.officeScripts(kind),
+      save: (entry) => store.saveOfficeScript(entry),
+      remove: (id) => store.removeOfficeScript(id)
+    },
     fontLicenses: join(app.getPath('userData'), 'fonts-licenses'),
     recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
     ai: {

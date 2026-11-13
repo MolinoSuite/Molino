@@ -24,6 +24,7 @@ import {
   Bold,
   BookOpenText,
   Calculator,
+  CalendarDays,
   CaseSensitive,
   ChartBar,
   ChartColumn,
@@ -33,7 +34,9 @@ import {
   CheckCheck,
   ChevronLeft,
   ChevronRight,
+  ChevronsUpDown,
   Clapperboard,
+  Code,
   Columns3,
   Copy,
   CopyCheck,
@@ -64,14 +67,18 @@ import {
   ListIndentDecrease,
   ListIndentIncrease,
   ListOrdered,
+  ListPlus,
   ListX,
+  Lock,
+  LockOpen,
   Maximize,
   MessageCircleQuestion,
   MessageSquarePlus,
   Minus,
+  NotebookText,
   Omega,
-  PaintBucket,
   Paintbrush,
+  PaintBucket,
   Palette,
   PanelBottom,
   PanelRight,
@@ -94,16 +101,18 @@ import {
   Search,
   SeparatorHorizontal,
   Shapes,
+  ShieldCheck,
   Shrink,
   Sigma,
+  SlidersHorizontal,
   Snowflake,
   Sparkle,
   Sparkles,
-  Stamp,
-  Tag,
-  NotebookText,
+  SquareCheck,
   SquareFunction,
   SquarePlus,
+  SquareTerminal,
+  Stamp,
   StickyNote,
   Strikethrough,
   Subscript,
@@ -113,6 +122,7 @@ import {
   TableCellsMerge,
   TableCellsSplit,
   TableOfContents,
+  Tag,
   TextCursorInput,
   Timer,
   Trash2,
@@ -829,6 +839,46 @@ export function aiMode(kind: OfficeKind): Mode {
 word.modes.push(reviewMode(true))
 cell.modes.push(reviewMode(false))
 slide.modes.push(reviewMode(false))
+
+/**
+ * Programador (como la pestaña de Office): los controles de formulario de Word
+ * y «Solo rellenar» en Documentos; validar datos, bloquear celdas y proteger
+ * la hoja en Hojas; y «Mis scripts» en las tres.
+ */
+const SCRIPTS = B('scripts', 'scripts', { icon: <SquareTerminal size={ICON} />, caption: true, active: (s) => s.scriptsOpen })
+function developerMode(groups: Tool[][]): Mode {
+  return { id: 'developer', label: M.developer, icon: <Code size={19} />, groups: [...groups, [SCRIPTS]] }
+}
+word.modes.push(
+  developerMode([
+    [
+      B('ccText', 'control', { value: 'text', icon: <TextCursorInput size={ICON} />, caption: true }),
+      B('ccRich', 'control', { value: 'rich', icon: <Pilcrow size={ICON} /> }),
+      B('ccCheck', 'control', { value: 'check', icon: <SquareCheck size={ICON} />, caption: true }),
+      B('ccList', 'control', { value: 'list', icon: <ChevronsUpDown size={ICON} />, caption: true }),
+      B('ccCombo', 'control', { value: 'combo', icon: <ListPlus size={ICON} /> }),
+      B('ccDate', 'control', { value: 'date', icon: <CalendarDays size={ICON} />, caption: true }),
+      B('ccPicture', 'control', { value: 'picture', icon: <Image size={ICON} /> })
+    ],
+    [
+      B('ccProps', 'controlAsk', { icon: <SlidersHorizontal size={ICON} />, caption: true, disabled: (s) => !s.control }),
+      B('ccRemove', 'controlRemove', { icon: <Eraser size={ICON} />, disabled: (s) => !s.control })
+    ],
+    [B('formsOnly', 'formsOnlyAsk', { icon: <Lock size={ICON} />, caption: true, active: (s) => s.formsOnly })]
+  ])
+)
+cell.modes.push(
+  developerMode([
+    [
+      B('validate', 'validateAsk', { icon: <ListChecks size={ICON} />, caption: true }),
+      B('validation', 'validationList', { icon: <ChevronsUpDown size={ICON} /> }),
+      B('validateClear', 'validate', { value: '{"type":"none"}', icon: <ListX size={ICON} /> })
+    ],
+    [B('lockCells', 'lockCells', { icon: <Lock size={ICON} /> }), B('unlockCells', 'unlockCells', { icon: <LockOpen size={ICON} /> })],
+    [B('protectSheet', 'protectSheetAsk', { icon: <ShieldCheck size={ICON} />, caption: true, active: (s) => s.sheetProtected })]
+  ])
+)
+slide.modes.push(developerMode([]))
 
 export const APPS: Record<OfficeKind, AppConfig> = { word, cell, slide }
 

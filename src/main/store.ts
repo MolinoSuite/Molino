@@ -75,6 +75,18 @@ const RecentSchema = z.object({
 
 /** Palabras del diccionario personal (como el de Word, que admite unas 5.000 por archivo). */
 const MAX_USER_WORDS = 5000
+/** Mis scripts: cuántos y de qué tamaño, como mucho. */
+const MAX_SCRIPTS = 200
+const MAX_SCRIPT_CODE = 100_000
+
+/** Un script del usuario (pestaña Programador de Documentos, Hojas y Presentaciones). */
+const OfficeScript = z.object({
+  id: z.string().regex(/^[0-9a-f]{16}$/),
+  kind: z.enum(['word', 'cell', 'slide']),
+  name: z.string().min(1).max(80),
+  code: z.string().max(MAX_SCRIPT_CODE)
+})
+export type OfficeScriptEntry = z.infer<typeof OfficeScript>
 
 const ConfigSchema = z.object({
   settings: SettingsSchema.default(SettingsSchema.parse({})),
@@ -86,7 +98,8 @@ const ConfigSchema = z.object({
   ignoredFonts: z.array(z.string().min(1).max(64)).max(300).default([]),
   // Diccionario personal del corrector de Documentos, Hojas y Presentaciones.
   // (Si algo no encaja, se pierde solo la lista, no los demás ajustes.)
-  userWords: z.array(z.string().min(1).max(64)).max(MAX_USER_WORDS).default([]).catch([])
+  userWords: z.array(z.string().min(1).max(64)).max(MAX_USER_WORDS).default([]).catch([]),
+  officeScripts: z.array(OfficeScript).max(MAX_SCRIPTS).default([]).catch([])
 })
 
 type Config = z.infer<typeof ConfigSchema>
@@ -272,6 +285,29 @@ export class Store {
   removeUserWords(words: string[]): void {
     const gone = new Set(words)
     this.config.userWords = this.config.userWords.filter((w) => !gone.has(w))
+    this.persist()
+  }
+
+  // ------------------------------------------------------- mis scripts
+
+  officeScripts(kind: OfficeScriptEntry['kind']): OfficeScriptEntry[] {
+    return this.config.officeScripts.filter((entry) => entry.kind === kind).map((entry) => ({ ...entry }))
+  }
+
+  /** Guarda un script (nuevo si no trae id); devuelve su id, o null si no vale. */
+  saveOfficeScript(entry: { id?: string; kind: OfficeScriptEntry['kind']; name: string; code: string }): string | null {
+    const id = entry.id ?? randomBytes(8).toString('hex')
+    const parsed = OfficeScript.safeParse({ ...entry, id, name: entry.name.trim().slice(0, 80) })
+    if (!parsed.success) return null
+    const others = this.config.officeScripts.filter((s) => s.id !== id)
+    if (others.length >= MAX_SCRIPTS) return null
+    this.config.officeScripts = [...others, parsed.data]
+    this.persist()
+    return id
+  }
+
+  removeOfficeScript(id: string): void {
+    this.config.officeScripts = this.config.officeScripts.filter((s) => s.id !== id)
     this.persist()
   }
 

@@ -4,10 +4,10 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, Ellipsis, FilePlusCorner, FileText, FolderOpen, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, Plus, Printer, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, X } from 'lucide-react'
+import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, Ellipsis, FilePlusCorner, FileText, FolderOpen, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, Play, Plus, Printer, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
-import type { OfficeTabs, OfficeAsk } from '@shared/officeui'
+import type { OfficeTabs, OfficeAsk, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { AI_TASKS, AiPanel, type AiTask } from './AiPanel'
@@ -88,6 +88,8 @@ export function OfficeApp() {
   // Avisos y preguntas del proceso principal (guardar al cerrar, errores…), con el aspecto de la app.
   const [asks, setAsks] = useState<OfficeAsk[]>([])
   useEffect(() => window.molinoOffice.onAsk((ask) => setAsks((list) => [...list, ask])), [])
+  // Programador: el panel «Mis scripts».
+  const [scriptsOpen, setScriptsOpen] = useState(false)
   // El cuadro de imprimir de esta app, con el PDF temporal del documento (officeprint.ts).
   const [printing, setPrinting] = useState<PrintableDoc | null>(null)
   useEffect(
@@ -186,7 +188,7 @@ export function OfficeApp() {
     })
   }, [kind])
   const sessionState = useSessionState(active)
-  const state = sessionState ? { ...sessionState, sidePanel } : null
+  const state = sessionState ? { ...sessionState, sidePanel, scriptsOpen } : null
   // Documentos: las palabras, en la barra de abajo (se vuelven a contar un poco después de cada cambio).
   const [words, setWords] = useState<number | null>(null)
   const counting = kind === 'word' && Boolean(active) && Boolean(state?.ready)
@@ -221,6 +223,11 @@ export function OfficeApp() {
       if (command === 'ai') {
         setAiTask((value as AiTask | undefined) ?? AI_TASKS[kind][0])
         setMode('ai')
+        return true
+      }
+      if (command === 'scripts') {
+        setMode('developer')
+        setScriptsOpen((open) => !open)
         return true
       }
       if (command === 'symbol') return (setDialog({ type: 'symbols' }), true)
@@ -450,7 +457,9 @@ export function OfficeApp() {
             </div>
           )}
         </div>
-        {currentMode.id === 'review' && state?.ready ? (
+        {scriptsOpen && currentMode.id === 'developer' && state?.ready && active ? (
+          <ScriptsPanel kind={kind} session={active} onClose={() => setScriptsOpen(false)} />
+        ) : currentMode.id === 'review' && state?.ready ? (
           <CommentsPanel state={state} run={run} />
         ) : currentMode.id === 'ai' && state?.ready && active && tabs?.active ? (
           <AiPanel key={tabs.active} kind={kind} doc={tabs.active} session={active} task={aiTask} setTask={setAiTask} onSettings={() => openSettings('ai')} />
@@ -1361,6 +1370,78 @@ function askFor(command: string, value: string | undefined, session: EditorSessi
       onOk: (v) => run('numberFormat', `code:${v.format}`)
     }
   }
+  const P = T.developer
+  if (command === 'controlAsk') {
+    const info = session.controlInfo()
+    if (!info) return null
+    const listed = info.type === 'combo' || info.type === 'list'
+    const fields: PromptSpec['fields'] = [
+      { key: 'title', label: P.title, value: info.title, maxLength: 64, hint: P.titleHint },
+      { key: 'tag', label: P.tag, value: info.tag, maxLength: 64, hint: P.tagHint }
+    ]
+    if (info.type !== 'check' && info.type !== 'picture') fields.push({ key: 'placeholder', label: P.placeholder, value: info.placeholder, maxLength: 255 })
+    if (listed) fields.push({ key: 'items', label: P.items, value: info.items.join('\n'), type: 'textarea', maxLength: 8000, hint: P.itemsHint })
+    if (info.type === 'date') fields.push({ key: 'dateFormat', label: P.dateFormat, value: info.dateFormat || 'dd/MM/yyyy', maxLength: 64, hint: P.dateFormatHint })
+    fields.push({
+      key: 'lock',
+      label: P.lock,
+      value: info.lock,
+      options: [
+        { value: 'none', label: P.lockNone },
+        { value: 'delete', label: P.lockDelete },
+        { value: 'edit', label: P.lockEdit },
+        { value: 'both', label: P.lockBoth }
+      ]
+    })
+    return {
+      title: fmt(P.propsTitle, { type: P.types[info.type] }),
+      fields,
+      onOk: (v) =>
+        run(
+          'controlProps',
+          JSON.stringify({ title: v.title, tag: v.tag, placeholder: v.placeholder ?? '', lock: v.lock, items: (v.items ?? '').split(/\r?\n/), dateFormat: v.dateFormat ?? '' })
+        )
+    }
+  }
+  if (command === 'formsOnlyAsk' || command === 'protectSheetAsk') {
+    const word = command === 'formsOnlyAsk'
+    const on = word ? session.state.formsOnly : session.state.sheetProtected
+    const action = word ? 'formsOnly' : 'protectSheet'
+    if (on && !session.protectionHasPassword()) return (run(action), null)
+    return {
+      title: on ? P.unprotectTitle : word ? P.formsOnlyTitle : P.protectSheetTitle,
+      intro: on ? P.unprotectIntro : word ? P.formsOnlyIntro : P.protectSheetIntro,
+      fields: [{ key: 'password', label: on ? P.password : P.passwordOptional, value: '', type: 'password', maxLength: word ? 15 : 255 }],
+      ok: on ? P.unprotect : P.protect,
+      onOk: (v) => run(action, v.password || undefined)
+    }
+  }
+  if (command === 'validateAsk') {
+    return {
+      title: P.validateTitle,
+      intro: P.validateIntro,
+      fields: [
+        {
+          key: 'type',
+          label: P.allow,
+          value: 'whole',
+          options: [
+            { value: 'whole', label: P.allowWhole },
+            { value: 'decimal', label: P.allowDecimal },
+            { value: 'date', label: P.allowDate },
+            { value: 'length', label: P.allowLength },
+            { value: 'list', label: P.allowList }
+          ]
+        },
+        { key: 'min', label: P.min, value: '', maxLength: 64, hint: P.minHint },
+        { key: 'max', label: P.max, value: '', maxLength: 64 },
+        { key: 'source', label: P.source, value: '', maxLength: 255, placeholder: Q.validationExample, hint: P.sourceHint },
+        { key: 'title', label: P.messageTitle, value: '', maxLength: 32 },
+        { key: 'message', label: P.message, value: '', maxLength: 255, hint: P.messageHint }
+      ],
+      onOk: (v) => run('validate', JSON.stringify(v))
+    }
+  }
   if (command === 'validationList' && !value) {
     return {
       title: Q.validation,
@@ -1548,5 +1629,154 @@ function NoticeDialog({ notice, onClose }: { notice: EditorNotice; onClose: () =
     >
       <p className="office-notice">{notice.text}</p>
     </Dialog>
+  )
+}
+
+/** Ejemplos para empezar: uno o dos por app, con la API de documentos de ONLYOFFICE. */
+const SCRIPT_EXAMPLES: Record<string, { name: string; code: string }[]> = {
+  word: [
+    { name: T.developer.examples.countParagraphs, code: "var doc = Api.GetDocument();\nprint('Párrafos:', doc.GetElementsCount());" },
+    {
+      name: T.developer.examples.dateAtEnd,
+      code: "var doc = Api.GetDocument();\nvar p = Api.CreateParagraph();\np.AddText('Fecha: ' + new Date().toLocaleDateString('es-ES'));\ndoc.Push(p);"
+    }
+  ],
+  cell: [
+    {
+      name: T.developer.examples.timesTable,
+      code: 'var sheet = Api.GetActiveSheet();\nfor (var i = 1; i <= 10; i++) {\n  for (var j = 1; j <= 10; j++) {\n    sheet.GetRangeByNumber(i - 1, j - 1).SetValue(i * j);\n  }\n}'
+    },
+    {
+      name: T.developer.examples.sumSelection,
+      code: "var total = 0;\nApi.GetSelection().ForEach(function (cell) {\n  var n = parseFloat(cell.GetValue());\n  if (!isNaN(n)) total += n;\n});\nprint('Suma:', total);"
+    }
+  ],
+  slide: [
+    { name: T.developer.examples.countSlides, code: "print('Diapositivas:', Api.GetPresentation().GetSlidesCount());" },
+    { name: T.developer.examples.newSlide, code: 'var presentation = Api.GetPresentation();\npresentation.AddSlide(Api.CreateSlide());' }
+  ]
+}
+
+/**
+ * Mis scripts (pestaña Programador): los guarda Molino, se escriben aquí y se
+ * ejecutan sobre el documento abierto con la API de documentos (como las
+ * macros de ONLYOFFICE). Las macros que traen los documentos no se ejecutan nunca.
+ */
+function ScriptsPanel({ kind, session, onClose }: { kind: string; session: EditorSession; onClose: () => void }) {
+  const P = T.developer
+  const [list, setList] = useState<OfficeScript[]>([])
+  const [current, setCurrent] = useState<{ id?: string; name: string; code: string }>({ name: P.untitled, code: '' })
+  const [result, setResult] = useState<{ ok: boolean; lines: string[] } | null>(null)
+  const [dirty, setDirty] = useState(false)
+  const reload = useCallback(() => void window.molinoOffice.scripts().then(setList), [])
+  useEffect(() => reload(), [reload])
+  const choose = (script: { id?: string; name: string; code: string }): void => {
+    setCurrent(script)
+    setResult(null)
+    setDirty(false)
+  }
+  const save = async (): Promise<void> => {
+    const id = await window.molinoOffice.saveScript({ id: current.id, name: current.name.trim() || P.untitled, code: current.code })
+    if (id) {
+      setCurrent({ ...current, id })
+      setDirty(false)
+      reload()
+    }
+  }
+  const remove = async (): Promise<void> => {
+    if (current.id) await window.molinoOffice.removeScript(current.id)
+    choose({ name: P.untitled, code: '' })
+    reload()
+  }
+  const runIt = (): void => {
+    const outcome = session.runScript(current.code)
+    setResult({ ok: outcome.ok, lines: outcome.error ? [...outcome.output, outcome.error === 'unavailable' ? P.unavailable : fmt(P.failed, { error: outcome.error })] : outcome.output.length ? outcome.output : [P.done] })
+    session.focus()
+  }
+  const examples = SCRIPT_EXAMPLES[kind] ?? []
+  return (
+    <aside className="office-panel office-scripts" aria-label={P.scripts}>
+      <header className="office-scripts-head">
+        <strong>{P.scripts}</strong>
+        <button className="icon-btn sm" aria-label={T.about.close} onClick={onClose}>
+          <X size={14} />
+        </button>
+      </header>
+      <div className="office-scripts-list">
+        <button className={cn('chip', !current.id && 'on')} onClick={() => choose({ name: P.untitled, code: '' })}>
+          <Plus size={13} />
+          {P.new}
+        </button>
+        {list.map((script) => (
+          <button key={script.id} className={cn('chip', current.id === script.id && 'on')} onClick={() => choose(script)}>
+            {script.name}
+          </button>
+        ))}
+        {examples.map((example) => (
+          <button key={example.name} className="chip example" onClick={() => choose({ name: example.name, code: example.code })}>
+            {fmt(P.example, { name: example.name })}
+          </button>
+        ))}
+      </div>
+      <input
+        className="input"
+        aria-label={P.name}
+        value={current.name}
+        maxLength={80}
+        onChange={(e) => {
+          setCurrent({ ...current, name: e.target.value })
+          setDirty(true)
+        }}
+      />
+      <textarea
+        className="office-scripts-code"
+        aria-label={P.code}
+        value={current.code}
+        spellCheck={false}
+        maxLength={100_000}
+        placeholder={P.codePlaceholder}
+        onChange={(e) => {
+          setCurrent({ ...current, code: e.target.value })
+          setDirty(true)
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault()
+            runIt()
+          } else if (e.key === 'Tab' && !e.shiftKey) {
+            e.preventDefault()
+            const area = e.currentTarget
+            const at = area.selectionStart
+            const code = `${area.value.slice(0, at)}  ${area.value.slice(area.selectionEnd)}`
+            setCurrent({ ...current, code })
+            setDirty(true)
+            requestAnimationFrame(() => area.setSelectionRange(at + 2, at + 2))
+          }
+        }}
+      />
+      <div className="row">
+        <button className="btn primary sm" disabled={!current.code.trim()} onClick={runIt} data-tip="Ctrl+Intro">
+          <Play size={14} />
+          {P.run}
+        </button>
+        <button className="btn sm" disabled={!current.code.trim() || (!dirty && Boolean(current.id))} onClick={() => void save()}>
+          {P.save}
+        </button>
+        {current.id && (
+          <button className="btn ghost sm" onClick={() => void remove()}>
+            {P.remove}
+          </button>
+        )}
+      </div>
+      {result && (
+        <pre className={cn('office-scripts-out', !result.ok && 'error')} aria-live="polite">
+          {result.lines.join('\n')}
+        </pre>
+      )}
+      <p className="hint">{P.note}</p>
+      <button className="btn ghost sm" onClick={() => void window.molino.shell.openExternal('https://api.onlyoffice.com/docs/office-api/get-started/overview/')}>
+        {P.reference}
+      </button>
+    </aside>
   )
 }

@@ -995,3 +995,81 @@ body,
 .office-selbar-ai {
   color: var(--accent-fg);
 }
+
+/* --------------------------------------------- Programador: «Mis scripts» */
+
+.office-scripts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+}
+.office-scripts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.office-scripts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.office-scripts-list .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-surface);
+  color: var(--text-2);
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.office-scripts-list .chip.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+}
+.office-scripts-list .chip.example {
+  border-style: dashed;
+}
+.office-scripts-code {
+  min-height: 220px;
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  color: var(--text);
+  font: 12.5px/1.5 'Cascadia Mono', Consolas, ui-monospace, monospace;
+  resize: vertical;
+  tab-size: 2;
+}
+.office-scripts .row {
+  display: flex;
+  gap: 6px;
+}
+.office-scripts-out {
+  max-height: 160px;
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  color: var(--text-2);
+  font: 12px/1.5 'Cascadia Mono', Consolas, ui-monospace, monospace;
+  white-space: pre-wrap;
+  overflow: auto;
+}
+.office-scripts-out.error {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.office-prompt textarea {
+  resize: vertical;
+}
