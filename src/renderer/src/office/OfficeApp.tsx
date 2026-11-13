@@ -4,7 +4,7 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
+import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
@@ -908,33 +908,106 @@ function CommentsPanel({ state, run }: { state: EditorState; run: (command: stri
       <section className="office-comment-list">
         {state.comments.length === 0 && <p className="hint">{C.empty}</p>}
         {state.comments.map((c) => (
-          <article key={c.id} className={cn('office-comment', c.resolved && 'resolved')}>
-            <button className="office-comment-body" onClick={() => run('showComment', c.id)}>
-              <span className="who">
-                {c.author}
-                {c.date && <span className="hint"> · {c.date}</span>}
-                {c.resolved && <span className="hint"> · {C.resolved}</span>}
-              </span>
-              {c.quote && <span className="quote">{c.quote}</span>}
-              <span className="text">{c.text}</span>
-              {c.replies.map((r, i) => (
-                <span key={i} className="reply">
-                  <b>{r.author}</b> {r.text}
-                </span>
-              ))}
-            </button>
-            <div className="row">
-              <button className="btn sm ghost" onClick={() => run('resolveComment', c.id)}>
-                {c.resolved ? C.reopen : C.resolve}
-              </button>
-              <button className="btn sm ghost" onClick={() => run('removeComment', c.id)}>
-                {C.remove}
-              </button>
-            </div>
-          </article>
+          <CommentCard key={c.id} comment={c} run={run} />
         ))}
       </section>
     </aside>
+  )
+}
+
+/**
+ * Un comentario con sus respuestas: responder, cambiar el texto (el suyo o el
+ * de una respuesta), resolver y borrar, como en Word.
+ */
+function CommentCard({ comment: c, run }: { comment: EditorState['comments'][number]; run: (command: string, value?: string) => void }) {
+  const C = T.panel.comments
+  // Lo que se está escribiendo: una respuesta, el texto del comentario o el de una respuesta.
+  const [editing, setEditing] = useState<{ kind: 'reply' | 'edit' | 'editReply'; reply?: string; text: string } | null>(null)
+  const send = (): void => {
+    if (!editing || !editing.text.trim()) return
+    const value = JSON.stringify({ id: c.id, reply: editing.reply ?? '', text: editing.text })
+    run(editing.kind === 'reply' ? 'replyComment' : editing.kind === 'edit' ? 'editComment' : 'editReply', value)
+    setEditing(null)
+  }
+  const box = (
+    <div className="office-comment-edit">
+      <textarea
+        className="office-comment-input"
+        autoFocus
+        rows={2}
+        maxLength={10_000}
+        value={editing?.text ?? ''}
+        placeholder={editing?.kind === 'reply' ? C.replyPlaceholder : ''}
+        onChange={(e) => setEditing((now) => (now ? { ...now, text: e.target.value } : now))}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault()
+            send()
+          } else if (e.key === 'Escape') setEditing(null)
+        }}
+      />
+      <div className="row">
+        <span className="grow" />
+        <button className="btn sm ghost" onClick={() => setEditing(null)}>
+          {L.common.cancel}
+        </button>
+        <button className="btn sm primary" disabled={!editing?.text.trim()} onClick={send}>
+          {editing?.kind === 'reply' ? C.reply : C.saveEdit}
+        </button>
+      </div>
+    </div>
+  )
+  return (
+    <article className={cn('office-comment', c.resolved && 'resolved')}>
+      <button className="office-comment-body" onClick={() => run('showComment', c.id)}>
+        <span className="who">
+          {c.author}
+          {c.date && <span className="hint"> · {c.date}</span>}
+          {c.resolved && <span className="hint"> · {C.resolved}</span>}
+        </span>
+        {c.quote && <span className="quote">{c.quote}</span>}
+        {editing?.kind !== 'edit' && <span className="text">{c.text}</span>}
+      </button>
+      {editing?.kind === 'edit' && box}
+      {c.replies.map((r, i) =>
+        editing?.kind === 'editReply' && editing.reply === r.id ? (
+          <div key={r.id || i}>{box}</div>
+        ) : (
+          <div key={r.id || i} className="office-comment-reply">
+            <span className="reply">
+              <b>{r.author}</b> {r.text}
+            </span>
+            {r.id && (
+              <span className="office-comment-reply-tools">
+                <button className="icon-btn sm" aria-label={C.editReply} data-tip={C.editReply} onClick={() => setEditing({ kind: 'editReply', reply: r.id, text: r.text })}>
+                  <PenLine size={12} />
+                </button>
+                <button className="icon-btn sm" aria-label={C.removeReply} data-tip={C.removeReply} onClick={() => run('removeReply', JSON.stringify({ id: c.id, reply: r.id }))}>
+                  <X size={12} />
+                </button>
+              </span>
+            )}
+          </div>
+        )
+      )}
+      {editing?.kind === 'reply' && box}
+      {!editing && (
+        <div className="row">
+          <button className="btn sm ghost" onClick={() => setEditing({ kind: 'reply', text: '' })}>
+            {C.reply}
+          </button>
+          <button className="btn sm ghost" onClick={() => setEditing({ kind: 'edit', text: c.text })}>
+            {C.edit}
+          </button>
+          <button className="btn sm ghost" onClick={() => run('resolveComment', c.id)}>
+            {c.resolved ? C.reopen : C.resolve}
+          </button>
+          <button className="btn sm ghost" onClick={() => run('removeComment', c.id)}>
+            {C.remove}
+          </button>
+        </div>
+      )}
+    </article>
   )
 }
 

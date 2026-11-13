@@ -22,6 +22,8 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   const T = L.dialogs.about
   const officeAvailable = useOffice((s) => s.status?.available ?? false)
   const isOffice = app !== 'pdf'
+  // La versión del motor de oficina (la ventana de oficina la sabe).
+  const piece = (window as unknown as { molinoOffice?: { env?: { piece?: string } } }).molinoOffice?.env?.piece ?? ''
   return (
     <Dialog
       title={withApp(T.title)}
@@ -43,6 +45,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             </b>
             <span>{T.taglines[app]}</span>
             {date && <span>{fmt(T.built, { date })}</span>}
+            {isOffice && piece && <span>{fmt(T.officeVersion, { version: piece })}</span>}
           </div>
         </div>
         <p>Copyright © 2026 CuevasTech.</p>

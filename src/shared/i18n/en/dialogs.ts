@@ -112,9 +112,9 @@ export const dialogs: typeof source = {
       ask: 'Suggest it when Molino PDF opens'
     },
     developer: {
-      label: 'Developer tab',
+      label: 'Advanced tab',
       labelSlide: 'Scripts tab',
-      show: 'Show the Developer tab',
+      show: 'Show the Advanced tab',
       showSlide: 'Show the Scripts tab',
       hint: {
         word: 'Form controls, “Filling in forms only” and your scripts.',
@@ -169,6 +169,7 @@ export const dialogs: typeof source = {
     source: 'Source code',
     notices: 'Third-party components',
     officeTitle: 'Docs, Sheets and Slides',
+    officeVersion: 'Office engine {version}',
     officeTextOne: 'It uses a modified version of the ONLYOFFICE editors (AGPL-3.0, with the additional terms of its §7).',
     officeText: 'They use a modified version of the ONLYOFFICE editors (AGPL-3.0, with the additional terms of its §7).',
     officeNotice: 'Molino’s changes',

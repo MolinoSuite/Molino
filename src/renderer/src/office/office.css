@@ -490,7 +490,8 @@ body,
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.office-comment-body .reply {
+.office-comment-body .reply,
+.office-comment-reply .reply {
   padding-left: 8px;
   color: var(--text-2);
 }
@@ -1681,4 +1682,29 @@ body,
   flex-direction: column;
   gap: 10px;
   padding: 12px;
+}
+
+/* Comentarios: responder y editar (el comentario y sus respuestas). */
+.office-comment-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+.office-comment-reply {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.office-comment-reply .reply {
+  flex: 1;
+}
+.office-comment-reply-tools {
+  display: flex;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.office-comment-reply:hover .office-comment-reply-tools,
+.office-comment-reply:focus-within .office-comment-reply-tools {
+  opacity: 1;
 }

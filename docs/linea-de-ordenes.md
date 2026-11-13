@@ -156,8 +156,8 @@ Get-ChildItem *.xlsx | ForEach-Object { molino convertir $_.FullName ($_.BaseNam
 
 Para automatizar lo que haces dentro de un documento abierto, Documentos, Hojas y Presentaciones (con **Molino Suite**) tienen **Mis scripts**: guardas tus propios scripts en JavaScript y los ejecutas sobre el documento que tienes abierto.
 
-- Están en la pestaña **Programador** de Documentos y Hojas, y en la pestaña **Scripts** de Presentaciones. Esa pestaña viene oculta: se activa en **Ajustes**.
-- En Documentos, la pestaña **Programador** trae también los controles de formulario (texto, casillas, listas, fechas…) y **Solo rellenar**. En Hojas, validar datos, bloquear celdas y proteger la hoja.
+- Están en la pestaña **Avanzado** de Documentos y Hojas, y en la pestaña **Scripts** de Presentaciones. Esa pestaña viene oculta: se activa en **Ajustes**.
+- En Documentos, la pestaña **Avanzado** trae también los controles de formulario (texto, casillas, listas, fechas…) y **Solo rellenar**. En Hojas, validar datos, bloquear celdas y proteger la hoja.
 - Los scripts usan la [API de documentos de ONLYOFFICE](https://api.onlyoffice.com/docs/office-api/get-started/overview/) (`Api.GetDocument()`, `Api.GetActiveSheet()`…), y `print()` escribe el resultado en el propio cuadro. Hay ejemplos para empezar.
 - Se ejecutan solo sobre ese documento, sin acceso a tus archivos ni a internet, y **Ctrl+Z** deshace lo que hacen.
 - Se guardan en Molino, no en el documento. Las macros que traen los documentos **nunca** se ejecutan.
@@ -198,4 +198,4 @@ print('Párrafos:', doc.GetElementsCount());
 
 Run `molino help` for the full list in your language.
 
-**Your own scripts:** inside Docs, Sheets and Slides (Molino Suite), **My scripts** runs your own JavaScript on the open document, with the [ONLYOFFICE document API](https://api.onlyoffice.com/docs/office-api/get-started/overview/), no access to your files or the internet, and Ctrl+Z to undo it. It lives in the **Developer** tab (**Scripts**, in Slides), which is hidden by default and turned on in **Settings**; in Docs the tab also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.
+**Your own scripts:** inside Docs, Sheets and Slides (Molino Suite), **My scripts** runs your own JavaScript on the open document, with the [ONLYOFFICE document API](https://api.onlyoffice.com/docs/office-api/get-started/overview/), no access to your files or the internet, and Ctrl+Z to undo it. It lives in the **Advanced** tab (**Scripts**, in Slides), which is hidden by default and turned on in **Settings**; in Docs the tab also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.

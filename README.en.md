@@ -90,7 +90,7 @@ molino sign contract.pdf -o signed.pdf --certificate "John Smith"
 Get-ChildItem *.docx | ForEach-Object { molino convert $_.FullName ($_.BaseName + ".pdf") }
 ```
 
-**Your own scripts** in Docs, Sheets and Slides: JavaScript with the ONLYOFFICE document API, which works on the open document with no access to your files or the internet; Ctrl+Z undoes what it does. They live in the **Developer** tab (**Scripts**, in Slides), which is hidden by default and turned on in Settings. In Docs it also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.
+**Your own scripts** in Docs, Sheets and Slides: JavaScript with the ONLYOFFICE document API, which works on the open document with no access to your files or the internet; Ctrl+Z undoes what it does. They live in the **Advanced** tab (**Scripts**, in Slides), which is hidden by default and turned on in Settings. In Docs it also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.
 
 It’s all in the [command-line manual](docs/linea-de-ordenes.md) (in Spanish, with an [English summary](docs/linea-de-ordenes.md#english-summary)).
 

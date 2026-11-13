@@ -112,6 +112,7 @@ export const office: typeof es = {
     sortMenu: 'Sort and filter',
     freezeMenu: 'Freeze',
     layoutMenu: 'Slide layout',
+    newSlideWith: 'New slide with a layout',
     themeMenu: 'Theme',
     listMenu: 'List',
     label: 'Tools',
@@ -701,7 +702,13 @@ export const office: typeof es = {
       resolve: 'Resolve',
       reopen: 'Reopen',
       remove: 'Delete',
-      resolved: 'Resolved'
+      resolved: 'Resolved',
+      reply: 'Reply',
+      replyPlaceholder: 'Write your reply…',
+      edit: 'Edit',
+      saveEdit: 'Save',
+      editReply: 'Edit reply',
+      removeReply: 'Delete reply'
     }
   },
   fonts: {

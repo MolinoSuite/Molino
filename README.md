@@ -90,7 +90,7 @@ molino firmar contrato.pdf -o firmado.pdf --certificado "Juan Español"
 Get-ChildItem *.docx | ForEach-Object { molino convertir $_.FullName ($_.BaseName + ".pdf") }
 ```
 
-**Tus propios scripts** en Documentos, Hojas y Presentaciones: JavaScript con la API de documentos de ONLYOFFICE, que trabaja sobre el documento abierto, sin acceso a tus archivos ni a internet; Ctrl+Z deshace lo que hace. Están en la pestaña **Programador** (en Presentaciones, **Scripts**), que viene oculta y se activa en Ajustes. En Documentos trae también controles de formulario, y en Hojas, validación de datos, bloqueo de celdas y protección de hojas. Las macros que traen los documentos nunca se ejecutan.
+**Tus propios scripts** en Documentos, Hojas y Presentaciones: JavaScript con la API de documentos de ONLYOFFICE, que trabaja sobre el documento abierto, sin acceso a tus archivos ni a internet; Ctrl+Z deshace lo que hace. Están en la pestaña **Avanzado** (en Presentaciones, **Scripts**), que viene oculta y se activa en Ajustes. En Documentos trae también controles de formulario, y en Hojas, validación de datos, bloqueo de celdas y protección de hojas. Las macros que traen los documentos nunca se ejecutan.
 
 Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
 

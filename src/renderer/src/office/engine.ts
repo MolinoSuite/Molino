@@ -34,7 +34,7 @@ export interface CommentInfo {
   quote: string
   text: string
   resolved: boolean
-  replies: { author: string; date: string; text: string }[]
+  replies: { id: string; author: string; date: string; text: string }[]
 }
 
 export interface EditorState {
@@ -1358,6 +1358,23 @@ export class EditorSession {
     }
   }
 
+  /** Un cambio en un comentario: {id, reply?, text?} (el texto, hasta 10 000 caracteres y no vacío). */
+  private commentEdit(json: string | undefined, apply: (ctrl: Api, edit: { id: string; reply: string; text: string }) => void, needsText = true): void {
+    const ctrl = this.commentsController()
+    if (!ctrl) return
+    let edit: { id?: unknown; reply?: unknown; text?: unknown }
+    try {
+      edit = JSON.parse(String(json ?? ''))
+    } catch {
+      return
+    }
+    const id = typeof edit.id === 'string' ? edit.id : ''
+    const reply = typeof edit.reply === 'string' ? edit.reply : ''
+    const text = typeof edit.text === 'string' ? edit.text.trim().slice(0, 10_000) : ''
+    if (!id || (needsText && !text)) return
+    apply(ctrl, { id, reply, text })
+  }
+
   private review(): Record<string, (value?: string) => void> {
     const api = this.api
     const ew = this.ew
@@ -1382,6 +1399,12 @@ export class EditorSession {
         if (id && ctrl) ctrl.onResolveComment(id)
       },
       removeComment: (id) => id && api.asc_removeComment(id),
+      // Responder, cambiar el texto de un comentario o de una respuesta, y quitar una respuesta
+      // (con el controlador de comentarios del editor, que guarda autor y fecha).
+      replyComment: (json) => this.commentEdit(json, (ctrl, e) => ctrl.onAddReplyComment(e.id, e.text)),
+      editComment: (json) => this.commentEdit(json, (ctrl, e) => ctrl.onChangeComment(e.id, e.text)),
+      editReply: (json) => this.commentEdit(json, (ctrl, e) => ctrl.onChangeReplyComment(e.id, e.reply, e.text)),
+      removeReply: (json) => this.commentEdit(json, (ctrl, e) => ctrl.onRemoveReplyComment(e.id, e.reply), false),
       showComment: (id) => {
         if (!id) return
         api.asc_selectComment(id)
@@ -2556,7 +2579,7 @@ export class EditorSession {
           quote: text(m.get('quote')),
           text: text(m.get('comment')),
           resolved: !!m.get('resolved'),
-          replies: ((m.get('replys') as Api[]) || []).map((r) => ({ author: text(r.get('username')), date: text(r.get('date')), text: text(r.get('reply')) }))
+          replies: ((m.get('replys') as Api[]) || []).map((r) => ({ id: String(r.get('id') ?? ''), author: text(r.get('username')), date: text(r.get('date')), text: text(r.get('reply')) }))
         }))
         .filter((c) => c.id)
     }

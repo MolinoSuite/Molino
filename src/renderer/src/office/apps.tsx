@@ -104,6 +104,7 @@ import {
   PanelBottom,
   PanelRight,
   PanelTop,
+  PanelsTopLeft,
   PenLine,
   Percent,
   Pilcrow,
@@ -913,8 +914,12 @@ const ARRANGE: Tool[] = [
 /** Los diseños de la presentación, con su miniatura: para una diapositiva nueva o para cambiar la actual. */
 const layoutOptions = (s: EditorState): MenuOption[] =>
   s.layouts.map((l) => ({ value: String(l.index), label: l.name || String(l.index + 1), preview: /^data:image\//.test(l.image) ? <img className="glyph-layout" src={l.image} alt="" /> : <span className="glyph-layout" /> }))
-const NEW_SLIDE = MENU('newSlide', 'newSlideLayout', layoutOptions, <Presentation size={ICON} />, { caption: true, tiles: 3 })
-const LAYOUT = MENU('layoutMenu', 'layout', layoutOptions, <LayoutTemplate size={ICON} />, { tiles: 3 })
+/** Diapositiva nueva: el botón la añade con el diseño de siempre; su menú, con el diseño que se elija. */
+const NEW_SLIDE: Tool[] = [
+  B('newSlide', 'newSlide', { icon: <Presentation size={ICON} />, caption: true }),
+  MENU('newSlideWith', 'newSlideLayout', layoutOptions, <LayoutTemplate size={ICON} />, { tiles: 3 })
+]
+const LAYOUT = MENU('layoutMenu', 'layout', layoutOptions, <PanelsTopLeft size={ICON} />, { tiles: 3 })
 /** Los temas, con su miniatura (la del editor: sdkjs/slide/themes/themeN/). */
 const THEMES = MENU(
   'themeMenu',
@@ -941,7 +946,7 @@ const slide: AppConfig = {
       icon: <House size={19} />,
       names: [N.slides, N.letter, N.format, N.paragraph, N.drawing, N.arrange, N.moreFormat, N.tools],
       groups: [
-        [NEW_SLIDE, LAYOUT, B('duplicateSlide', 'duplicateSlide', { icon: <Copy size={ICON} /> }), B('deleteSlide', 'deleteSlide', { icon: <Trash2 size={ICON} /> })],
+        [...NEW_SLIDE, LAYOUT, B('duplicateSlide', 'duplicateSlide', { icon: <Copy size={ICON} /> }), B('deleteSlide', 'deleteSlide', { icon: <Trash2 size={ICON} /> })],
         LETTER,
         [BOLD, ITALIC, UNDERLINE, TEXT_COLOR],
         [ALIGN_MENU, listMenu('slide')],

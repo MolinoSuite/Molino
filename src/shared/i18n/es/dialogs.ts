@@ -115,9 +115,9 @@ export const dialogs = {
       ask: 'Proponérmelo al abrir Molino PDF'
     },
     developer: {
-      label: 'Pestaña Programador',
+      label: 'Pestaña Avanzado',
       labelSlide: 'Pestaña Scripts',
-      show: 'Mostrar la pestaña Programador',
+      show: 'Mostrar la pestaña Avanzado',
       showSlide: 'Mostrar la pestaña Scripts',
       hint: {
         word: 'Controles de formulario, «Solo rellenar» y tus scripts.',
@@ -172,6 +172,7 @@ export const dialogs = {
     source: 'Código fuente',
     notices: 'Componentes de terceros',
     officeTitle: 'Documentos, Hojas y Presentaciones',
+    officeVersion: 'Motor de oficina {version}',
     officeTextOne: 'Usa una versión modificada de los editores de ONLYOFFICE (AGPL-3.0, con los términos adicionales de su §7).',
     officeText: 'Usan una versión modificada de los editores de ONLYOFFICE (AGPL-3.0, con los términos adicionales de su §7).',
     officeNotice: 'Cambios de Molino',

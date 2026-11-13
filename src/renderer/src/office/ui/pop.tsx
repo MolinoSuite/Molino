@@ -113,14 +113,20 @@ export function Pop({
         onClose()
       }
     }
+    // Pulsar en el documento (otro marco) quita el foco a la ventana: eso también es «fuera».
+    // Justo al abrirse no: el editor puede recuperar el foco de lo que se hizo antes.
+    const openedAt = Date.now()
+    const onBlur = (): void => {
+      if (Date.now() - openedAt > 400) onClose()
+    }
     window.addEventListener('pointerdown', onDown, true)
     window.addEventListener('keydown', onKey, true)
-    window.addEventListener('blur', onClose)
+    window.addEventListener('blur', onBlur)
     window.addEventListener('resize', onClose)
     return () => {
       window.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('keydown', onKey, true)
-      window.removeEventListener('blur', onClose)
+      window.removeEventListener('blur', onBlur)
       window.removeEventListener('resize', onClose)
     }
   }, [onClose, trigger])

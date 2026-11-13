@@ -113,6 +113,7 @@ export const office = {
     sortMenu: 'Ordenar y filtrar',
     freezeMenu: 'Inmovilizar',
     layoutMenu: 'Diseño de la diapositiva',
+    newSlideWith: 'Diapositiva nueva con un diseño',
     themeMenu: 'Tema',
     label: 'Herramientas',
     undo: 'Deshacer (Ctrl+Z)',
@@ -706,7 +707,13 @@ export const office = {
       resolve: 'Resolver',
       reopen: 'Reabrir',
       remove: 'Borrar',
-      resolved: 'Resuelto'
+      resolved: 'Resuelto',
+      reply: 'Responder',
+      replyPlaceholder: 'Escribe tu respuesta…',
+      edit: 'Editar',
+      saveEdit: 'Guardar',
+      editReply: 'Editar la respuesta',
+      removeReply: 'Borrar la respuesta'
     }
   },
   fonts: {
