@@ -10,6 +10,8 @@ export const home: typeof es = {
     removing: 'Uninstalling…',
     later: 'Not now',
     removed: 'Done: only the Molino PDF inside Molino Suite is left.',
+    running: 'Close the separate Molino PDF app and click “Uninstall the other one” again.',
+    retired: 'Molino PDF is now part of Molino Suite: we brought over your settings and removed the separate app.',
     settings: 'Windows Settings is open: press “Uninstall” on the Molino PDF page.'
   },
   title: 'What shall we do today?',

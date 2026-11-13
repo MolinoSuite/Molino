@@ -126,80 +126,10 @@ body,
   flex: none;
   margin-left: auto;
 }
-.office-more-pop {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 10px;
-  z-index: 30;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 2px;
-  max-width: min(560px, calc(100% - 20px));
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-lg);
-}
-.office-more-pop .office-group + .office-group {
-  border-left: 1px solid var(--border);
-}
 .office-toolbar .glyph {
   font-size: 12px;
   font-weight: 650;
   letter-spacing: -0.02em;
-}
-.office-select {
-  height: 30px;
-  min-width: 64px;
-  padding: 0 6px;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--bg-surface);
-  color: var(--text);
-  font: 12.5px var(--font-ui);
-}
-.office-select.wide {
-  width: 132px;
-  min-width: 0;
-  text-overflow: ellipsis;
-}
-.office-color {
-  position: relative;
-}
-.office-color .tool.icon {
-  width: auto;
-  gap: 3px;
-  padding: 0 5px;
-}
-.office-color .swatch {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  border: 1px solid var(--border-strong);
-}
-.office-pop {
-  position: absolute;
-  top: 34px;
-  left: 0;
-  z-index: 40;
-  display: grid;
-  grid-template-columns: repeat(6, 22px);
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-lg);
-}
-.office-pop .chip {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong);
-}
-.office-pop .no-fill {
-  grid-column: 1 / -1;
 }
 
 .office-stage {
@@ -900,29 +830,10 @@ body,
 /* ------------------------------------------- estilos con vista previa (B) */
 
 /* Dentro de la barra flotante, los desplegables sin marco (como «Calibri · 11 ▾» del diseño A). */
-.office-pill .office-select {
-  border-color: transparent;
-  background-color: transparent;
-}
-.office-pill .office-select:hover:not(:disabled) {
-  background-color: var(--bg-hover);
-}
 .office-style-btn {
   justify-content: space-between;
   min-width: 112px;
   gap: 6px;
-}
-.office-styles {
-  position: fixed;
-  z-index: 80;
-  display: grid;
-  grid-template-columns: repeat(2, 196px);
-  gap: 6px;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-lg);
 }
 .office-style-card {
   display: flex;
@@ -954,12 +865,6 @@ body,
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.office-style-card small {
-  color: var(--text-3);
-  font-family: var(--font-ui);
-  font-size: 10.5px;
-}
-
 /* ------------------------------------------- barra de lo seleccionado (D) */
 
 .office-selbar {
@@ -1072,4 +977,708 @@ body,
 }
 .office-prompt textarea {
   resize: vertical;
+}
+
+/* ================================================ desplegables visuales */
+/* Todos los de Documentos, Hojas y Presentaciones (ui/pop.tsx): misma capa,
+   mismo borde, misma sombra; dentro, miniaturas en cuadrícula o filas con icono. */
+
+.office-popover {
+  position: fixed;
+  z-index: 90;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  color: var(--text);
+  box-shadow:
+    0 2px 6px rgba(17, 24, 39, 0.06),
+    0 22px 48px -14px rgba(17, 24, 39, 0.28);
+  animation: office-pop-in 120ms var(--ease) both;
+  scrollbar-width: thin;
+}
+@keyframes office-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.985);
+  }
+}
+.office-visual {
+  min-width: 220px;
+}
+.office-visual.tiles {
+  width: max-content;
+  max-width: min(560px, calc(100vw - 16px));
+}
+.office-visual-section + .office-visual-section {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.office-visual-title {
+  padding: 4px 8px 6px;
+  color: var(--text-3);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.office-tiles {
+  display: grid;
+  gap: 6px;
+}
+.office-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 76px;
+  min-height: 74px;
+  padding: 8px 6px 7px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-surface);
+  color: var(--text-2);
+  transition:
+    border-color var(--dur-fast) var(--ease),
+    background var(--dur-fast) var(--ease),
+    transform var(--dur-fast) var(--ease);
+}
+.office-tile:hover {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  background: var(--accent-soft);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+.office-tile.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+  box-shadow: 0 0 0 2px var(--accent-soft-2);
+}
+.office-tile-art {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  color: var(--text);
+}
+.office-tile-label {
+  max-width: 120px;
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.25;
+  text-align: center;
+}
+.office-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.office-tiles + .office-rows {
+  margin-top: 6px;
+}
+.office-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 4px 10px 4px 8px;
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+}
+.office-row:hover {
+  background: var(--bg-hover);
+}
+.office-row.action {
+  color: var(--text-2);
+}
+.office-row-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  min-width: 30px;
+  color: var(--text-2);
+}
+.office-row-label {
+  flex: 1;
+  white-space: nowrap;
+}
+.office-row .tick {
+  color: var(--accent-fg);
+}
+.office-empty-note {
+  padding: 10px;
+}
+
+/* Las miniaturas (ui/glyphs.tsx). */
+.glyph-svg {
+  display: block;
+  overflow: visible;
+}
+.glyph-text {
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.glyph-text.vertical {
+  writing-mode: vertical-rl;
+  font-size: 11px;
+}
+.glyph-sample {
+  min-width: 78px;
+  color: var(--text-2);
+  font: 600 11.5px var(--font-mono, ui-monospace, Consolas, monospace);
+  text-align: right;
+}
+.glyph-cell {
+  width: 18px;
+  height: 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 2px;
+  background: color-mix(in srgb, #c4505a 28%, transparent);
+}
+.glyph-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 54px;
+}
+.glyph-list > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.glyph-list b {
+  min-width: 13px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: right;
+}
+.glyph-list i {
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, currentColor 40%, transparent);
+}
+.glyph-scale {
+  width: 54px;
+  height: 22px;
+  border-radius: 4px;
+}
+.glyph-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 54px;
+}
+.glyph-bars i {
+  height: 5px;
+  border-radius: 2px;
+}
+.glyph-icons {
+  display: flex;
+  gap: 5px;
+}
+.glyph-icons i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+.glyph-icons b {
+  font-size: 15px;
+}
+.glyph-table {
+  display: grid;
+  gap: 2px;
+  width: 44px;
+}
+.glyph-table i {
+  height: 6px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.glyph-layout,
+.glyph-theme {
+  display: block;
+  width: 112px;
+  height: 63px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  object-fit: cover;
+}
+.glyph-transition {
+  position: relative;
+  display: block;
+  width: 48px;
+  height: 30px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--bg-subtle);
+}
+.glyph-transition i {
+  position: absolute;
+  inset: 4px;
+  border-radius: 3px;
+  background: var(--accent);
+  opacity: 0.8;
+}
+.glyph-transition.t-none i,
+.glyph-transition.a-none i {
+  opacity: 0.15;
+}
+.glyph-transition.t-fade i,
+.glyph-transition.a-fade i {
+  opacity: 0.45;
+}
+.glyph-transition.t-push i {
+  left: 20px;
+}
+.glyph-transition.t-wipe i {
+  right: 22px;
+}
+.glyph-transition.t-split i {
+  left: 16px;
+  right: 16px;
+}
+.glyph-transition.t-uncover i {
+  left: -10px;
+  right: 20px;
+}
+.glyph-transition.t-cover i {
+  top: 12px;
+}
+.glyph-transition.t-clock i {
+  border-radius: 50%;
+  inset: 3px 12px;
+}
+.glyph-transition.t-zoom i {
+  inset: 9px 16px;
+}
+.glyph-transition.a-fly i {
+  top: 14px;
+}
+
+/* ---------------------------------------------------------- colores */
+.office-colortool {
+  display: inline-flex;
+  align-items: center;
+}
+.office-colortool .tool.office-colortool-main {
+  position: relative;
+  width: 30px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.office-colortool .swatch {
+  position: absolute;
+  left: 7px;
+  right: 7px;
+  bottom: 4px;
+  height: 4px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 18%, transparent);
+}
+.office-colortool .office-colortool-main svg {
+  margin-top: -5px;
+}
+.office-colortool .tool.office-colortool-more {
+  width: 16px;
+  min-width: 0;
+  padding: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.office-colorpop {
+  width: 286px;
+}
+.office-colors {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.office-colors-title {
+  padding-top: 2px;
+  color: var(--text-3);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.office-swatches {
+  display: grid;
+  grid-template-columns: repeat(10, 22px);
+  gap: 4px;
+}
+.office-swatches.theme {
+  row-gap: 2px;
+}
+.office-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.office-swatch:hover {
+  transform: scale(1.15);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent),
+    0 0 0 2px var(--bg-surface),
+    0 0 0 3.5px var(--border-strong);
+}
+.office-swatch.on {
+  box-shadow:
+    0 0 0 2px var(--bg-surface),
+    0 0 0 3.5px var(--accent);
+}
+.office-swatch.empty {
+  background:
+    linear-gradient(135deg, transparent 45%, #c4505a 45%, #c4505a 55%, transparent 55%),
+    var(--bg-surface);
+}
+.office-color-none {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 32px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.office-color-none:hover {
+  background: var(--bg-hover);
+}
+.office-color-custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.office-color-custom .input {
+  width: 84px;
+  height: 28px;
+  font: 600 12px var(--font-mono, ui-monospace, Consolas, monospace);
+}
+.office-color-native {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.office-color-native input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* -------------------------------------------------- letra y tamaño */
+.office-picker {
+  justify-content: space-between;
+  gap: 6px;
+}
+.office-picker.wide {
+  width: 142px;
+}
+.office-picker.wide > span {
+  overflow: hidden;
+  font-size: 13px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tool-caret {
+  flex: none;
+  opacity: 0.6;
+}
+.office-fontpop {
+  width: 264px;
+  padding: 6px;
+}
+.office-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  margin-bottom: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-subtle);
+  color: var(--text-3);
+}
+.office-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.office-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: 13px var(--font-ui);
+}
+.office-fonts,
+.office-sizes {
+  display: flex;
+  flex-direction: column;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.office-font {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 15px;
+  text-align: left;
+}
+.office-font:hover {
+  background: var(--bg-hover);
+}
+.office-font.on {
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+}
+.office-size {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  border-radius: 7px;
+}
+.office-size:hover,
+.office-size:focus-within {
+  background: var(--bg-hover);
+}
+.office-size-input {
+  width: 34px;
+  height: 30px;
+  padding: 0 0 0 8px;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--text);
+  font: 600 13px var(--font-ui);
+}
+.office-size .tool.office-size-more {
+  width: 18px;
+  min-width: 0;
+  padding: 0;
+}
+.office-sizepop {
+  width: 92px;
+  padding: 4px;
+}
+.office-sizepop .office-font {
+  justify-content: center;
+  min-height: 28px;
+  font-size: 13px;
+}
+
+/* ------------------------------------------------------------ estilos */
+.office-styles {
+  width: 440px;
+}
+.office-styles-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.office-styles .office-style-card {
+  height: 54px;
+  align-items: center;
+  justify-content: center;
+}
+.office-style-btn > span {
+  max-width: 110px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* -------------------------------------------------------------- «Más» */
+.office-more-pop {
+  width: min(520px, calc(100vw - 16px));
+  padding: 10px;
+}
+.office-more-section + .office-more-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.office-more-section h4 {
+  margin: 0 0 6px;
+  padding: 0 4px;
+  color: var(--text-3);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.office-more-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.office-more-tools > .tool:not(.icon),
+.office-more-tools > .tool.icon {
+  width: auto;
+  padding: 0 10px 0 8px;
+  justify-content: flex-start;
+  gap: 7px;
+}
+
+/* ------------------------------------------------- Hojas: barra fija */
+.office-toolbar.docked {
+  justify-content: flex-start;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+}
+.office-toolbar.docked .office-pill {
+  flex: 1;
+  max-width: none;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+.office-toolbar.docked .office-group {
+  position: relative;
+  padding: 0 7px;
+}
+
+/* --------------------------------------------- título: deshacer y rehacer */
+.office-actions-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--border);
+}
+
+/* ------------------------------------------- Hojas: pestañas de las hojas */
+.office-sheetbar {
+  height: 36px;
+  padding: 0 10px;
+  border-top: 0;
+  background: var(--bg-app);
+  box-shadow: inset 0 1px 0 var(--border);
+}
+.office-sheetbar .office-sheets {
+  align-items: flex-start;
+  gap: 2px;
+  height: 100%;
+}
+.office-sheets .sheet,
+.office-sheetbar .office-sheets .sheet {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  margin-top: -1px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-top: 0;
+  border-radius: 0 0 9px 9px;
+  background: none;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: default;
+  touch-action: none;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+.office-sheets .sheet:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.office-sheets .sheet.on,
+.office-sheetbar .office-sheets .sheet.on {
+  height: 31px;
+  border-color: var(--border);
+  background: var(--bg-surface);
+  color: var(--accent-fg);
+  font-weight: 650;
+  box-shadow: 0 6px 14px -8px rgba(17, 24, 39, 0.25);
+}
+/* La activa se une a la hoja: su borde de arriba es el de la hoja. */
+.office-sheets .sheet.on::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+  background: var(--accent);
+}
+.office-sheets .sheet .sheet-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--sheet-color);
+}
+.office-sheets .sheet.dragging {
+  opacity: 0.55;
+}
+.office-sheets .sheet.drop-before::after,
+.office-sheets .sheet.drop-after::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.office-sheets .sheet.drop-before::after {
+  left: -3px;
+}
+.office-sheets .sheet.drop-after::after {
+  right: -3px;
+}
+.office-sheet-add {
+  margin-top: 4px;
+}
+
+/* ----------------------------------- barra de lo seleccionado: colores */
+.office-selbar .office-colortool .tool.office-colortool-main {
+  width: 30px;
+  height: 30px;
+}
+.office-selbar .office-colortool .tool.office-colortool-more {
+  height: 30px;
+}
+
+/* ---------------------------------------- panel de una función (features) */
+.office-feature-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
 }

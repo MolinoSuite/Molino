@@ -94,6 +94,8 @@ copyTree(piece, join(layout, 'app', 'resources', 'office'))
 // Lo demás de Documentos, Hojas y Presentaciones: los iconos de sus ventanas y las plantillas para empezar.
 copyTree(join(root, 'build', 'icons'), join(layout, 'app', 'resources', 'icons'))
 copyTree(join(root, 'resources', 'templates'), join(layout, 'app', 'resources', 'templates'))
+// Inter, la letra predeterminada de los documentos nuevos (scripts/make-default-font.py; officeconfig.ts).
+copyTree(join(root, 'resources', 'fonts'), join(layout, 'app', 'resources', 'fonts'))
 copyTree(join(root, 'build', 'suite', 'assets'), join(layout, 'assets'))
 const windowsVersion = `${version}.0`
 const manifest = readFileSync(join(root, 'build', 'suite', 'AppxManifest.xml'), 'utf8')

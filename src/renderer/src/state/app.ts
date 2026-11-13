@@ -130,6 +130,8 @@ export const DEFAULT_SETTINGS: Settings = {
   closeMany: 'ask',
   printer: '',
   language: 'auto',
+  appearance: {},
+  developer: [],
   aiTier: 'off',
   aiGpu: true
 }

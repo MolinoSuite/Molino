@@ -2,6 +2,7 @@ import { Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { L } from '@/i18n'
 import { errorMessage, unwrap } from '@/lib/api'
+import { withApp } from '@/lib/currentApp'
 import { Dialog, Segmented } from './ui'
 
 /**
@@ -12,11 +13,9 @@ import { Dialog, Segmented } from './ui'
 
 type Kind = 'Fallo' | 'Mejora' | 'Otra cosa'
 
-const PLACEHOLDER: Record<Kind, string> = {
-  Fallo: L.feedback.placeholder.bug,
-  Mejora: L.feedback.placeholder.idea,
-  'Otra cosa': L.feedback.placeholder.other
-}
+/** Lo que se sugiere escribir (con el nombre de la app de esta ventana). */
+const placeholder = (kind: Kind): string =>
+  kind === 'Fallo' ? L.feedback.placeholder.bug : kind === 'Mejora' ? withApp(L.feedback.placeholder.idea) : L.feedback.placeholder.other
 
 /** ``onSent``: después de enviarlo (cada app da las gracias a su manera). Lo usan todas las apps. */
 export function FeedbackDialog({ onClose, onSent }: { onClose: () => void; onSent: () => void }) {
@@ -47,8 +46,9 @@ export function FeedbackDialog({ onClose, onSent }: { onClose: () => void; onSen
     }
   }
 
+  // La página de Molino en GitHub (la general, no la de avisos de fallos).
   const github = (
-    <button className="btn ghost" onClick={() => void window.molino.about.open('issues')}>
+    <button className="btn ghost" onClick={() => void window.molino.about.open('source')}>
       {L.feedback.viewOnGitHub}
     </button>
   )
@@ -105,7 +105,7 @@ export function FeedbackDialog({ onClose, onSent }: { onClose: () => void; onSen
       <textarea
         className="textarea feedback-text"
         aria-label={L.feedback.message}
-        placeholder={PLACEHOLDER[kind]}
+        placeholder={placeholder(kind)}
         value={message}
         maxLength={4000}
         data-autofocus

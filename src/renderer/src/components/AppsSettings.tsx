@@ -1,55 +1,63 @@
-import { ExternalLink, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { OfficeApp } from '@shared/office'
 import { Field } from '@/components/ui'
 import { fmt, L, locale } from '@/i18n'
+import { currentApp } from '@/lib/currentApp'
 import { useOffice } from '@/state/office'
+import documentsIcon from '@/home/icons/documentos.svg'
+import sheetsIcon from '@/home/icons/hojas.svg'
+import homeIcon from '@/home/icons/molino.svg'
+import pdfIcon from '@/home/icons/pdf.svg'
+import slidesIcon from '@/home/icons/presentaciones.svg'
 
-const OFFICE_APPS: OfficeApp[] = ['word', 'cell', 'slide']
+type Launchable = 'pdf' | 'word' | 'cell' | 'slide' | 'home'
+
+const APPS: { id: Launchable; icon: string }[] = [
+  { id: 'pdf', icon: pdfIcon },
+  { id: 'word', icon: documentsIcon },
+  { id: 'cell', icon: sheetsIcon },
+  { id: 'slide', icon: slidesIcon },
+  { id: 'home', icon: homeIcon }
+]
 
 /**
- * Ajustes → Aplicaciones (solo en Molino Suite, que trae Documentos, Hojas y
- * Presentaciones): abrir cada una, elegirla en Windows para sus archivos,
- * «Molino» (el inicio común) y el diccionario personal del corrector.
+ * Ajustes → Aplicaciones (solo en Molino Suite): cada app con su icono, para
+ * abrirla o elegirla en Windows para sus archivos («Predeterminada…»).
  */
 export function AppsSettings() {
   const status = useOffice((s) => s.status)
   const T = L.dialogs.settings.apps
+  const here = currentApp()
   if (!status?.available) return null
-
   return (
-    <>
-      <Field label={T.title}>
-        <span className="hint">{T.intro}</span>
-        <div className="office-apps">
-          {OFFICE_APPS.map((app) => (
-            <div key={app} className="row">
-              <span className="grow">{T.names[app]}</span>
-              <button className="btn sm ghost" aria-label={fmt(T.defaultAppsTip, { name: T.names[app] })} onClick={() => void window.molino.office.defaultApps(app)}>
-                <ExternalLink size={13} />
+    <div className="office-apps" role="list" aria-label={T.title}>
+      {APPS.map(({ id, icon }) => {
+        const name = L.common.appNames[id]
+        return (
+          <div key={id} className="office-app" role="listitem">
+            <img src={icon} width={28} height={28} alt="" />
+            <span className="grow">{name}</span>
+            {id !== 'home' && (
+              <button className="btn sm ghost" data-tip={fmt(T.defaultAppsTip, { name })} onClick={() => void window.molino.office.defaultApps(id)}>
                 {T.defaultApps}
               </button>
-              <button className="btn sm" aria-label={`${T.open} ${T.names[app]}`} onClick={() => void window.molino.office.launch(app)}>
+            )}
+            {id === here ? (
+              <span className="hint office-app-here">{T.current}</span>
+            ) : (
+              <button className="btn sm" aria-label={`${T.open} ${name}`} onClick={() => void window.molino.office.launch(id)}>
                 {T.open}
               </button>
-            </div>
-          ))}
-          <div className="row">
-            <span className="grow">{T.home}</span>
-            <button className="btn sm" aria-label={`${T.open} Molino`} onClick={() => void window.molino.office.launch('home')}>
-              {T.open}
-            </button>
+            )}
           </div>
-        </div>
-        <span className="hint">{T.basedOn}</span>
-      </Field>
-      <PersonalDictionary />
-    </>
+        )
+      })}
+    </div>
   )
 }
 
-/** El diccionario personal del corrector: las palabras añadidas desde los editores, para verlas y quitarlas. */
-function PersonalDictionary() {
+/** Ajustes → Diccionario: las palabras añadidas al corregir en Documentos, Hojas y Presentaciones, para verlas y quitarlas. */
+export function DictionarySettings() {
   const T = L.dialogs.settings.apps
   const [words, setWords] = useState<string[] | null>(null)
   useEffect(() => {

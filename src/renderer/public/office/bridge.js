@@ -75,6 +75,84 @@
       return false
     }
   })()
+  // El aspecto de Molino en lo que dibuja el editor (sus colores son variables CSS
+  // que lee al aplicar el tema): el fondo del documento (tokens.css, --bg-app), las
+  // barras de desplazamiento finas y sin flechas como las de Molino PDF, las
+  // cabeceras de filas y columnas de Hojas con el color de la app y su barra de
+  // fórmulas; en Presentaciones, la tira de diapositivas y las notas sobre el mismo
+  // fondo (como si flotaran).
+  const molinoSkin = () => {
+    let accent = '#2a9358'
+    try {
+      accent = (w.top.getComputedStyle(w.top.document.documentElement).getPropertyValue('--accent') || '').trim() || accent
+    } catch {
+      /* sin la ventana de Molino: el de Hojas */
+    }
+    const rgb = (hex) => {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex)
+      const n = m ? parseInt(m[1], 16) : 0x2a9358
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255]
+    }
+    const mix = (x, y, t) => '#' + rgb(x).map((v, i) => Math.round(v * t + rgb(y)[i] * (1 - t)).toString(16).padStart(2, '0')).join('')
+    const font = '"Inter Variable","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif'
+    const look = (dark) => {
+      const bg = dark ? '#141518' : '#f1f2f5'
+      const surface = dark ? '#1c1d20' : '#ffffff'
+      const thumb = dark ? '#3a3d44' : '#c9ccd3'
+      const thumbHover = dark ? '#50545d' : '#a9aeb8'
+      const thumbPressed = dark ? '#656a74' : '#8f95a1'
+      const v = (name, value) => '--' + name + ':' + value + '!important;'
+      return (
+        v('canvas-background', bg) +
+        v('background-toolbar', surface) +
+        v('canvas-scroll-thumb', thumb) +
+        v('canvas-scroll-thumb-border', thumb) +
+        v('canvas-scroll-thumb-hover', thumbHover) +
+        v('canvas-scroll-thumb-border-hover', thumbHover) +
+        v('canvas-scroll-thumb-pressed', thumbPressed) +
+        v('canvas-scroll-thumb-border-pressed', thumbPressed) +
+        v('canvas-scroll-thumb-target', thumb) +
+        v('canvas-scroll-thumb-target-hover', thumbHover) +
+        v('canvas-scroll-thumb-target-pressed', thumbPressed) +
+        v('canvas-scroll-arrow', bg) +
+        v('canvas-scroll-arrow-hover', thumbHover) +
+        v('canvas-scroll-arrow-pressed', thumbPressed) +
+        v('canvas-cell-title-background', dark ? '#1c1d20' : '#f7f8fa') +
+        v('canvas-cell-title-background-hover', dark ? '#26282d' : '#eceef2') +
+        v('canvas-cell-title-background-selected', mix(accent, surface, dark ? 0.32 : 0.16)) +
+        v('canvas-cell-title-border', dark ? '#2c2f35' : '#e3e5ea') +
+        v('canvas-cell-title-border-hover', dark ? '#3a3e45' : '#cfd3da') +
+        v('canvas-cell-title-border-selected', mix(accent, surface, dark ? 0.7 : 0.75)) +
+        v('canvas-cell-title-text', dark ? '#a3a8b3' : '#5b6170') +
+        v('canvas-select-all-icon', dark ? '#5a5f68' : '#b5bac3') +
+        v('canvas-page-border', dark ? '#2c2f35' : '#dfe2e7') +
+        v('border-toolbar', dark ? '#2c2f35' : '#e3e5ea')
+      )
+    }
+    const ce = '#cell-editing-box'
+    return (
+      'body.theme-light,body.theme-classic-light,body.theme-white,body.theme-type-light{' + look(false) + '}' +
+      'body.theme-dark,body.theme-contrast-dark,body.theme-night,body.theme-type-dark{' + look(true) + '}' +
+      // La barra de fórmulas de Hojas: el cuadro de nombre y el contenido, con la letra y los colores de Molino.
+      ce + ',' + ce + ' *{font-family:' + font + '!important}' +
+      ce + '{background:var(--background-toolbar)!important;border-bottom:1px solid var(--border-toolbar)!important}' +
+      ce + ' #ce-cell-name{border:none!important;border-radius:6px!important;background:var(--canvas-background)!important;font-weight:600!important;font-size:12px!important;text-align:center!important}' +
+      ce + ' #ce-cell-name:focus{box-shadow:0 0 0 2px ' + accent + '!important}' +
+      ce + ' #ce-func-label{border-radius:6px!important;margin:0 2px!important}' +
+      ce + ' #ce-cell-content{border:none!important;background:transparent!important;font-size:12.5px!important}' +
+      ce + ' .ce-group-name{border-right:1px solid var(--border-toolbar)!important}' +
+      ce + ' #ce-btn-expand{border:none!important;border-radius:6px!important}' +
+      // Las barras de desplazamiento (las dibuja el editor), finas y sin flechas como las de
+      // Molino PDF: se recorta lo de los lados y los botones de las flechas.
+      '#id_vertical_scroll canvas,#id_vertical_scroll_thmbnl canvas,#id_vertical_scroll_notes canvas,#ws-v-scrollbar canvas{clip-path:inset(15px 3px 15px 3px round 6px)}' +
+      '#id_horizontal_scroll canvas,#ws-h-scrollbar canvas{clip-path:inset(3px 15px 3px 15px round 6px)}' +
+      '#ws-scrollbar-corner{background:var(--canvas-background)!important}' +
+      // Presentaciones: la tira de diapositivas y las notas, sin la raya de separación.
+      '#id_panel_thumbnails_split{background:transparent!important;border:none!important}' +
+      '#id_panel_notes{border-top:1px solid var(--border-toolbar)!important}'
+    )
+  }
+
   // Los atajos de la ventana, como en Office: Ctrl+F buscar, Ctrl+H reemplazar,
   // Ctrl+K vínculo, Alt+Q el buscador de órdenes. La misma lista está en OfficeApp.tsx.
   const molinoShortcut = (e) => {
@@ -88,13 +166,13 @@
   if (molinoUi) {
     const css = w.document.createElement('style')
     // En Hojas se queda la barra de fórmulas del editor (#cell-editing-box), unida a su editor de celdas.
-    css.textContent =
-      '#app-title,#toolbar,#left-menu,#right-menu,#statusbar,#left-panel-history,#file-menu-panel,#header-logo{display:none!important}' +
-      '#cell-editing-box,#cell-editing-box *{font-family:"Inter Variable","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}' +
-      // El fondo del documento, el mismo que el de Molino (tokens.css, --bg-app): la barra flota sobre él.
-      'body.theme-light,body.theme-classic-light,body.theme-white,body.theme-type-light{--canvas-background:#f1f2f5!important;--background-toolbar:#ffffff!important}' +
-      'body.theme-dark,body.theme-contrast-dark,body.theme-night,body.theme-type-dark{--canvas-background:#141518!important;--background-toolbar:#1c1d20!important}'
+    const hidden = '#app-title,#toolbar,#left-menu,#right-menu,#statusbar,#left-panel-history,#file-menu-panel,#header-logo{display:none!important}'
+    css.textContent = hidden + molinoSkin()
     ;(w.document.head || w.document.documentElement).appendChild(css)
+    // Al cambiar el color de la app (Ajustes → Apariencia): engine.ts lo pide y después reaplica el tema.
+    w.molinoReskin = () => {
+      css.textContent = hidden + molinoSkin()
+    }
     w.addEventListener(
       'keydown',
       (e) => {

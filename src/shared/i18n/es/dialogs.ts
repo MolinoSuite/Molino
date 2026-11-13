@@ -26,14 +26,15 @@ export const dialogs = {
       apps: 'Aplicaciones',
       documents: 'Documentos',
       pdf: 'PDF',
-      signature: 'Firma'
+      signature: 'Firma',
+      dictionary: 'Diccionario'
     },
     language: {
       label: 'Idioma',
       auto: 'Automático (como Windows)',
       es: 'Español',
       en: 'English',
-      hint: 'Se aplica la próxima vez que abras Molino PDF.'
+      hint: 'Se aplica la próxima vez que abras {app}.'
     },
     theme: {
       label: 'Tema',
@@ -81,6 +82,17 @@ export const dialogs = {
       confirmHint: 'Windows te pedirá confirmarlo en su Configuración.',
       ask: 'Proponérmelo al abrir Molino PDF'
     },
+    developer: {
+      label: 'Pestaña Programador',
+      labelSlide: 'Pestaña Scripts',
+      show: 'Mostrar la pestaña Programador',
+      showSlide: 'Mostrar la pestaña Scripts',
+      hint: {
+        word: 'Controles de formulario, «Solo rellenar» y tus scripts.',
+        cell: 'Validar datos, bloquear celdas, proteger la hoja y tus scripts.',
+        slide: 'Escribe y ejecuta tus scripts sobre la presentación.'
+      }
+    },
     closeMany: {
       label: 'Al cerrar con varios archivos abiertos',
       ask: 'Preguntar',
@@ -100,16 +112,13 @@ export const dialogs = {
       availableVersion: 'Hay una versión nueva: {version}.'
     },
     apps: {
-      title: 'Documentos, Hojas y Presentaciones',
-      intro: 'Vienen con Molino Suite. Con «Predeterminada…» eliges en Windows abrir sus archivos con doble clic.',
-      home: '«Molino»: el inicio con todas las apps',
-      basedOn: 'Usan el motor de ONLYOFFICE (AGPL-3.0) con los cambios de Molino.',
-      names: { word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones' },
+      title: 'Aplicaciones',
       open: 'Abrir',
+      current: 'Abierta',
       defaultApps: 'Predeterminada…',
       defaultAppsTip: 'Para abrir sus archivos con doble clic: abre la página de {name} en «Aplicaciones predeterminadas» de Windows.',
       dictionary: 'Diccionario personal',
-      dictionaryHint: 'Las palabras que añades con «Añadir al diccionario» al corregir: el corrector las da por buenas en todos tus documentos.',
+      dictionaryHint: 'Las palabras que añades con «Añadir al diccionario» al corregir en Documentos, Hojas o Presentaciones: el corrector las da por buenas en todos tus documentos.',
       dictionaryCount: '{n} palabras.',
       dictionaryOne: '1 palabra.',
       dictionaryEmpty: 'Aún no has añadido ninguna.',
@@ -117,21 +126,27 @@ export const dialogs = {
     }
   },
   about: {
-    title: 'Acerca de Molino PDF',
-    tagline: 'Todo lo que necesitas hacer con un PDF, en un solo sitio.',
+    title: 'Acerca de {app}',
+    taglines: {
+      pdf: 'Todo lo que necesitas hacer con un PDF, en un solo sitio.',
+      word: 'Escribe, revisa y comparte tus documentos.',
+      cell: 'Cuentas, listas y datos en hojas de cálculo.',
+      slide: 'Presentaciones claras sin complicarte.'
+    },
     built: 'Compilada el {date}',
     license:
-      'Molino PDF es software libre: puedes redistribuirlo y modificarlo según los términos de la Licencia Pública General Affero de GNU (AGPL), versión 3 o posterior. Se ofrece SIN NINGUNA GARANTÍA, ni siquiera la implícita de comerciabilidad o de idoneidad para un propósito concreto.',
+      '{app} es software libre: puedes redistribuirlo y modificarlo según los términos de la Licencia Pública General Affero de GNU (AGPL), versión 3 o posterior. Se ofrece SIN NINGUNA GARANTÍA, ni siquiera la implícita de comerciabilidad o de idoneidad para un propósito concreto.',
     licenseButton: 'Licencia',
     source: 'Código fuente',
     notices: 'Componentes de terceros',
     officeTitle: 'Documentos, Hojas y Presentaciones',
+    officeTextOne: 'Usa una versión modificada de los editores de ONLYOFFICE (AGPL-3.0, con los términos adicionales de su §7).',
     officeText: 'Usan una versión modificada de los editores de ONLYOFFICE (AGPL-3.0, con los términos adicionales de su §7).',
     officeNotice: 'Cambios de Molino',
     officeLicense: 'Licencia de ONLYOFFICE',
     officeSource: 'Código del motor',
     officeTrademark: 'ONLYOFFICE es una marca de Ascensio System SIA. Molino no está afiliado a Ascensio System SIA ni cuenta con su respaldo.',
-    support: 'Molino PDF es gratis y lo seguirá siendo. Si te resulta útil, puedes invitarme a un café en GitHub Sponsors.',
+    support: 'Molino es gratis y lo seguirá siendo. Si te resulta útil, puedes invitarme a un café en GitHub Sponsors.',
     coffee: 'Invítame a un café'
   },
   properties: {

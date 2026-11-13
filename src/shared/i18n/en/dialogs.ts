@@ -24,14 +24,15 @@ export const dialogs: typeof source = {
       apps: 'Apps',
       documents: 'Documents',
       pdf: 'PDF',
-      signature: 'Signature'
+      signature: 'Signature',
+      dictionary: 'Dictionary'
     },
     language: {
       label: 'Language',
       auto: 'Automatic (same as Windows)',
       es: 'Español',
       en: 'English',
-      hint: 'Takes effect the next time you open Molino PDF.'
+      hint: 'Takes effect the next time you open {app}.'
     },
     theme: {
       label: 'Theme',
@@ -79,6 +80,17 @@ export const dialogs: typeof source = {
       confirmHint: 'Windows will ask you to confirm it in Settings.',
       ask: 'Suggest it when Molino PDF opens'
     },
+    developer: {
+      label: 'Developer tab',
+      labelSlide: 'Scripts tab',
+      show: 'Show the Developer tab',
+      showSlide: 'Show the Scripts tab',
+      hint: {
+        word: 'Form controls, “Filling in forms only” and your scripts.',
+        cell: 'Data validation, locked cells, sheet protection and your scripts.',
+        slide: 'Write and run your scripts on the presentation.'
+      }
+    },
     closeMany: {
       label: 'When closing with several files open',
       ask: 'Ask',
@@ -98,38 +110,41 @@ export const dialogs: typeof source = {
       availableVersion: 'A new version is available: {version}.'
     },
     apps: {
-      title: 'Docs, Sheets and Slides',
-      intro: 'They come with Molino Suite. With “Default…” you choose in Windows to open their files with a double click.',
-      home: '“Molino”: the home with all the apps',
-      names: { word: 'Molino Docs', cell: 'Molino Sheets', slide: 'Molino Slides' },
+      title: 'Apps',
       open: 'Open',
+      current: 'Open now',
       defaultApps: 'Default…',
       dictionary: 'Personal dictionary',
-      dictionaryHint: 'The words you add with “Add to dictionary” while spellchecking: the spellchecker accepts them in all your documents.',
+      dictionaryHint: 'The words you add with “Add to dictionary” while spellchecking in Docs, Sheets or Slides: the spellchecker accepts them in all your documents.',
       dictionaryCount: '{n} words.',
       dictionaryOne: '1 word.',
       dictionaryEmpty: 'You haven’t added any yet.',
       dictionaryRemove: 'Remove “{word}” from the dictionary',
-      defaultAppsTip: 'To open its files with a double click: opens the page for {name} in Windows “Default apps”.',
-      basedOn: 'They use the ONLYOFFICE engine (AGPL-3.0) with Molino’s changes.'
+      defaultAppsTip: 'To open its files with a double click: opens the page for {name} in Windows “Default apps”.'
     }
   },
   about: {
-    title: 'About Molino PDF',
-    tagline: 'Everything you need to do with a PDF, in one place.',
+    title: 'About {app}',
+    taglines: {
+      pdf: 'Everything you need to do with a PDF, in one place.',
+      word: 'Write, review and share your documents.',
+      cell: 'Numbers, lists and data in spreadsheets.',
+      slide: 'Clear presentations without the hassle.'
+    },
     built: 'Built on {date}',
     license:
-      'Molino PDF is free software: you can redistribute it and modify it under the terms of the GNU Affero General Public License (AGPL), version 3 or later. It is provided WITHOUT ANY WARRANTY, not even the implied warranty of merchantability or fitness for a particular purpose.',
+      '{app} is free software: you can redistribute it and modify it under the terms of the GNU Affero General Public License (AGPL), version 3 or later. It is provided WITHOUT ANY WARRANTY, not even the implied warranty of merchantability or fitness for a particular purpose.',
     licenseButton: 'License',
     source: 'Source code',
     notices: 'Third-party components',
     officeTitle: 'Docs, Sheets and Slides',
+    officeTextOne: 'It uses a modified version of the ONLYOFFICE editors (AGPL-3.0, with the additional terms of its §7).',
     officeText: 'They use a modified version of the ONLYOFFICE editors (AGPL-3.0, with the additional terms of its §7).',
     officeNotice: 'Molino’s changes',
     officeLicense: 'ONLYOFFICE license',
     officeSource: 'Engine source code',
     officeTrademark: 'ONLYOFFICE is a trademark of Ascensio System SIA. Molino is not affiliated with or endorsed by Ascensio System SIA.',
-    support: 'Molino PDF is free and always will be. If you find it useful, you can buy me a coffee on GitHub Sponsors.',
+    support: 'Molino is free and always will be. If you find it useful, you can buy me a coffee on GitHub Sponsors.',
     coffee: 'Buy me a coffee'
   },
   properties: {

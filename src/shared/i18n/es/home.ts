@@ -8,7 +8,9 @@ export const home = {
     removing: 'Desinstalando…',
     later: 'Ahora no',
     removed: 'Hecho: ya solo queda Molino PDF dentro de Molino Suite.',
-    settings: 'Se ha abierto Configuración de Windows: pulsa «Desinstalar» en la página de Molino PDF.'
+    settings: 'Se ha abierto Configuración de Windows: pulsa «Desinstalar» en la página de Molino PDF.',
+    running: 'Cierra la app Molino PDF que tenías aparte y vuelve a pulsar «Desinstalar la otra».',
+    retired: 'Molino PDF ya está dentro de Molino Suite: hemos traído tu configuración y quitado la app que tenías aparte.'
   },
   title: '¿Qué vamos a hacer hoy?',
   search: 'Busca en tus recientes',

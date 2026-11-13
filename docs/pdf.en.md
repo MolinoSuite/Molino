@@ -47,11 +47,22 @@ Read, fill in, sign, edit and organize your PDFs on Windows. Free, no ads, no ac
 
 ## 🧠 AI on your computer, optional
 
-Summarizes the document, answers your questions pointing to the pages each answer comes from, searches by meaning, translates and improves texts, and finds personal data to redact. It’s off by default, works offline and your documents never leave your computer. More at [molinosuite.org/en/ai](https://molinosuite.org/en/ai/).
+Summarizes the document, answers your questions pointing to the pages each answer comes from, searches by meaning, translates and improves texts, and finds personal data to redact. It’s off by default, works offline and your documents never leave your computer. It’s the same AI in every Molino app. More at [molinosuite.org/en/ai](https://molinosuite.org/en/ai/).
+
+## ⚙️ Automate tasks
+
+With the `molino` command, the same for the whole suite, you convert, merge, compress, run OCR on, sign with your certificate and fill in many PDFs at once from PowerShell or a `.bat` file, without opening any windows:
+
+```powershell
+molino merge january.pdf february.pdf march.pdf -o quarter.pdf
+molino sign quarter.pdf -o signed.pdf --certificate "John Smith"
+```
+
+It’s all in the [command-line manual](linea-de-ordenes.md) (in Spanish, with an [English summary](linea-de-ordenes.md#english-summary)).
 
 ## 🏠 Your documents stay on your computer
 
-Molino PDF works offline and doesn’t ask you for an account. It only uses the Internet when you ask it to (the timestamp of a signature, which receives a fingerprint of the document, never the document itself; feedback you send us; or downloading the AI models, from Hugging Face). Each PDF opens in an isolated Windows sandbox, so a booby-trapped file can’t touch your other files or connect to the Internet.
+Molino PDF works offline and doesn’t ask you for an account. It only uses the Internet when you ask it to (the timestamp of a signature, which receives a fingerprint of the document, never the document itself; a certificate check; feedback you send us; or downloading the AI models, from Hugging Face) and to check for new versions, which you can turn off in Settings. Each PDF opens in an isolated Windows sandbox, so a booby-trapped file can’t touch your other files or connect to the Internet. It’s all in the [privacy policy](https://molinosuite.org/en/privacy/).
 
 ## 💻 Installation
 

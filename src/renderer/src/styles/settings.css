@@ -24,19 +24,38 @@
   flex-direction: column;
   gap: 6px;
 }
-/* Ajustes → Aplicaciones: Documentos, Hojas y Presentaciones, una por fila. */
+/* Ajustes → Aplicaciones: cada app con su icono, una por fila. */
 .office-apps {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
-.office-apps .grow {
-  min-width: 0;
+.office-app {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  font-weight: 550;
+  color: var(--text-1);
 }
-.office-apps .btn {
+.office-app:hover {
+  background: var(--bg-hover);
+}
+.office-app img {
   flex: none;
 }
-/* Diccionario personal (Ajustes → Aplicaciones): las palabras, con su botón para quitarlas. */
+.office-app .grow {
+  min-width: 0;
+}
+.office-app .btn {
+  flex: none;
+}
+.office-app-here {
+  padding: 0 10px;
+}
+/* Diccionario personal (Ajustes → Diccionario): las palabras, con su botón para quitarlas. */
 .user-words {
   display: flex;
   flex-wrap: wrap;

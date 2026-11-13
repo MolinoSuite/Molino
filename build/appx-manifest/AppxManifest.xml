@@ -44,23 +44,5 @@
       </uap:VisualElements>
       ${extensions}
     </Application>
-    <!-- La linea de ordenes (docs/linea-de-ordenes.md): el motor en modo consola, que hace de
-         lanzador (engine/molino_engine/cli.py). Sin entrada en el menu Inicio; solo su alias. -->
-    <Application Id="MolinoCli" Executable="app\resources\engine\molino-engine.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements
-       AppListEntry="none"
-       BackgroundColor="${backgroundColor}"
-       DisplayName="molino"
-       Square150x150Logo="${square150x150Logo}"
-       Square44x44Logo="${square44x44Logo}"
-       Description="${description}" />
-      <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="app\resources\engine\molino-engine.exe" EntryPoint="Windows.FullTrustApplication">
-          <uap3:AppExecutionAlias>
-            <desktop:ExecutionAlias Alias="molino.exe" />
-          </uap3:AppExecutionAlias>
-        </uap3:Extension>
-      </Extensions>
-    </Application>
   </Applications>
 </Package>

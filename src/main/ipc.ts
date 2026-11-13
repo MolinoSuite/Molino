@@ -216,7 +216,7 @@ export class Bridge {
   /** ¿Hay documentos de oficina abiertos? Lo da officewin.ts (index.ts lo conecta). */
   officeBusy: () => boolean = () => false
   /** Abre la ventana de una app de oficina (index.ts lo conecta con officewin.ts). */
-  officeLaunch: (app: OfficeApp | 'home') => void = () => undefined
+  officeLaunch: (app: OfficeApp | 'home' | 'pdf') => void = () => undefined
   /** ¿Lo pide la interfaz de Documentos, Hojas o Presentaciones? (index.ts lo conecta con officewin.ts). */
   sharedSender: (event: IpcMainEvent | IpcMainInvokeEvent) => BrowserWindow | null = () => null
   /** Las ventanas de esas apps, para los avisos compartidos. */
@@ -950,7 +950,7 @@ export class Bridge {
       const after = this.store.updateSettings(raw)
       // Cambiar el nivel de IA o la gráfica cambia lo que el motor puede cargar.
       if (after.aiTier !== before.aiTier || after.aiGpu !== before.aiGpu) void this.configureAi()
-      if (after.theme !== before.theme) this.onTheme()
+      if (after.theme !== before.theme || JSON.stringify(after.appearance) !== JSON.stringify(before.appearance)) this.onTheme()
       this.send('settings:changed', after)
       return after
     })
@@ -984,12 +984,12 @@ export class Bridge {
     })
     // ---- Documentos, Hojas y Presentaciones (si este Molino las trae: Molino Suite)
     this.handle('office:status', z.undefined(), () => this.office.status())
-    this.handle('office:launch', z.enum(['word', 'cell', 'slide', 'home']), async (app) => {
+    this.handle('office:launch', z.enum(['word', 'cell', 'slide', 'home', 'pdf']), async (app) => {
       if ((await this.office.ready()) === null) return false
       this.officeLaunch(app)
       return true
     })
-    this.handle('office:defaultApps', z.enum(['word', 'cell', 'slide']), (app) => openDefaultApps(app))
+    this.handle('office:defaultApps', z.enum(['word', 'cell', 'slide', 'pdf']), (app) => openDefaultApps(app))
     this.handle('office:userWordsList', z.undefined(), () => this.store.userWords())
     this.handle('office:removeUserWords', z.array(z.string().max(64)).max(5000), (words) => {
       this.store.removeUserWords(words)

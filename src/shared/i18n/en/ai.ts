@@ -67,7 +67,7 @@ export const ai: typeof source = {
     basicHint: 'For computers with 8 GB of memory. Download: {size}.',
     advancedHint: 'More complete answers. For 16 GB of memory or more. Download: {size}.',
     lowMemory: 'With {ram} GB of memory, advanced may be very slow: basic is better.',
-    cpu: 'This computer’s processor isn’t compatible with Molino PDF’s AI (it needs AVX2).',
+    cpu: 'This computer’s processor isn’t compatible with Molino’s AI (it needs AVX2).',
     models: 'Models',
     kinds: { llm: 'Language model', embed: 'Search by meaning', ner: 'Personal data', unwarp: 'Page flattening' },
     installed: 'Downloaded',

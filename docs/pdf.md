@@ -47,11 +47,22 @@ Lee, rellena, firma, edita y organiza tus PDF en Windows. Gratis, sin anuncios, 
 
 ## 🧠 IA en tu equipo, opcional
 
-Resume el documento, responde a tus preguntas indicando las páginas de donde sale cada respuesta, busca por significado, traduce y mejora textos y encuentra datos personales para censurarlos. Viene apagada, funciona sin Internet y tus documentos nunca salen de tu equipo. Más en [molinosuite.org/ia](https://molinosuite.org/ia/).
+Resume el documento, responde a tus preguntas indicando las páginas de donde sale cada respuesta, busca por significado, traduce y mejora textos y encuentra datos personales para censurarlos. Viene apagada, funciona sin Internet y tus documentos nunca salen de tu equipo. Es la misma IA en todas las apps de Molino. Más en [molinosuite.org/ia](https://molinosuite.org/ia/).
+
+## ⚙️ Automatiza tareas
+
+Con el comando `molino`, el mismo para toda la suite, conviertes, unes, comprimes, pasas el OCR, firmas con tu certificado y rellenas muchos PDF de una vez desde PowerShell o un `.bat`, sin abrir ventanas:
+
+```powershell
+molino unir enero.pdf febrero.pdf marzo.pdf -o trimestre.pdf
+molino firmar trimestre.pdf -o firmado.pdf --certificado "Juan Español"
+```
+
+Todo está en el [manual de la línea de órdenes](linea-de-ordenes.md).
 
 ## 🏠 Tus documentos se quedan en tu equipo
 
-Molino PDF funciona sin conexión y no te pide una cuenta. Solo usa Internet cuando tú lo pides (el sello de tiempo de una firma, que recibe una huella del documento y nunca el documento; un comentario que nos envíes; o la descarga de los modelos de la IA, desde Hugging Face). Cada PDF se abre en un espacio aislado de Windows, para que un archivo con trampa no pueda tocar tus otros archivos ni conectarse a Internet.
+Molino PDF funciona sin conexión y no te pide una cuenta. Solo usa Internet cuando tú lo pides (el sello de tiempo de una firma, que recibe una huella del documento y nunca el documento; la comprobación de un certificado; un comentario que nos envíes; o la descarga de los modelos de la IA, desde Hugging Face) y para mirar si hay una versión nueva, algo que se desactiva en Ajustes. Cada PDF se abre en un espacio aislado de Windows, para que un archivo con trampa no pueda tocar tus otros archivos ni conectarse a Internet. Lo tienes todo en la [política de privacidad](https://molinosuite.org/privacidad/).
 
 ## 💻 Instalación
 

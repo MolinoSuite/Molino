@@ -23,5 +23,7 @@ export const common = {
   pageOf: 'Página {n} de {total}',
   pageCount: { one: '{n} página', other: '{n} páginas' },
   untitled: 'Sin título',
-  appName: 'Molino PDF'
+  appName: 'Molino PDF',
+  /** El nombre de cada app (los textos comunes a todas dicen el de la que está abierta: {app}). */
+  appNames: { pdf: 'Molino PDF', word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones', home: 'Molino' }
 }

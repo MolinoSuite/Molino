@@ -114,6 +114,7 @@ export const shell: typeof source = {
     noChanges: 'No unsaved changes',
     more: 'More',
     printTip: 'Print (Ctrl+P)',
+    findTip: 'Find (Ctrl+F)',
     menuTip: 'Menu',
     create: {
       open: 'Open…',
@@ -131,7 +132,7 @@ export const shell: typeof source = {
       shortcuts: 'Keyboard shortcuts',
       feedback: 'Send feedback…',
       sponsor: 'Buy me a coffee',
-      about: 'About Molino PDF'
+      about: 'About'
     }
   },
   rail: {

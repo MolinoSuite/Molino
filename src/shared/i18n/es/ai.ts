@@ -66,7 +66,7 @@ export const ai = {
     basicHint: 'Para equipos con 8 GB de memoria. Descarga: {size}.',
     advancedHint: 'Respuestas más completas. Para 16 GB de memoria o más. Descarga: {size}.',
     lowMemory: 'Con {ram} GB de memoria, la avanzada puede ir muy lenta: mejor la básica.',
-    cpu: 'El procesador de este equipo no es compatible con la IA de Molino PDF (necesita AVX2).',
+    cpu: 'El procesador de este equipo no es compatible con la IA de Molino (necesita AVX2).',
     models: 'Modelos',
     kinds: { llm: 'Modelo de lenguaje', embed: 'Búsqueda por significado', ner: 'Datos personales', unwarp: 'Aplanar páginas' },
     installed: 'Descargado',

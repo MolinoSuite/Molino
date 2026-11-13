@@ -1,4 +1,6 @@
+import { copyFile, mkdir, readdir, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { app } from 'electron'
 import type { EngineClient } from './engine'
 import { log } from './log'
 import { type OfficePiece, pieceVersion } from './office'
@@ -12,6 +14,47 @@ export interface OfficeSetup {
   /** Las familias del índice, en minúsculas. */
   families: Set<string>
   folders: string[]
+}
+
+/** Las fuentes que trae Molino (resources/fonts): Inter, la predeterminada de los documentos nuevos. */
+function bundledFontsDir(): string {
+  return app.isPackaged ? join(process.resourcesPath, 'fonts') : join(app.getAppPath(), 'resources', 'fonts')
+}
+
+/**
+ * Inter (libre, OFL, y parecida a Aptos) en las fuentes de Molino
+ * (``office\own-fonts``, que leen x2t y los editores): así está siempre, sin
+ * instalar nada en Windows. Solo se copia lo que falta o ha cambiado; el
+ * índice de fuentes se rehace solo (su huella cuenta esa carpeta).
+ */
+async function shareBundledFonts(own: string): Promise<void> {
+  const base = bundledFontsDir()
+  let families: string[]
+  try {
+    families = await readdir(base)
+  } catch {
+    return
+  }
+  for (const family of families) {
+    let files: string[]
+    try {
+      files = (await readdir(join(base, family))).filter((f) => /^[\w-]{1,80}\.(ttf|otf)$/i.test(f))
+    } catch {
+      continue
+    }
+    for (const file of files) {
+      const from = join(base, family, file)
+      const to = join(own, file)
+      try {
+        const [a, b] = await Promise.all([stat(from), stat(to).catch(() => null)])
+        if (b && b.size === a.size) continue
+        await mkdir(own, { recursive: true })
+        await copyFile(from, to)
+      } catch {
+        log.warn(`oficina: no se pudo preparar la fuente ${file}`)
+      }
+    }
+  }
 }
 
 /**
@@ -28,6 +71,7 @@ export async function configureOffice(engine: EngineClient, piece: OfficePiece):
   }
   const version = pieceVersion()
   const own = ownFontsDir(piece.root)
+  await shareBundledFonts(own)
   const fingerprint = await fontFingerprint(version, own)
   let index = await loadFontIndex(piece.root, fingerprint)
   if (!index) {

@@ -215,8 +215,8 @@ export interface OfficeOptions {
   piece: OfficePiece
   /** Carpeta de la interfaz compilada (office.html, assets y office/). */
   rendererDir: string
-  /** ¿Tema oscuro? (el de Ajustes de Molino). */
-  dark: () => boolean
+  /** ¿Tema oscuro en esa app? (Ajustes → Apariencia de cada una). */
+  dark: (kind: Kind) => boolean
   /** Quien firma los comentarios y los cambios (Ajustes de Molino o el usuario de Windows). */
   author: () => string
   /** Imprimir (el mismo servicio que Molino PDF; officeprint.ts). */
@@ -296,9 +296,9 @@ export class OfficeWindows {
   }
 
   /** El tema ha cambiado: cada ventana (su barra de título y su interfaz, con los editores dentro) sin volver a cargarse. */
-  setDark(dark: boolean): void {
+  setDark(kind: Kind, dark: boolean): void {
     for (const win of this.windows.values()) {
-      if (win.window.isDestroyed()) continue
+      if (win.window.isDestroyed() || win.kind !== kind) continue
       win.window.setBackgroundColor(dark ? '#1c1d20' : '#ffffff')
       win.window.setTitleBarOverlay({ color: dark ? '#1c1d20' : '#ffffff', symbolColor: dark ? '#e5e7eb' : '#1f2937', height: 40 })
       win.window.webContents.send('office:theme', dark)
@@ -416,9 +416,14 @@ export class OfficeWindows {
     return this.load(win.kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.recover', { id }, { priority: 7 }), true)
   }
 
-  /** Documento nuevo de una app, desde la plantilla vacía de la pieza. */
+  /**
+   * Documento nuevo de una app: desde la plantilla vacía de Molino (con Inter,
+   * su letra predeterminada) o, si no está, desde la de la pieza.
+   */
   async create(kind: Kind): Promise<boolean> {
     const name = `${L.main.office.filters[kind]}${DEFAULT_SUFFIX[kind]}`
+    const blank = join(this.options.templatesDir, lang === 'en' ? 'en' : 'es', `${lang === 'en' ? 'blank' : 'nuevo'}${DEFAULT_SUFFIX[kind]}`)
+    if (existsSync(blank)) return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path: blank }, { priority: 7 }))
     return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.new', { kind }, { priority: 7 }))
   }
 
@@ -531,7 +536,7 @@ export class OfficeWindows {
   private windowFor(kind: Kind): AppWindow {
     const existing = this.windows.get(kind)
     if (existing && !existing.window.isDestroyed()) return existing
-    const dark = this.options.dark()
+    const dark = this.options.dark(kind)
     const window = new BrowserWindow({
       width: 1360,
       height: 880,

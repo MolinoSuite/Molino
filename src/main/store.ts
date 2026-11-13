@@ -4,7 +4,7 @@ import { basename, dirname, join } from 'node:path'
 import { safeStorage } from 'electron'
 import { z } from 'zod'
 import type { SavedSignature } from '@shared/api'
-import { DEFAULT_ACCENT, type RecentFile, type Settings } from '@shared/types'
+import { APP_ACCENTS, DEFAULT_ACCENT, type RecentFile, type Settings } from '@shared/types'
 import { log } from './log'
 
 /**
@@ -31,6 +31,12 @@ function isTimestampUrl(value: string): boolean {
   }
 }
 
+/** El aspecto de una app de oficina (Ajustes → Apariencia en cada una). */
+const LookSchema = z.object({
+  theme: z.enum(['system', 'light', 'dark']).default('system'),
+  accent: z.string().regex(/^#[0-9a-fA-F]{6}$/)
+})
+
 const SettingsSchema = z.object({
   theme: z.enum(['system', 'light', 'dark']).default('system'),
   accent: z
@@ -54,6 +60,10 @@ const SettingsSchema = z.object({
   // Solo el nombre de la impresora, que Windows ya conoce; se comprueba al imprimir.
   printer: z.string().max(260).default(''),
   language: z.enum(['auto', 'es', 'en']).default('auto'),
+  // Cada app de oficina, con su aspecto (Molino PDF usa theme y accent).
+  appearance: z.object({ word: LookSchema.optional(), cell: LookSchema.optional(), slide: LookSchema.optional() }).default({}),
+  // La pestaña Programador de cada app de oficina: oculta hasta que se activa en Ajustes.
+  developer: z.array(z.enum(['word', 'cell', 'slide'])).max(3).default([]),
   // IA local: apagada hasta que el usuario la activa y descarga los modelos.
   aiTier: z.enum(['off', 'basic', 'advanced']).default('off'),
   aiGpu: z.boolean().default(true)
@@ -159,6 +169,11 @@ export class Store {
         // Quien ya había escrito un servidor de sello a mano (versiones anteriores) lo conserva.
         if (raw?.settings && raw.settings.timestampServer === undefined && typeof raw.settings.timestampUrl === 'string' && raw.settings.timestampUrl) {
           raw.settings.timestampServer = 'custom'
+        }
+        // Antes el tema era uno para todas las apps: cada app de oficina se queda con el que había.
+        if (raw?.settings && raw.settings.appearance === undefined && (raw.settings.theme === 'light' || raw.settings.theme === 'dark')) {
+          const theme = raw.settings.theme
+          raw.settings.appearance = Object.fromEntries((['word', 'cell', 'slide'] as const).map((app) => [app, { theme, accent: APP_ACCENTS[app] }]))
         }
         const parsed = ConfigSchema.safeParse(raw)
         if (parsed.success) return parsed.data

@@ -917,7 +917,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* Acerca de Molino PDF */
+/* Acerca de (Molino PDF, Documentos, Hojas y Presentaciones: components/About.tsx) */
 .about {
   display: flex;
   flex-direction: column;
@@ -944,6 +944,14 @@
 }
 .about-head b {
   font-size: 15px;
+}
+/* El icono de Documentos, Hojas o Presentaciones, con la sombra de su color. */
+.about-mark.office {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  filter: drop-shadow(0 10px 14px color-mix(in srgb, var(--accent) 30%, transparent));
 }
 /* Acerca de: la parte de Documentos, Hojas y Presentaciones (con el motor de oficina añadido). */
 .about-office {
@@ -1500,4 +1508,12 @@
 }
 .palette-box .hint {
   color: var(--text-3);
+}
+
+/* Entre deshacer y rehacer y lo demás de la barra de título (las cuatro apps igual). */
+.titlebar-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 2px;
+  background: var(--border);
 }

@@ -58,13 +58,20 @@ export function Home() {
     if (result === 'removed') {
       setPdfApart(null)
       setNotice(H.pdfApart.removed)
-    } else if (result === 'settings') setNotice(H.pdfApart.settings)
+    } else if (result === 'running') setNotice(H.pdfApart.running)
+    else if (result === 'settings') setNotice(H.pdfApart.settings)
   }
 
   const refresh = useCallback(() => {
     void window.molinoHome.apps().then(setApps)
     void window.molinoHome.recent().then(setRecent)
-    void window.molinoHome.pdfApart().then(setPdfApart)
+    void window.molinoHome.pdfApart().then((state) => {
+      // Se quitó solo al abrir la suite: se cuenta y ya está.
+      if (state === 'retired') {
+        setNotice(H.pdfApart.retired)
+        setPdfApart(null)
+      } else setPdfApart(state)
+    })
   }, [])
   // Al volver a la ventana, por si se abrió algo en otra app.
   useEffect(() => {

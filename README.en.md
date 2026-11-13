@@ -75,12 +75,35 @@ Each sail of the windmill is an app. In the Microsoft Store: **Molino PDF**, if 
 
 <p align="center">Forms that do the math for you, digital certificate signatures, scanning with your phone and AI that never leaves your computer.<br><b><a href="docs/pdf.en.md">Everything Molino PDF does →</a></b></p>
 
+## Automate tasks, in every app
+
+**The `molino` command** works with the files of every app without opening any windows, from PowerShell, a `.bat` file or Windows Task Scheduler:
+
+- **Convert:** Word, Excel, PowerPoint and OpenDocument to PDF or to another office format (`.docx` to `.odt`, `.xlsx` to `.csv`…), with Molino Suite; PDF to Word, text or images; photos to PDF.
+- **Work with PDFs:** merge, extract, split, rotate, compress, run OCR, add a watermark or page numbers, password-protect and remove hidden data.
+- **Signatures and forms:** sign with a Windows certificate or a `.pfx` file, verify signatures and fill in forms from a JSON file.
+- **Print**, documents, spreadsheets and presentations too.
+
+```powershell
+molino convert accounts.xlsx accounts.pdf
+molino sign contract.pdf -o signed.pdf --certificate "John Smith"
+Get-ChildItem *.docx | ForEach-Object { molino convert $_.FullName ($_.BaseName + ".pdf") }
+```
+
+**Your own scripts** in Docs, Sheets and Slides: JavaScript with the ONLYOFFICE document API, which works on the open document with no access to your files or the internet; Ctrl+Z undoes what it does. They live in the **Developer** tab (**Scripts**, in Slides), which is hidden by default and turned on in Settings. In Docs it also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.
+
+It’s all in the [command-line manual](docs/linea-de-ordenes.md) (in Spanish, with an [English summary](docs/linea-de-ordenes.md#english-summary)).
+
 ## Install
 
 - **Molino PDF**: [in the Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), or with `winget install 9NRTWZFHG67N`. Free, no account and no administrator rights; new versions arrive on their own through the Store.
 - **Molino Suite** (Molino PDF, Docs, Sheets and Slides): coming soon to the Microsoft Store. To hear about it, click **Watch → Custom → Releases** at the top, or give it a ⭐.
 
 For 64-bit Windows 10 and 11. Linux, later on.
+
+## Privacy
+
+No accounts, no ads and no telemetry. Your documents never leave your computer: the apps only go online when you ask them to (a signature timestamp or a certificate check, sending feedback, downloading the AI or a free font a document is missing) and to check for new versions, which you can turn off in Settings. Every file opens in an isolated Windows sandbox. It’s all in the [privacy policy](https://molinosuite.org/en/privacy/).
 
 ## Support Molino
 
@@ -89,6 +112,8 @@ Molino is free and will stay free. If you find it useful, tell someone about it,
 ## License
 
 Molino is free software under the [GNU AGPL, version 3 or later](LICENSE), and comes with no warranty. © 2026 CuevasTech. The names and logos aren’t covered by the license: what you can do with them is in [TRADEMARKS.md](TRADEMARKS.md#molino-name-and-logo).
+
+Docs, Sheets and Slides are based on ONLYOFFICE software by Ascensio System SIA (AGPL-3.0), in a version modified by Molino that runs on your computer. How it’s built and what changes is in [`office/`](office/).
 
 <details>
 <summary><b>For developers: build from source</b></summary>

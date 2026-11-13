@@ -1,9 +1,12 @@
 
-          <!-- "molino-pdf archivo.pdf" desde la linea de ordenes abre Molino PDF de la
-               Store (con su identidad de paquete). Lo usa tambien la comprobacion del
-               paquete en GitHub (scripts/app-check.ps1 -Msix). -->
-          <uap3:Extension Category="windows.appExecutionAlias" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication">
+          <!-- La linea de ordenes (docs/linea-de-ordenes.md). Windows solo admite un bloque de
+               alias por app y la Store no admite apps sin entrada en el menu Inicio, asi que los
+               dos van al motor en modo consola (engine/molino_engine/cli.py), que hace de lanzador:
+               "molino ..." es una orden; "molino-pdf archivo.pdf" abre Molino PDF, como siempre
+               (lo usa tambien la comprobacion del paquete en GitHub, scripts/app-check.ps1 -Msix). -->
+          <uap3:Extension Category="windows.appExecutionAlias" Executable="app\resources\engine\molino-engine.exe" EntryPoint="Windows.FullTrustApplication">
             <uap3:AppExecutionAlias>
               <desktop:ExecutionAlias Alias="molino-pdf.exe" />
+              <desktop:ExecutionAlias Alias="molino.exe" />
             </uap3:AppExecutionAlias>
           </uap3:Extension>

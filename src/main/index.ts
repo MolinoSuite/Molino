@@ -10,7 +10,7 @@ import { Bridge, isOpenable } from './ipc'
 import { initLang, L } from './i18n'
 import { initLog, log } from './log'
 import { legacyModelsDir, migrateLegacy } from './migrate'
-import { firstPdfNotice, removeSeparatePdf, separatePdfInstalled } from './pdfapart'
+import { firstPdfNotice, markRetireTried, removeSeparatePdf, separatePdfImported, separatePdfInstalled, shouldRetireSeparatePdf, uninstallSeparatePdf } from './pdfapart'
 import { bundledPieceDir, OfficePiece } from './office'
 import type { HomeApp } from '@shared/home'
 import type { OfficeKind } from '@shared/officeui'
@@ -22,6 +22,7 @@ import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
 import { Store } from './store'
 import { Updates } from './updates'
+import { darkFor } from '@shared/appearance'
 import { aptosFile, findAptos, FONT_STYLES } from './fonts'
 
 async function shareExtraFonts(): Promise<void> {
@@ -80,6 +81,25 @@ hardenContents()
 
 function localBase(): string {
   return app.getPath('userData')
+}
+
+/** Molino PDF suelto quitado al abrir la suite: el inicio lo cuenta una vez. */
+let pdfRetired = false
+
+/**
+ * Molino Suite con Molino PDF instalado aparte, la primera vez: trae su IA (los
+ * ajustes, recientes y firmas ya llegaron al arrancar, migrate.ts) y lo
+ * desinstala. Si está abierto, se deja para la próxima vez; si Windows no deja,
+ * el inicio avisa con su botón.
+ */
+async function retireSeparatePdf(): Promise<void> {
+  const userData = app.getPath('userData')
+  await bridge?.adoptLegacyAi()
+  const result = await uninstallSeparatePdf()
+  if (result !== 'running') markRetireTried(userData, result)
+  pdfRetired = result === 'removed'
+  if (result === 'removed') log.info('molino pdf aparte: quitado al abrir la suite (sus datos ya estaban traídos)')
+  if (result === 'removed' || firstPdfNotice(userData)) homeWindow?.show()
 }
 
 /** Archivos pasados en la línea de órdenes (doble clic, «Abrir con»): PDF e imágenes, o de oficina. */
@@ -279,7 +299,8 @@ void app.whenReady().then(async () => {
     piece: office,
     rendererDir: join(__dirname, '../renderer'),
     templatesDir: app.isPackaged ? join(process.resourcesPath, 'templates') : join(app.getAppPath(), 'resources', 'templates'),
-    dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
+    // Cada app con su tema (Ajustes → Apariencia de cada una).
+    dark: (kind) => darkFor(store.settings, kind, nativeTheme.shouldUseDarkColors),
     author: () => store.settings.author || windowsUser(),
     ignoredFonts: { list: () => store.ignoredFonts(), add: (names) => store.ignoreFonts(names) },
     userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words) },
@@ -305,12 +326,19 @@ void app.whenReady().then(async () => {
     launch: (which) => (which === 'pdf' ? showPdfWindow() : editors.showApp(which)),
     create: (kind) => editors.create(kind),
     openFiles: openPaths,
-    dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
+    // El inicio no tiene ajustes propios: va como Windows.
+    dark: () => nativeTheme.shouldUseDarkColors,
     // Molino PDF instalado aparte: antes de quitarlo, la IA que tuviera se trae (si falta).
     pdfApart: {
       installed: separatePdfInstalled,
       // La suite trajo los datos de ese Molino PDF al abrirse por primera vez (migrate.ts).
-      imported: () => existsSync(join(app.getPath('userData'), 'desde-molino-pdf.json')),
+      imported: () => separatePdfImported(app.getPath('userData')),
+      // Se quitó solo al abrir (una vez: el inicio lo cuenta y se olvida).
+      retired: () => {
+        const told = pdfRetired
+        pdfRetired = false
+        return told
+      },
       remove: async () => {
         await bridge?.adoptLegacyAi()
         return removeSeparatePdf()
@@ -318,22 +346,32 @@ void app.whenReady().then(async () => {
     }
   })
   homeWindow = home
-  // El tema (de Ajustes, en cualquier ventana, o el de Windows con «Como Windows»), al momento en todas.
-  const isDark = (): boolean => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors)
-  let shownDark = isDark()
+  // El tema de cada app (Ajustes → Apariencia en cada una, o el de Windows con «Como Windows»), al momento.
+  const KINDS = ['word', 'cell', 'slide'] as const
+  const shown = new Map<string, boolean>(KINDS.map((kind) => [kind, darkFor(store.settings, kind, nativeTheme.shouldUseDarkColors)]))
+  let homeDark = nativeTheme.shouldUseDarkColors
   themeChanged = () => {
-    const dark = isDark()
-    if (dark === shownDark) return
-    shownDark = dark
-    editors.setDark(dark)
-    home.setDark(dark)
+    for (const kind of KINDS) {
+      const dark = darkFor(store.settings, kind, nativeTheme.shouldUseDarkColors)
+      if (shown.get(kind) === dark) continue
+      shown.set(kind, dark)
+      editors.setDark(kind, dark)
+    }
+    if (homeDark !== nativeTheme.shouldUseDarkColors) {
+      homeDark = nativeTheme.shouldUseDarkColors
+      home.setDark(homeDark)
+    }
   }
   bridge.onTheme = () => themeChanged()
   // Ajustes, IA, versiones nuevas…: lo mismo en Documentos, Hojas y Presentaciones (ipc.ts, SHARED_CHANNELS).
   bridge.sharedSender = (event) => editors.uiWindow(event)
   bridge.sharedWindows = () => editors.uiContents()
   nativeTheme.on('updated', () => themeChanged())
-  bridge.officeLaunch = (which) => (which === 'home' ? home.show() : editors.showApp(which))
+  bridge.officeLaunch = (which) => {
+    if (which === 'home') home.show()
+    else if (which === 'pdf') showPdfWindow()
+    else editors.showApp(which)
+  }
   engine.on('ready', () => void editors.configure())
   // Cada vez que el motor arranca (o rearranca) recibe en memoria las fuentes
   // extra que haya en este equipo (Aptos); después la interfaz recarga la lista.
@@ -347,11 +385,13 @@ void app.whenReady().then(async () => {
   setTimeout(() => {
     if (store.settings.checkUpdates) updates?.check(false)
   }, 6000)
-  // Quien tenía la IA en Folio la sigue teniendo: sus modelos se copian
-  // (comprobados) en vez de descargarse. Sin red; si falta alguno, no se hace nada.
-  setTimeout(() => void bridge?.adoptLegacyAi(), 3000)
-  // Molino Suite con Molino PDF instalado aparte: la primera vez, el inicio con el aviso (pdfapart.ts).
-  if (firstPdfNotice(app.getPath('userData'))) setTimeout(() => homeWindow?.show(), 1500)
+  // Molino Suite con Molino PDF instalado aparte (pdfapart.ts): la primera vez, una vez traído
+  // todo (ajustes, recientes y firmas al arrancar; la IA aquí), se desinstala solo y el inicio
+  // lo cuenta. Si está abierto o Windows no deja, el inicio avisa con un botón para hacerlo.
+  // Si no, quien tenía la IA en Folio la sigue teniendo: sus modelos se copian (comprobados)
+  // en vez de descargarse. Sin red; si falta alguno, no se hace nada.
+  setTimeout(() => void (shouldRetireSeparatePdf(app.getPath('userData')) ? retireSeparatePdf() : bridge?.adoptLegacyAi()), 3000)
+  if (!shouldRetireSeparatePdf(app.getPath('userData')) && firstPdfNotice(app.getPath('userData'))) setTimeout(() => homeWindow?.show(), 1500)
   // Al minuto, sin estorbar el arranque: huella de los modelos de IA instalados.
   // En pruebas (sin empaquetar) se puede adelantar con MOLINO_TEST_AI_RECHECK_MS.
   const recheckDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_AI_RECHECK_MS) : NaN

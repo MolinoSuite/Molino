@@ -117,6 +117,7 @@ export const shell = {
     noChanges: 'Sin cambios pendientes',
     more: 'Más',
     printTip: 'Imprimir (Ctrl+P)',
+    findTip: 'Buscar (Ctrl+F)',
     menuTip: 'Menú',
     create: {
       open: 'Abrir…',
@@ -134,7 +135,7 @@ export const shell = {
       shortcuts: 'Atajos de teclado',
       feedback: 'Enviar comentarios…',
       sponsor: 'Invítame a un café',
-      about: 'Acerca de Molino PDF'
+      about: 'Acerca de'
     }
   },
   rail: {

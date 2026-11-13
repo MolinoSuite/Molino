@@ -24,5 +24,6 @@ export const common: typeof source = {
   pageOf: 'Page {n} of {total}',
   pageCount: { one: '{n} page', other: '{n} pages' },
   untitled: 'Untitled',
-  appName: 'Molino PDF'
+  appName: 'Molino PDF',
+  appNames: { pdf: 'Molino PDF', word: 'Molino Docs', cell: 'Molino Sheets', slide: 'Molino Slides', home: 'Molino' }
 }

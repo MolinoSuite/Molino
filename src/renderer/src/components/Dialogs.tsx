@@ -1,13 +1,13 @@
 import { KeyRound, Lock } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
-import { fmt, L, locale } from '@/i18n'
+import { fmt, L } from '@/i18n'
 import { formatBytes, formatDate } from '@/lib/util'
 import { mutate, submitPassword, unlockDoc } from '@/state/actions'
 import { type ConfirmDialog, type DialogState, useApp } from '@/state/app'
-import { useOffice } from '@/state/office'
+import { AboutDialog } from './About'
 import { FeedbackDialog } from './FeedbackDialog'
 import { SettingsDialog } from './Settings'
-import { Checkbox, Dialog, Field, Logo } from './ui'
+import { Checkbox, Dialog, Field } from './ui'
 
 function Confirm({ dialog }: { dialog: ConfirmDialog }) {
   const close = useApp((s) => s.closeDialog)
@@ -157,90 +157,6 @@ function Unlock({ doc, retry }: { doc: string; retry?: () => void }) {
   )
 }
 
-// El rojo de Molino PDF primero; el añil es el de la marca Molino.
-/**
- * Acerca de Molino PDF, con los avisos legales que la AGPL pide mostrar en una
- * aplicación con interfaz: titular, software libre sin garantía, y cómo ver la
- * licencia y obtener el código.
- */
-function AboutDialog() {
-  const close = useApp((s) => s.closeDialog)
-  const { version, built } = window.molino.env
-  const date = built
-    ? new Date(`${built}T12:00:00`).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })
-    : ''
-  const T = L.dialogs.about
-  const office = useOffice((s) => s.status)
-  return (
-    <Dialog
-      title={T.title}
-      onClose={close}
-      footer={
-        <button className="btn primary" onClick={close}>
-          {L.common.close}
-        </button>
-      }
-    >
-      <div className="about">
-        <div className="about-head">
-          <div className="start-mark about-mark">
-            <Logo size={48} />
-          </div>
-          <div>
-            <b>Molino PDF {version}</b>
-            <span>{T.tagline}</span>
-            {date && <span>{fmt(T.built, { date })}</span>}
-          </div>
-        </div>
-        <p>Copyright © 2026 CuevasTech.</p>
-        <p>{T.license}</p>
-        <div className="row">
-          <button className="btn sm" onClick={() => void window.molino.about.open('license')}>
-            {T.licenseButton}
-          </button>
-          <button className="btn sm" onClick={() => void window.molino.about.open('source')}>
-            {T.source}
-          </button>
-          <button className="btn sm" onClick={() => void window.molino.about.open('notices')}>
-            {T.notices}
-          </button>
-        </div>
-        {office?.available && (
-          <div className="about-office">
-            <p>
-              <b>{T.officeTitle}</b>
-              <br />
-              {T.officeText} <i lang="en">Based on ONLYOFFICE software developed by Ascensio System SIA.</i>
-            </p>
-            <div className="row wrap">
-              <button className="btn sm" onClick={() => void window.molino.about.office('notice')}>
-                {T.officeNotice}
-              </button>
-              <button className="btn sm" onClick={() => void window.molino.about.office('license')}>
-                {T.officeLicense}
-              </button>
-              <button className="btn sm" onClick={() => void window.molino.about.office('thirdParty')}>
-                {T.notices}
-              </button>
-              <button className="btn sm" onClick={() => void window.molino.about.office('source')}>
-                {T.officeSource}
-              </button>
-            </div>
-            <p className="hint">{T.officeTrademark}</p>
-          </div>
-        )}
-        <div className="about-support">
-          <p>{T.support}</p>
-          <div className="row">
-            <button className="btn sm" onClick={() => void window.molino.about.open('sponsors')}>
-              {T.coffee}
-            </button>
-          </div>
-        </div>
-      </div>
-    </Dialog>
-  )
-}
 function PropertiesDialog({ doc: docId }: { doc: string }) {
   const close = useApp((s) => s.closeDialog)
   const doc = useApp((s) => s.docs[docId])
@@ -392,7 +308,7 @@ function render(dialog: DialogState): ReactNode {
     case 'shortcuts':
       return <ShortcutsDialog />
     case 'about':
-      return <AboutDialog />
+      return <AboutDialog onClose={() => useApp.getState().closeDialog()} />
     case 'custom': {
       const Custom = customDialogs.get(dialog.id)
       return Custom ? <Custom doc={dialog.doc} data={dialog.data} /> : null

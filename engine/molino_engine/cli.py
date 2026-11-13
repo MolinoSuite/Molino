@@ -7,6 +7,11 @@ carpeta desde donde se llamo y devuelve su salida y su codigo de salida. Asi
 la linea de ordenes hace lo mismo que la app: el mismo motor aislado, la misma
 firma con los certificados de Windows, la misma impresion.
 
+Molino PDF solo tiene una app en el menu Inicio y Windows solo admite un
+bloque de alias por app, asi que ``molino-pdf.exe`` tambien llega aqui: con
+ese nombre no es una orden, sino abrir Molino PDF (con los archivos que se le
+pasen), como hacia antes el alias.
+
 Si hace falta la contrasena de un certificado (.pfx) y no se ha escrito en la
 orden, se pide aqui sin mostrarla y se pasa por la entrada estandar, nunca en
 la linea de ordenes (que otros procesos pueden leer).

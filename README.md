@@ -75,6 +75,25 @@ Cada aspa del molino es una app. En la Microsoft Store: **Molino PDF**, si solo 
 
 <p align="center">Formularios que hacen las cuentas solos, firma con certificado digital, escáner con el móvil e IA que no sale de tu ordenador.<br><b><a href="docs/pdf.md">Todo lo que hace Molino PDF →</a></b></p>
 
+## Automatiza tareas, en todas las apps
+
+**El comando `molino`** trabaja con los archivos de todas las apps sin abrir ninguna ventana, desde PowerShell, un `.bat` o el Programador de tareas de Windows:
+
+- **Convertir:** Word, Excel, PowerPoint y OpenDocument a PDF o a otro formato de oficina (`.docx` a `.odt`, `.xlsx` a `.csv`…), con Molino Suite; PDF a Word, a texto o a imágenes; fotos a PDF.
+- **Trabajar con PDF:** unir, extraer, dividir, girar, comprimir, pasar el OCR, poner marca de agua o números de página, proteger con contraseña y limpiar datos ocultos.
+- **Firmas y formularios:** firmar con un certificado de Windows o un `.pfx`, verificar firmas y rellenar formularios desde un JSON.
+- **Imprimir**, también documentos, hojas y presentaciones.
+
+```powershell
+molino convertir cuentas.xlsx cuentas.pdf
+molino firmar contrato.pdf -o firmado.pdf --certificado "Juan Español"
+Get-ChildItem *.docx | ForEach-Object { molino convertir $_.FullName ($_.BaseName + ".pdf") }
+```
+
+**Tus propios scripts** en Documentos, Hojas y Presentaciones: JavaScript con la API de documentos de ONLYOFFICE, que trabaja sobre el documento abierto, sin acceso a tus archivos ni a internet; Ctrl+Z deshace lo que hace. Están en la pestaña **Programador** (en Presentaciones, **Scripts**), que viene oculta y se activa en Ajustes. En Documentos trae también controles de formulario, y en Hojas, validación de datos, bloqueo de celdas y protección de hojas. Las macros que traen los documentos nunca se ejecutan.
+
+Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
+
 ## Instalar
 
 - **Molino PDF**: [en la Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), o con `winget install 9NRTWZFHG67N`. Gratis, sin cuenta y sin permisos de administrador; las versiones nuevas llegan solas por la Store.
@@ -82,7 +101,9 @@ Cada aspa del molino es una app. En la Microsoft Store: **Molino PDF**, si solo 
 
 Para Windows 10 y 11 de 64 bits. Linux, más adelante.
 
-**Para automatizar:** el comando `molino` convierte, une, comprime, pasa el OCR, firma con certificado, rellena formularios e imprime desde PowerShell o un `.bat`, sin abrir ventanas. Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
+## Privacidad
+
+Sin cuentas, sin anuncios y sin telemetría. Tus documentos no salen de tu equipo: las apps solo se conectan cuando tú lo pides (el sello de tiempo de una firma o la comprobación de un certificado, enviar un comentario, descargar la IA o una fuente libre que le falte a un documento) y para mirar si hay una versión nueva, algo que se desactiva en Ajustes. Cada archivo se abre en un espacio aislado de Windows. Lo tienes todo en la [política de privacidad](https://molinosuite.org/privacidad/).
 
 ## Apoya Molino
 
@@ -91,6 +112,8 @@ Molino es gratis y lo seguirá siendo. Si te resulta útil, cuéntaselo a alguie
 ## Licencia
 
 Molino es software libre con licencia [GNU AGPL, versión 3 o posterior](LICENSE), y se ofrece sin ninguna garantía. © 2026 CuevasTech. Los nombres y los logos no entran en la licencia: lo que puedes hacer con ellos está en [TRADEMARKS.md](TRADEMARKS.md#nombre-y-logo-de-molino).
+
+Documentos, Hojas y Presentaciones se basan en el software ONLYOFFICE de Ascensio System SIA (AGPL-3.0), en una versión modificada por Molino que funciona en tu equipo. Cómo se arma y qué cambia está en [`office/`](office/).
 
 <details>
 <summary><b>Para desarrolladores: compilar desde el código</b></summary>

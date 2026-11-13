@@ -257,9 +257,9 @@ export interface MolinoApi {
   office: {
     status(): Promise<Envelope<OfficeStatus>>
     /** Abre la ventana de una app (Documentos, Hojas o Presentaciones) o «Molino», el inicio común. */
-    launch(app: OfficeApp | 'home'): Promise<Envelope<boolean>>
+    launch(app: OfficeApp | 'home' | 'pdf'): Promise<Envelope<boolean>>
     /** Abre su página en «Aplicaciones predeterminadas» de Windows. */
-    defaultApps(app: OfficeApp): Promise<Envelope<boolean>>
+    defaultApps(app: OfficeApp | 'pdf'): Promise<Envelope<boolean>>
     /** El diccionario personal del corrector (las palabras añadidas desde los editores). */
     userWords(): Promise<Envelope<string[]>>
     /** Quita esas palabras del diccionario personal; devuelve las que quedan. */

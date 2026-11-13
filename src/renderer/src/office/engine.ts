@@ -11,6 +11,8 @@
  * mismo origen (molino://office), así que se accede directamente.
  */
 import type { OfficeKind } from '@shared/officeui'
+import { FEATURES } from './features'
+import type { FeatureContext } from './features/types'
 
 /** La API de los editores no tiene tipos: todo lo que viene de ella es «any». */
 type Api = any
@@ -70,7 +72,7 @@ export interface EditorState {
   gridlines: boolean
   headings: boolean
   // Presentaciones
-  themes: { id: number; name: string }[]
+  themes: { id: number; name: string; url?: string }[]
   activeTheme: number
   layouts: { index: number; name: string; image: string }[]
   /** Las notas del orador, debajo de la diapositiva. */
@@ -103,6 +105,10 @@ export interface EditorState {
   lineWidth: number
   /** El panel lateral abierto (lo pone la ventana, no el editor). */
   sidePanel: boolean
+  /** Documentos: los estilos de párrafo propios del documento (los de fábrica ya están en la galería). */
+  customStyles: string[]
+  /** Lo de las funciones de features/ (cada una, sus claves). */
+  extra: Record<string, unknown>
   /** El panel «Mis scripts» abierto (lo pone la ventana). */
   scriptsOpen: boolean
   /** Sube con cada cambio del documento (para volver a contar las palabras). */
@@ -195,7 +201,9 @@ function initialState(): EditorState {
     shapeFill: null,
     lineColor: null,
     lineWidth: 1,
-    sidePanel: false
+    sidePanel: false,
+    customStyles: [],
+    extra: {}
   }
 }
 
@@ -274,6 +282,8 @@ export class EditorSession {
   /** Cambia el tema del editor (claro u oscuro) sin volver a cargarlo, como hace ONLYOFFICE de escritorio. */
   setTheme(dark: boolean): void {
     const w = this.ew
+    // Los colores de Molino (bridge.js) con el acento de ahora, y el editor los vuelve a leer al cambiar de tema.
+    if (w && typeof w.molinoReskin === 'function') w.molinoReskin()
     if (w && typeof w.on_native_message === 'function') w.on_native_message('theme:changed', dark ? 'theme-dark' : 'theme-light')
   }
   private api: Api = null
@@ -396,7 +406,33 @@ export class EditorSession {
   }
 
   private setList(which: 'bullets' | 'numbers'): void {
-    this.api.put_ListTypeCustom(JSON.parse(LISTS[this.state.list === which ? 'none' : which]))
+    // La lista se crea en la ventana del editor: con un objeto de esta, no hace nada (otro «realm»).
+    this.api.put_ListTypeCustom(this.ew.JSON.parse(LISTS[this.state.list === which ? 'none' : which]))
+  }
+
+  /** Lo que las funciones de features/ usan del editor de esta pestaña. */
+  featureContext(): FeatureContext {
+    return {
+      api: this.api,
+      ew: this.ew,
+      state: this.state,
+      kind: this.kind,
+      changed: () => this.changed(),
+      color: (hex) => this.color(hex),
+      local: (value) => this.ew.JSON.parse(JSON.stringify(value)),
+      builder: (fn, data) => this.builder(fn, data)
+    }
+  }
+
+  /** Las órdenes de las funciones de esta app (se crean una vez: guardan lo suyo, como la vista previa de un estilo). */
+  private featureCommands: Record<string, (value?: string) => void> | null = null
+  private features(): Record<string, (value?: string) => void> {
+    if (!this.api) return {}
+    if (!this.featureCommands) {
+      const ctx = this.featureContext()
+      this.featureCommands = Object.assign({}, ...FEATURES[this.kind].map((f) => f.commands?.(ctx) ?? {}))
+    }
+    return this.featureCommands ?? {}
   }
 
   private newSheetName(): string {
@@ -1113,6 +1149,16 @@ export class EditorSession {
           // Ante la que va después de la siguiente (o al final).
           else if (where === 'right' && at >= 0 && at < visible.length - 1) api.asc_moveWorksheet(at + 2 < visible.length ? visible[at + 2] : api.asc_getWorksheetsCount(), [index])
         },
+        // Arrastrando la pestaña: la hoja va al hueco «gap» (0: antes de la primera; n: al final).
+        moveSheetTo: (v) => {
+          const [i, g] = String(v || '').split('|')
+          const index = Number(i)
+          const gap = Number(g)
+          const visible = s.sheets.map((sheet) => sheet.index)
+          const at = visible.indexOf(index)
+          if (at < 0 || !Number.isInteger(gap) || gap < 0 || gap > visible.length || gap === at || gap === at + 1) return
+          api.asc_moveWorksheet(gap < visible.length ? visible[gap] : api.asc_getWorksheetsCount(), [index])
+        },
         sheetColor: (v) => {
           const [i, hex] = String(v || '').split('|')
           api.asc_setWorksheetTabColor(/^#[0-9a-f]{6}$/i.test(hex ?? '') ? this.color(hex) : null, [Number(i)])
@@ -1365,13 +1411,13 @@ export class EditorSession {
   /** ¿Tiene esta app la orden? */
   can(command: string): boolean {
     if (!this.api) return false
-    return command in this.commands() || command in this.review() || command in this.common()
+    return command in this.features() || command in this.commands() || command in this.review() || command in this.common()
   }
 
   /** Hace una orden; devuelve si se pudo. El teclado vuelve después al documento. */
   run(command: string, value?: string): boolean {
     if (!this.api) return false
-    const fn = this.commands()[command] ?? this.review()[command] ?? this.common()[command]
+    const fn = this.features()[command] ?? this.commands()[command] ?? this.review()[command] ?? this.common()[command]
     if (!fn) return false
     try {
       fn(value)
@@ -2241,6 +2287,9 @@ export class EditorSession {
       s.modified = !!(api.isDocumentModified ? api.isDocumentModified() : api.asc_isDocumentModified && api.asc_isDocumentModified())
     }
     on('asc_onDocumentModifiedChanged', modified)
+    // Lo que escuchan las funciones de esta app (features/).
+    const ctx = this.featureContext()
+    for (const feature of FEATURES[this.kind]) feature.listen?.(ctx, on)
     const fontNames = (names: unknown[]): string[] =>
       [...new Set(names.filter((n): n is string => typeof n === 'string' && n.length > 0 && n.length < 200))].sort((a, b) => a.localeCompare(b))
     on('asc_onInitEditorFonts', (fonts: Api[]) => {
@@ -2399,7 +2448,8 @@ export class EditorSession {
       }
       on('asc_onInitEditorStyles', (t) => {
         const names: Api[] = (t && t[0]) || []
-        s.themes = names.map((x) => ({ id: x.get_Index(), name: x.get_Name() }))
+        // Con la carpeta de su miniatura (sdkjs/slide/themes/themeN/), para la galería de temas.
+        s.themes = names.map((x) => ({ id: x.get_Index(), name: x.get_Name(), url: typeof x.get_Url === 'function' ? String(x.get_Url() || '') : '' }))
         docThemes = ((t && t[1]) || []).map((x: Api) => ({ id: x.get_Index(), name: x.get_Name() }))
         markTheme()
       })

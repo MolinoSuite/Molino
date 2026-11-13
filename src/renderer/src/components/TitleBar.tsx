@@ -11,6 +11,7 @@ import {
   Plus,
   Printer,
   Redo2,
+  Search,
   Save,
   ScanLine,
   Settings,
@@ -34,6 +35,7 @@ import {
 } from '@/state/actions'
 import { useActiveDoc, useApp } from '@/state/app'
 import { printDoc } from '@/state/print'
+import { openSearch } from '@/state/search'
 import { CommandSearchButton } from './CommandPalette'
 import { openCommands } from './PdfCommands'
 import { openScan } from './ScanDialog'
@@ -155,6 +157,11 @@ export function TitleBar() {
               onClick={() => void redo(active.id)}
             >
               <Redo2 size={16} />
+            </button>
+            <span className="titlebar-sep" />
+            {/* Como en Documentos, Hojas y Presentaciones: buscar, imprimir y guardar, después de deshacer y rehacer. */}
+            <button className="icon-btn" data-tip={L.shell.titleBar.findTip} aria-label={L.shell.titleBar.findTip} onClick={() => openSearch(active.id)}>
+              <Search size={16} />
             </button>
             <button className="icon-btn" data-tip={L.shell.titleBar.printTip} aria-label={L.shell.titleBar.printTip} onClick={() => void printDoc(active.id)}>
               <Printer size={16} />

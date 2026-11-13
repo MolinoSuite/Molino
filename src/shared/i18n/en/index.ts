@@ -18,6 +18,9 @@ import { state } from './state'
 import { ai } from './ai'
 import { main } from './main'
 import { office } from './office'
+import { officeWord } from './officeWord'
+import { officeCell } from './officeCell'
+import { officeSlide } from './officeSlide'
 import { home } from './home'
 import { cli } from './cli'
 
@@ -41,6 +44,9 @@ export const en: Messages = {
   main,
   ai,
   office,
+  officeWord,
+  officeCell,
+  officeSlide,
   home,
   cli
 }

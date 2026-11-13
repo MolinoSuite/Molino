@@ -1,8 +1,10 @@
-import { FileText, LayoutGrid, Palette, Settings2, Signature, Sparkles } from 'lucide-react'
+import { BookA, FileText, LayoutGrid, Palette, Settings2, Signature, Sparkles } from 'lucide-react'
 import { type KeyboardEvent, type ReactNode, useState } from 'react'
+import { lookOf } from '@shared/appearance'
 import type { LangSetting } from '@shared/i18n'
-import { type CloseMany, type DateStyle, DEFAULT_ACCENT, type SignLevel, type TimestampServer, type UpdateStatus } from '@shared/types'
+import { APP_ACCENTS, type AppLook, type CloseMany, type DateStyle, type OfficeAppId, type SignLevel, type TimestampServer, type UpdateStatus } from '@shared/types'
 import { fmt, L } from '@/i18n'
+import { type CurrentApp, currentApp, withApp } from '@/lib/currentApp'
 import { DATE_STYLES, formatDateStyle } from '@/lib/dates'
 import { TIMESTAMP_SERVERS } from '@/lib/timestamp'
 import { AiSettings } from '@/modes/ai/settings'
@@ -11,34 +13,45 @@ import { chooseMolinoAsDefault, useDefaultApp } from '@/state/defaultApp'
 import { useOffice } from '@/state/office'
 import { takeSettingsTab, updateSettings } from '@/state/settings'
 import { useUpdates } from '@/state/updates'
-import { AppsSettings } from './AppsSettings'
+import { AppsSettings, DictionarySettings } from './AppsSettings'
 import { Checkbox, Dialog, Field, Segmented } from './ui'
 
-const ACCENTS = [DEFAULT_ACCENT, '#4f5bd5', '#2f7fe8', '#0f9d8a', '#2e9e55', '#d9822b', '#b0479a', '#5b6472']
+/** Los colores de acento que se ofrecen (el de la app va el primero). */
+const ACCENTS = ['#c4505a', '#4f5bd5', '#2f7fe8', '#2867d1', '#0f9d8a', '#2a9358', '#e06a1a', '#d9822b', '#b0479a', '#5b6472']
 
-type SettingsTab = 'general' | 'apps' | 'appearance' | 'documents' | 'signature' | 'ai'
+type SettingsTab = 'general' | 'apps' | 'appearance' | 'documents' | 'dictionary' | 'signature' | 'ai'
 
-const SETTINGS_TABS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
+/**
+ * Las pestañas y en qué apps salen: cada app enseña lo suyo (la de PDF y la
+ * firma, solo Molino PDF; el diccionario, solo las de oficina) y lo común a
+ * todas (general, aplicaciones, apariencia de esa app, IA).
+ */
+const SETTINGS_TABS: { id: SettingsTab; label: string; icon: ReactNode; only?: 'pdf' | 'office' }[] = [
   { id: 'general', label: L.dialogs.settings.tabs.general, icon: <Settings2 size={16} /> },
   { id: 'apps', label: L.dialogs.settings.tabs.apps, icon: <LayoutGrid size={16} /> },
   { id: 'appearance', label: L.dialogs.settings.tabs.appearance, icon: <Palette size={16} /> },
-  { id: 'documents', label: L.dialogs.settings.tabs.pdf, icon: <FileText size={16} /> },
-  { id: 'signature', label: L.dialogs.settings.tabs.signature, icon: <Signature size={16} /> },
+  { id: 'documents', label: L.dialogs.settings.tabs.pdf, icon: <FileText size={16} />, only: 'pdf' },
+  { id: 'signature', label: L.dialogs.settings.tabs.signature, icon: <Signature size={16} />, only: 'pdf' },
+  { id: 'dictionary', label: L.dialogs.settings.tabs.dictionary, icon: <BookA size={16} />, only: 'office' },
   { id: 'ai', label: L.ai.settings.tab, icon: <Sparkles size={16} /> }
 ]
 
-/** La pestaña de la última vez: se vuelve a ella mientras Molino PDF siga abierto. */
+/** La pestaña de la última vez: se vuelve a ella mientras la app siga abierta. */
 let lastSettingsTab: SettingsTab = 'general'
 
 /**
- * Ajustes de Molino: los mismos en todas sus apps (Molino PDF, Documentos,
- * Hojas, Presentaciones y el inicio), con las mismas pestañas.
+ * Ajustes de Molino en cada app (Molino PDF, Documentos, Hojas y
+ * Presentaciones): lo común a todas y lo propio de la que está abierta. El
+ * aspecto (tema y color) es de cada app.
  */
 export function SettingsDialog({ onClose }: { onClose: () => void }) {
   const close = onClose
-  // «Aplicaciones», solo si esta versión ofrece añadir Documentos, Hojas y Presentaciones.
+  const app = currentApp()
+  // «Aplicaciones», solo en Molino Suite (trae Documentos, Hojas y Presentaciones).
   const appsOffered = useOffice((s) => s.status?.available ?? false)
-  const tabs = SETTINGS_TABS.filter((item) => item.id !== 'apps' || appsOffered)
+  const tabs = SETTINGS_TABS.filter(
+    (item) => (item.id !== 'apps' || appsOffered) && (!item.only || (item.only === 'pdf' ? app === 'pdf' : app !== 'pdf'))
+  )
   // El panel de la IA puede pedir que se abra directamente en su pestaña.
   const [chosen, setTab] = useState<SettingsTab>(() => (takeSettingsTab() as SettingsTab | null) ?? lastSettingsTab)
   const tab = tabs.some((item) => item.id === chosen) ? chosen : 'general'
@@ -96,13 +109,14 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
           <>
             <LanguageSettings />
             <AuthorSettings />
-            <DefaultAppSettings />
+            {app === 'pdf' ? <DefaultAppSettings /> : <DeveloperSettings app={app} />}
             <UpdatesSettings />
           </>
         )}
         {tab === 'apps' && <AppsSettings />}
-        {tab === 'appearance' && <AppearanceSettings />}
+        {tab === 'appearance' && <AppearanceSettings app={app} />}
         {tab === 'documents' && <DocumentSettings />}
+        {tab === 'dictionary' && <DictionarySettings />}
         {tab === 'signature' && <SignatureSettings />}
         {tab === 'ai' && <AiSettings />}
       </div>
@@ -110,12 +124,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** El idioma de Molino PDF: se fija al abrirlo, así que el cambio vale para la próxima vez. */
+/** El idioma de Molino: se fija al abrir cada app, así que el cambio vale para la próxima vez. */
 function LanguageSettings() {
   const language = useApp((s) => s.settings.language)
   const T = L.dialogs.settings.language
   return (
-    <Field label={T.label} hint={T.hint}>
+    <Field label={T.label} hint={withApp(T.hint)}>
       <Segmented<LangSetting>
         value={language}
         options={[
@@ -129,41 +143,68 @@ function LanguageSettings() {
   )
 }
 
-function AppearanceSettings() {
+/** Tema y color de esta app (cada app el suyo: Molino PDF en theme y accent; las demás en appearance). */
+function AppearanceSettings({ app }: { app: CurrentApp }) {
   const settings = useApp((s) => s.settings)
   const T = L.dialogs.settings
+  const look = lookOf(settings, app)
+  const set = (patch: Partial<AppLook>): void => {
+    if (app === 'pdf') void updateSettings(patch)
+    else void updateSettings({ appearance: { ...settings.appearance, [app]: { ...look, ...patch } } })
+  }
+  const own = APP_ACCENTS[app]
+  const accents = [own, ...ACCENTS.filter((color) => color !== own)]
   return (
     <>
       <Field label={T.theme.label}>
         <Segmented
-          value={settings.theme}
+          value={look.theme}
           options={[
             { value: 'system', label: T.theme.system },
             { value: 'light', label: T.theme.light },
             { value: 'dark', label: T.theme.dark }
           ]}
-          onChange={(theme) => void updateSettings({ theme })}
+          onChange={(theme) => set({ theme })}
         />
       </Field>
       <Field label={T.accent.label}>
-        <div className="row">
-          {ACCENTS.map((color) => (
+        <div className="row wrap">
+          {accents.map((color) => (
             <button
               key={color}
               aria-label={fmt(T.accent.color, { color })}
-              onClick={() => void updateSettings({ accent: color })}
+              aria-pressed={look.accent === color}
+              onClick={() => set({ accent: color })}
               style={{
                 width: 26,
                 height: 26,
                 borderRadius: '50%',
                 background: color,
-                boxShadow: settings.accent === color ? `0 0 0 2px var(--bg-surface), 0 0 0 4px ${color}` : 'none'
+                boxShadow: look.accent === color ? `0 0 0 2px var(--bg-surface), 0 0 0 4px ${color}` : 'none'
               }}
             />
           ))}
         </div>
       </Field>
     </>
+  )
+}
+
+/** Documentos, Hojas y Presentaciones: la pestaña Programador (Scripts en Presentaciones), oculta hasta que se activa. */
+function DeveloperSettings({ app }: { app: OfficeAppId }) {
+  const developer = useApp((s) => s.settings.developer)
+  const T = L.dialogs.settings.developer
+  const on = developer.includes(app)
+  const slide = app === 'slide'
+  return (
+    <Field label={slide ? T.labelSlide : T.label} hint={T.hint[app]}>
+      <Checkbox
+        checked={on}
+        onChange={(show) => void updateSettings({ developer: show ? [...developer.filter((a) => a !== app), app] : developer.filter((a) => a !== app) })}
+      >
+        {slide ? T.showSlide : T.show}
+      </Checkbox>
+    </Field>
   )
 }
 

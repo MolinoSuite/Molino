@@ -200,6 +200,18 @@ export type ThemeChoice = 'system' | 'light' | 'dark'
 /** Color de acento por defecto: el rojo de Molino PDF, el de su icono, en un tono más suave para la interfaz. */
 export const DEFAULT_ACCENT = '#c4505a'
 
+/** Las apps de oficina (Documentos, Hojas y Presentaciones), cada una con sus ajustes de aspecto y su pestaña Programador. */
+export type OfficeAppId = 'word' | 'cell' | 'slide'
+
+/** El color de cada app, el de su icono: el acento por defecto de cada una. */
+export const APP_ACCENTS: Record<'pdf' | OfficeAppId, string> = { pdf: DEFAULT_ACCENT, word: '#2867d1', cell: '#2a9358', slide: '#e06a1a' }
+
+/** El aspecto de una app: tema y color de acento. */
+export interface AppLook {
+  theme: ThemeChoice
+  accent: string
+}
+
 /** Al cerrar la ventana con varios archivos: preguntar, cerrarlos todos o solo el que se está viendo. */
 export type CloseMany = 'ask' | 'all' | 'current'
 
@@ -229,6 +241,10 @@ export interface Settings {
   printer: string
   /** Idioma de Molino PDF: 'auto' sigue a Windows. Se aplica al volver a abrir Molino PDF. */
   language: LangSetting
+  /** Aspecto de Documentos, Hojas y Presentaciones, cada una el suyo (el de Molino PDF es theme y accent). */
+  appearance: Partial<Record<OfficeAppId, AppLook>>
+  /** Apps de oficina con la pestaña Programador (Scripts en Presentaciones) a la vista; ninguna por defecto. */
+  developer: OfficeAppId[]
   /** IA local: nivel elegido ('off' hasta que el usuario la activa). */
   aiTier: AiTier
   /** Usar una tarjeta gráfica dedicada para la IA (si la hay). */

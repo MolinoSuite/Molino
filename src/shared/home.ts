@@ -30,9 +30,9 @@ export interface HomeApi {
   /** Ha cambiado el tema: oscuro o no. */
   onTheme(listener: (dark: boolean) => void): () => void
   /** ¿Está Molino PDF instalado aparte? (Molino Suite ya lo incluye). «imported»: la suite trajo sus datos. */
-  pdfApart(): Promise<'imported' | 'separate' | null>
+  pdfApart(): Promise<'imported' | 'separate' | 'retired' | null>
   /** Desinstalarlo: «removed», o «settings» si se ha abierto Configuración para hacerlo allí. */
-  removePdfApart(): Promise<'removed' | 'settings' | null>
+  removePdfApart(): Promise<'removed' | 'running' | 'settings' | null>
   /** Un aviso (p. ej. un reciente que ya no está), que el inicio muestra a su manera. */
   onNotice(listener: (text: string) => void): () => void
 }

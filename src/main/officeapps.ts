@@ -73,6 +73,6 @@ export function homeDetails(): AppDetailsOptions {
 }
 
 /** Abre la página de una app en «Aplicaciones predeterminadas» (donde el usuario elige con qué se abren sus archivos). */
-export function openDefaultApps(kind: OfficeKind): Promise<boolean> {
+export function openDefaultApps(kind: OfficeKind | 'pdf'): Promise<boolean> {
   return openDefaultAppSettings(storeAppUserModelId(kind))
 }

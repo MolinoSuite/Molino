@@ -1,8 +1,8 @@
 # Molino desde la línea de órdenes
 
-Con el comando `molino` puedes usar Molino sin abrir ninguna ventana: convertir documentos, unir PDF, comprimirlos, pasarles el OCR, firmarlos, rellenar formularios o imprimir. Sirve para automatizar tareas con scripts de PowerShell, archivos `.bat` o el Programador de tareas de Windows.
+Con el comando `molino` puedes usar todas las apps de Molino sin abrir ninguna ventana: convertir documentos, hojas de cálculo y presentaciones, unir PDF, comprimirlos, pasarles el OCR, firmarlos, rellenar formularios o imprimir. Sirve para automatizar tareas con scripts de PowerShell, archivos `.bat` o el Programador de tareas de Windows. Y dentro de Documentos, Hojas y Presentaciones puedes además [escribir tus propios scripts](#tus-scripts-en-documentos-hojas-y-presentaciones).
 
-Todo se hace en tu equipo, con el mismo motor que usa la app. Nada se sube a internet. La única excepción es el sello de tiempo al firmar, que se puede quitar con `--sin-sello`.
+Todo se hace en tu equipo, con el mismo motor que usan las apps. Nada se sube a internet. Solo se conecta para firmar con sello de tiempo (el servicio recibe una huella del documento, nunca el documento; se quita con `--sin-sello`) y para consultar si un certificado sigue siendo válido, con `--larga-duracion` o `verificar --en-linea`.
 
 *English summary at the end.*
 
@@ -11,7 +11,7 @@ Todo se hace en tu equipo, con el mismo motor que usa la app. Nada se sube a int
 - El comando llega con Molino PDF y con Molino Suite de la Microsoft Store. Abre **PowerShell** o **Símbolo del sistema** y escribe `molino ayuda`.
 - Si Windows no encuentra `molino`, comprueba que está activado en *Configuración → Aplicaciones → Configuración avanzada de aplicaciones → Alias de ejecución de aplicaciones*.
 - Las órdenes se escriben en español o en inglés: `molino unir` es lo mismo que `molino merge`. Lo mismo pasa con las opciones (`--paginas` y `--pages`).
-- Convertir documentos de Word, Excel y PowerPoint necesita **Molino Suite**. Todo lo demás funciona también con Molino PDF.
+- Convertir e imprimir documentos de Word, Excel, PowerPoint y OpenDocument necesita **Molino Suite**. Todo lo demás funciona también con Molino PDF.
 - Si un nombre de archivo lleva espacios, ponlo entre comillas: `"Mi informe.pdf"`.
 
 ## Opciones comunes
@@ -33,13 +33,14 @@ molino convertir carta.docx carta.pdf
 molino convertir cuentas.xlsx cuentas.pdf
 molino convertir charla.pptx charla.pdf
 molino convertir carta.docx carta.odt
+molino convertir cuentas.xlsx cuentas.csv
 molino convertir informe.pdf informe.docx
 molino convertir informe.pdf informe.txt
 molino convertir informe.pdf pagina.png        (una imagen por página: pagina-1.png, pagina-2.png…)
 molino convertir foto1.jpg foto2.jpg -o fotos.pdf
 ```
 
-- **Documentos de oficina** (`.docx`, `.doc`, `.odt`, `.rtf`, `.xlsx`, `.xls`, `.ods`, `.csv`, `.pptx`, `.ppt`, `.odp`): se convierten a PDF o a otro formato de oficina.
+- **Documentos de oficina** (`.docx`, `.doc`, `.odt`, `.rtf`, `.xlsx`, `.xls`, `.ods`, `.csv`, `.pptx`, `.ppt`, `.odp`): se convierten a PDF o a otro formato del mismo tipo. Los documentos, a `.docx`, `.odt`, `.rtf`, `.txt`, `.html` o `.epub`; las hojas de cálculo, a `.xlsx`, `.ods` o `.csv`; las presentaciones, a `.pptx`, `.odp` o `.ppsx`.
 - **PDF**: se convierte a Word (`.docx`), a texto (`.txt`) o a imágenes (`.png`, `.jpg`). Con imágenes, `--ppp 300` fija la resolución.
 - **Imágenes**: se juntan en un PDF.
 
@@ -145,18 +146,42 @@ foreach ($f in Get-ChildItem .\facturas\*.pdf) {
 
 **Comprimir cada noche los escaneos** con el Programador de tareas. La acción es el programa `molino` con los argumentos `comprimir C:\Escaneos\hoy.pdf -o C:\Escaneos\hoy-ligero.pdf -y`.
 
+**Pasar a CSV todos los archivos de Excel de una carpeta:**
+
+```powershell
+Get-ChildItem *.xlsx | ForEach-Object { molino convertir $_.FullName ($_.BaseName + ".csv") }
+```
+
+## Tus scripts en Documentos, Hojas y Presentaciones
+
+Para automatizar lo que haces dentro de un documento abierto, Documentos, Hojas y Presentaciones (con **Molino Suite**) tienen **Mis scripts**: guardas tus propios scripts en JavaScript y los ejecutas sobre el documento que tienes abierto.
+
+- Están en la pestaña **Programador** de Documentos y Hojas, y en la pestaña **Scripts** de Presentaciones. Esa pestaña viene oculta: se activa en **Ajustes**.
+- En Documentos, la pestaña **Programador** trae también los controles de formulario (texto, casillas, listas, fechas…) y **Solo rellenar**. En Hojas, validar datos, bloquear celdas y proteger la hoja.
+- Los scripts usan la [API de documentos de ONLYOFFICE](https://api.onlyoffice.com/docs/office-api/get-started/overview/) (`Api.GetDocument()`, `Api.GetActiveSheet()`…), y `print()` escribe el resultado en el propio cuadro. Hay ejemplos para empezar.
+- Se ejecutan solo sobre ese documento, sin acceso a tus archivos ni a internet, y **Ctrl+Z** deshace lo que hacen.
+- Se guardan en Molino, no en el documento. Las macros que traen los documentos **nunca** se ejecutan.
+
+Un ejemplo para Documentos, el de «Contar los párrafos»:
+
+```js
+var doc = Api.GetDocument();
+print('Párrafos:', doc.GetElementsCount());
+```
+
 ## Privacidad y seguridad
 
-- Los documentos se abren dentro del mismo espacio aislado que usa la app.
+- Los documentos se abren dentro del mismo espacio aislado que usan las apps.
 - La línea de órdenes trabaja en su propia carpeta temporal, que se borra al terminar.
 - No cambia los ajustes de Molino. Solo los lee: el idioma y el servicio de sello de tiempo.
-- No necesita internet, salvo para el sello de tiempo de las firmas y para `verificar --en-linea`.
+- No necesita internet, salvo para el sello de tiempo de las firmas, para las firmas de larga duración (`--larga-duracion`) y para `verificar --en-linea`.
+- Más detalles en la [política de privacidad](https://molinosuite.org/privacidad/).
 
 ---
 
 ## English summary
 
-`molino` lets you use Molino from PowerShell or the Command Prompt, with no windows open. Every command and option also has an English name.
+`molino` lets you use every Molino app from PowerShell or the Command Prompt, with no windows open: Word, Excel, PowerPoint and OpenDocument files (with Molino Suite), PDFs and images. Every command and option also has an English name. It all happens on your computer; it only goes online for signature timestamps (`--no-timestamp` turns them off), long-term signatures (`--long-term`) and `verify --online`.
 
 **Commands:**
 - **Files:** `convert`, `merge`, `extract`, `split`, `rotate`, `delete-pages`, `compress`, `ocr`, `watermark`, `page-numbers`, `protect`, `unprotect`, `sanitize`, `text`, `info`.
@@ -172,3 +197,5 @@ foreach ($f in Get-ChildItem .\facturas\*.pdf) {
 - **Forms and printing:** `--data`, `--printer`, `--copies`, `--duplex`.
 
 Run `molino help` for the full list in your language.
+
+**Your own scripts:** inside Docs, Sheets and Slides (Molino Suite), **My scripts** runs your own JavaScript on the open document, with the [ONLYOFFICE document API](https://api.onlyoffice.com/docs/office-api/get-started/overview/), no access to your files or the internet, and Ctrl+Z to undo it. It lives in the **Developer** tab (**Scripts**, in Slides), which is hidden by default and turned on in **Settings**; in Docs the tab also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.

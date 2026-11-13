@@ -9,15 +9,15 @@ export const feedback: typeof source = {
   },
   placeholder: {
     bug: 'What happened, and what were you doing?',
-    idea: 'What would you like Molino PDF to do?',
+    idea: 'What would you like {app} to do?',
     other: 'Tell us whatever you like.'
   },
   message: 'Comment',
-  hint: 'It goes to CuevasTech, along with your Molino PDF and Windows versions. Don’t include personal information or anything from your documents.',
+  hint: 'Don’t include personal information or anything from your documents.',
   send: 'Send',
   sending: 'Sending…',
   thanks: 'Thank you! We’ve received your feedback',
-  viewOnGitHub: 'View on GitHub',
+  viewOnGitHub: 'Molino on GitHub',
   openGitHub: 'Open GitHub',
-  githubText: 'Tell us about bugs and ideas for improvements on Molino PDF’s GitHub page (you’ll need a GitHub account).'
+  githubText: 'Tell us about bugs and ideas for improvements on Molino’s GitHub page (you’ll need a GitHub account).'
 }

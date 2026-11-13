@@ -152,7 +152,8 @@ function readLine(): Promise<string> {
 
 // ------------------------------------------------------------- la sesión
 
-const OFFICE = new Set(['.docx', '.doc', '.docm', '.dotx', '.odt', '.rtf', '.xlsx', '.xls', '.xlsm', '.ods', '.csv', '.pptx', '.ppt', '.pptm', '.ppsx', '.odp'])
+// Los que abre el motor de oficina (engine/molino_engine/office.py, OPEN_FORMATS).
+const OFFICE = new Set(['.docx', '.doc', '.odt', '.rtf', '.xlsx', '.xls', '.ods', '.csv', '.pptx', '.ppt', '.odp'])
 const IMAGES = new Set(['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tif', '.tiff', '.webp'])
 
 class Session {
