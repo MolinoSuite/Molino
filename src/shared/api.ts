@@ -7,6 +7,7 @@
  */
 
 import type { AiDownloadError, AiDownloadProgress, AiStatus } from './ai'
+import type { OfficeApp, OfficeLegal, OfficeStatus } from './office'
 import type { Lang } from './i18n'
 import type {
   DocDescriptor,
@@ -37,7 +38,12 @@ export interface CallOptions {
 }
 
 export type OpenOutcome =
-  | { ok: true; doc: DocDescriptor }
+  | {
+      ok: true
+      doc: DocDescriptor
+      /** Abierto para imprimir (un documento de Documentos, Hojas o Presentaciones): sale el cuadro de imprimir. */
+      print?: boolean
+    }
   | {
       ok: false
       name: string
@@ -201,6 +207,8 @@ export interface MolinoApi {
   settings: {
     get(): Promise<Settings>
     set(patch: Partial<Settings>): Promise<Settings>
+    /** Han cambiado en otra ventana de Molino. */
+    onChanged(listener: (settings: Settings) => void): () => void
   }
   recent: {
     list(): Promise<RecentFile[]>
@@ -215,14 +223,13 @@ export interface MolinoApi {
   clipboard: {
     writeText(text: string): Promise<boolean>
   }
-  /** Versiones nuevas de Molino PDF: solo se descarga e instala si el usuario lo pide. */
+  /** Versiones nuevas: Molino avisa y se actualiza en la Microsoft Store. */
   updates: {
     status(): Promise<UpdateStatus>
     /** Mirar ahora si hay versión nueva (lo pide el usuario). */
     check(): void
-    download(): void
-    /** Instalar la versión descargada y abrir Molino PDF de nuevo. Antes hay que cerrar los documentos. */
-    install(): void
+    /** Abre la página de Molino en la Microsoft Store, donde se actualiza. */
+    openStore(): Promise<boolean>
     onStatus(listener: (status: UpdateStatus) => void): () => void
   }
   /** Molino PDF como programa predeterminado para PDF: lo elige siempre el usuario en Configuración de Windows. */
@@ -234,6 +241,8 @@ export interface MolinoApi {
   /** Información legal y de la aplicación (licencia, código fuente, componentes de terceros). */
   about: {
     open(what: 'license' | 'notices' | 'source' | 'issues' | 'sponsors'): Promise<boolean>
+    /** Los avisos legales del motor de oficina (si está añadido). */
+    office(what: OfficeLegal): Promise<Envelope<boolean>>
   }
   /** IA local: modelos (descarga y borrado) y su estado. Lo que hace la IA va por `engine` (métodos ai.*). */
   ai: {
@@ -244,6 +253,20 @@ export interface MolinoApi {
     onProgress(listener: (progress: AiDownloadProgress | null) => void): () => void
     onChanged(listener: () => void): () => void
     onError(listener: (reason: AiDownloadError) => void): () => void
+    /** Documentos, Hojas o Presentaciones piden abrir Ajustes en la IA. */
+    onOpenSettings(listener: () => void): () => void
+  }
+  /** Documentos, Hojas y Presentaciones (las trae Molino Suite; Molino PDF no). */
+  office: {
+    status(): Promise<Envelope<OfficeStatus>>
+    /** Abre la ventana de una app (Documentos, Hojas o Presentaciones) o «Molino», el inicio común. */
+    launch(app: OfficeApp | 'home'): Promise<Envelope<boolean>>
+    /** Abre su página en «Aplicaciones predeterminadas» de Windows. */
+    defaultApps(app: OfficeApp): Promise<Envelope<boolean>>
+    /** El diccionario personal del corrector (las palabras añadidas desde los editores). */
+    userWords(): Promise<Envelope<string[]>>
+    /** Quita esas palabras del diccionario personal; devuelve las que quedan. */
+    removeUserWords(words: string[]): Promise<Envelope<string[]>>
   }
   /** Comentarios al autor (fallos, mejoras…): por correo, a través de su servicio de comentarios. */
   feedback: {

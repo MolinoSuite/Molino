@@ -73,10 +73,20 @@ const RecentSchema = z.object({
   openedAt: z.number()
 })
 
+/** Palabras del diccionario personal (como el de Word, que admite unas 5.000 por archivo). */
+const MAX_USER_WORDS = 5000
+
 const ConfigSchema = z.object({
   settings: SettingsSchema.default(SettingsSchema.parse({})),
   window: BoundsSchema.optional(),
-  recent: z.array(RecentSchema).max(200).default([])
+  recent: z.array(RecentSchema).max(200).default([]),
+  // Los de Documentos, Hojas y Presentaciones, aparte (la pantalla inicial de Molino PDF solo abre PDF).
+  officeRecent: z.array(RecentSchema).max(200).default([]),
+  // Fuentes de las que no se vuelve a avisar al abrir un documento (en minúsculas).
+  ignoredFonts: z.array(z.string().min(1).max(64)).max(300).default([]),
+  // Diccionario personal del corrector de Documentos, Hojas y Presentaciones.
+  // (Si algo no encaja, se pierde solo la lista, no los demás ajustes.)
+  userWords: z.array(z.string().min(1).max(64)).max(MAX_USER_WORDS).default([]).catch([])
 })
 
 type Config = z.infer<typeof ConfigSchema>
@@ -93,6 +103,8 @@ const SignatureSchema = z.object({
 
 // La pantalla inicial tiene buscador: caben muchos sin agobiar.
 const MAX_RECENT = 100
+/** Una palabra del diccionario personal: sin espacios ni caracteres de control. */
+const USER_WORD = /^[^\s\u0000-\u001f\u007f]{1,64}$/u
 const MAX_SIGNATURES = 12
 const MAX_SIGNATURE_BYTES = 2_000_000
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
@@ -225,6 +237,53 @@ export class Store {
     this.config.recent = []
     this.persist()
     return []
+  }
+
+  // ------------------------------------- recientes de Documentos, Hojas y Presentaciones
+
+  /** Rutas completas, para el proceso principal (officewin.ts decide qué ve cada ventana). */
+  officeRecent(): { id: string; path: string; openedAt: number }[] {
+    return this.config.officeRecent.map((entry) => ({ ...entry }))
+  }
+
+  addOfficeRecent(path: string): void {
+    const key = path.toLowerCase()
+    const rest = this.config.officeRecent.filter((entry) => entry.path.toLowerCase() !== key)
+    this.config.officeRecent = [{ id: randomBytes(8).toString('hex'), path, openedAt: Date.now() }, ...rest].slice(0, MAX_RECENT)
+    this.persist()
+  }
+
+  ignoredFonts(): string[] {
+    return [...this.config.ignoredFonts]
+  }
+
+  ignoreFonts(names: string[]): void {
+    const all = new Set([...this.config.ignoredFonts, ...names.map((n) => n.toLowerCase().slice(0, 64))])
+    this.config.ignoredFonts = [...all].slice(-300)
+    this.persist()
+  }
+
+  /** El diccionario personal del corrector (las palabras que el usuario añade). */
+  userWords(): string[] {
+    return [...this.config.userWords]
+  }
+
+  addUserWords(words: string[]): void {
+    const valid = words.map((w) => w.normalize('NFC')).filter((w) => w.length <= 64 && USER_WORD.test(w))
+    const all = new Set([...this.config.userWords, ...valid])
+    this.config.userWords = [...all].slice(-MAX_USER_WORDS)
+    this.persist()
+  }
+
+  removeUserWords(words: string[]): void {
+    const gone = new Set(words)
+    this.config.userWords = this.config.userWords.filter((w) => !gone.has(w))
+    this.persist()
+  }
+
+  forgetOfficeRecent(id: string): void {
+    this.config.officeRecent = this.config.officeRecent.filter((entry) => entry.id !== id)
+    this.persist()
   }
 
   // ------------------------------------------------------------- firmas

@@ -1,5 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, nativeTheme, screen } from 'electron'
+import { storeAppUserModelId } from './appx'
 import { lang, locale } from './i18n'
 import { APP_ORIGIN, isTrustedSender } from './security'
 import type { Store } from './store'
@@ -66,6 +67,10 @@ export function createWindow(store: Store, version: string): BrowserWindow {
   })
 
   window.removeMenu()
+  // En la Store, la ventana es la de la app Molino PDF del paquete (la del proceso
+  // puede ser otra: Molino Suite arranca desde la app que se abra primero).
+  const storeId = storeAppUserModelId('pdf')
+  if (storeId) window.setAppDetails({ appId: storeId })
   if (saved?.maximized) window.maximize()
   window.once('ready-to-show', () => window.show())
 

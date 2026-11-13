@@ -7,10 +7,13 @@ import { z } from 'zod'
 import type { EngineStatus, ExportOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
 import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
 import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
+import type { OfficeApp } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
 import { EngineClient, EngineError } from './engine'
-import { fmt, L } from './i18n'
+import { fmt, L, lang } from './i18n'
 import { log } from './log'
+import { openOfficeLegal, type OfficePiece } from './office'
+import { openDefaultApps } from './officeapps'
 import type { PrintService } from './print'
 import { isTrustedSender } from './security'
 import type { Store } from './store'
@@ -104,7 +107,7 @@ const openFilters = (): Electron.FileFilter[] => [
   { name: L.main.filters.pdfAndImages, extensions: ['pdf', 'png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'gif', 'webp'] },
   { name: 'PDF', extensions: ['pdf'] }
 ]
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'gif', 'webp']
+export const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'tif', 'tiff', 'bmp', 'gif', 'webp']
 const OPENABLE = new Set(['.pdf', ...IMAGE_EXTENSIONS.map((e) => `.${e}`)])
 const MAX_PICKED_IMAGE = 60 * 1024 * 1024
 
@@ -144,6 +147,8 @@ export class Bridge {
   private allowClose = false
   private rendererReady = false
   private waitingFiles: string[] = []
+  /** PDF de Documentos, Hojas o Presentaciones que esperan a la interfaz para imprimirse. */
+  private waitingPrints: string[] = []
   /** Si ya se ha dibujado alguna página (se anota una vez en el registro, para las comprobaciones). */
   private firstRender = false
 
@@ -152,7 +157,8 @@ export class Bridge {
     private readonly store: Store,
     private readonly printer: PrintService,
     private readonly updates: Updates,
-    private readonly ai: AiModels
+    private readonly ai: AiModels,
+    private readonly office: OfficePiece
   ) {
     this.register()
     engine.on('down', () => {
@@ -189,6 +195,18 @@ export class Bridge {
   /** Avance de la descarga de los modelos de IA (lo emite aimodels.ts). */
   sendAiProgress(progress: AiDownloadProgress | null): void {
     this.send('ai:progress', progress)
+  }
+
+  /** ¿Hay documentos de oficina abiertos? Lo da officewin.ts (index.ts lo conecta). */
+  officeBusy: () => boolean = () => false
+  /** Abre la ventana de una app de oficina (index.ts lo conecta con officewin.ts). */
+  officeLaunch: (app: OfficeApp | 'home') => void = () => undefined
+  /** Ha cambiado el tema en Ajustes de Molino PDF (index.ts lo lleva a las demás ventanas). */
+  onTheme: () => void = () => undefined
+
+  /** Los ajustes han cambiado en otra ventana (Documentos, Hojas o Presentaciones): la interfaz los vuelve a leer. */
+  sendSettings(): void {
+    this.send('settings:changed', this.store.settings)
   }
 
   /** Lo que el motor dice de la IA al configurarla: gráfica en uso y si el procesador sirve. */
@@ -262,6 +280,21 @@ export class Bridge {
 
   private async aiStatus(): Promise<AiStatus> {
     return { ...(await this.ai.status(this.store.settings.aiTier)), gpu: this.aiEngine?.gpu ?? null, cpuOk: this.aiEngine?.cpuOk ?? true }
+  }
+
+  /**
+   * La IA para Documentos, Hojas y Presentaciones: si está activada en Ajustes
+   * y si ya puede escribir (el modelo de lenguaje está descargado).
+   */
+  async officeAi(): Promise<{ on: boolean; ready: boolean }> {
+    const status = await this.aiStatus()
+    const on = status.tier !== 'off'
+    return { on, ready: on && status.cpuOk !== false && status.components.some((c) => c.kind === 'llm' && c.installed) }
+  }
+
+  /** Abre Ajustes en la pestaña de la IA (lo piden las apps de oficina; la ventana ya está a la vista). */
+  openAiSettings(): void {
+    this.send('ai:openSettings')
   }
 
   /** Estado de las versiones nuevas (lo emite updates.ts). */
@@ -343,6 +376,25 @@ export class Bridge {
       }
     }
     return outcomes
+  }
+
+  /**
+   * Imprimir un documento de Documentos, Hojas o Presentaciones: su PDF
+   * (temporal, officewin.ts) se abre aquí sin ruta propia ni reciente, y la
+   * interfaz saca el cuadro de imprimir de Molino PDF.
+   */
+  async printFile(path: string): Promise<void> {
+    if (!this.rendererReady) {
+      this.waitingPrints.push(path)
+      return
+    }
+    try {
+      const { result } = await this.engine.request<DocDescriptor>('doc.open', { path }, { priority: 9 })
+      this.docs.set(result.doc, { path: null })
+      this.send('files:opened', [{ ok: true, doc: result, print: true }])
+    } catch (error) {
+      this.send('files:opened', [{ ok: false, name: basename(path), error: toInfo(error) }])
+    }
   }
 
   /** Archivos abiertos desde fuera de la interfaz (doble clic, «Abrir con», segunda instancia). */
@@ -889,6 +941,7 @@ export class Bridge {
       const after = this.store.updateSettings(raw)
       // Cambiar el nivel de IA o la gráfica cambia lo que el motor puede cargar.
       if (after.aiTier !== before.aiTier || after.aiGpu !== before.aiGpu) void this.configureAi()
+      if (after.theme !== before.theme) this.onTheme()
       return after
     })
 
@@ -918,6 +971,19 @@ export class Bridge {
       await this.ai.removeAll()
       await this.configureAi()
       return true
+    })
+    // ---- Documentos, Hojas y Presentaciones (si este Molino las trae: Molino Suite)
+    this.handle('office:status', z.undefined(), () => this.office.status())
+    this.handle('office:launch', z.enum(['word', 'cell', 'slide', 'home']), async (app) => {
+      if ((await this.office.ready()) === null) return false
+      this.officeLaunch(app)
+      return true
+    })
+    this.handle('office:defaultApps', z.enum(['word', 'cell', 'slide']), (app) => openDefaultApps(app))
+    this.handle('office:userWordsList', z.undefined(), () => this.store.userWords())
+    this.handle('office:removeUserWords', z.array(z.string().max(64)).max(5000), (words) => {
+      this.store.removeUserWords(words)
+      return this.store.userWords()
     })
     ipcMain.handle('recent:list', (event) =>
       isTrustedSender(event, this.window?.webContents ?? null) ? this.store.recentList() : []
@@ -976,6 +1042,7 @@ export class Bridge {
       log.info('interfaz lista')
       const files = this.waitingFiles.splice(0)
       if (files.length > 0) void this.openFromSystem(files)
+      for (const path of this.waitingPrints.splice(0)) void this.printFile(path)
     })
 
     ipcMain.on('window:closeNow', (event) => {
@@ -986,23 +1053,17 @@ export class Bridge {
       void this.closeEngineDocs().finally(() => this.window?.close())
     })
 
-    // ---- versiones nuevas: la interfaz solo puede pedir estas cuatro cosas
+    // ---- versiones nuevas: la interfaz solo puede pedir estas tres cosas
     ipcMain.handle('updates:status', (event) =>
       isTrustedSender(event, this.window?.webContents ?? null) ? this.updates.current() : { state: 'unavailable' }
     )
     ipcMain.on('updates:check', (event) => {
       if (isTrustedSender(event, this.window?.webContents ?? null)) this.updates.check(true)
     })
-    ipcMain.on('updates:download', (event) => {
-      if (isTrustedSender(event, this.window?.webContents ?? null)) this.updates.download()
-    })
-    ipcMain.on('updates:install', (event) => {
-      if (!isTrustedSender(event, this.window?.webContents ?? null) || !this.updates.pending) return
-      // La interfaz ya ha cerrado los documentos preguntando qué guardar; los
-      // que queden en el motor se cierran igual que en una salida normal.
-      this.allowClose = true
-      void this.closeEngineDocs().finally(() => this.updates.install(true))
-    })
+    // «Actualizar»: la página de Molino en la Microsoft Store.
+    ipcMain.handle('updates:openStore', (event) =>
+      isTrustedSender(event, this.window?.webContents ?? null) ? this.updates.openStore() : false
+    )
 
     // ---- comentarios: el texto va al servicio de comentarios (feedback.ts), acotado aquí
     ipcMain.handle('feedback:available', (event) => isTrustedSender(event, this.window?.webContents ?? null) && feedbackAvailable())
@@ -1033,6 +1094,11 @@ export class Bridge {
       const file = legalFile(what)
       if (!file) return false
       return (await shell.openPath(file)) === ''
+    })
+    // Los del motor de oficina, si está añadido (sus archivos, dentro de la pieza instalada).
+    this.handle('about:office', z.enum(['notice', 'license', 'thirdParty', 'source', 'original']), async (what) => {
+      const dir = await this.office.ready()
+      return dir ? openOfficeLegal(dir, what, lang) : false
     })
   }
 }

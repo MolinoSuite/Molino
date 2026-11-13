@@ -60,8 +60,6 @@ export const main: typeof source = {
     wait: 'Wait a few seconds before sending more feedback.'
   },
   updates: {
-    mismatch: 'The download doesn’t match the published version and was discarded. Nothing was installed.',
-    downloadFailed: 'Couldn’t download the new version. Try again later.',
     checkFailed: 'Couldn’t check for a new version. Check your internet connection.'
   },
   print: {
@@ -88,5 +86,47 @@ export const main: typeof source = {
     locked: 'The scanner is locked or another program is using it.',
     coverOpen: 'The scanner lid is open.',
     lampOff: 'The scanner lamp is off.'
+  },
+  office: {
+    apps: { word: 'Molino Docs', cell: 'Molino Sheets', slide: 'Molino Slides' },
+    notInstalled: 'Molino PDF only opens PDFs and images. Word, Excel and PowerPoint documents open with Molino Suite, which brings Docs, Sheets and Slides.',
+    seeSuite: 'See Molino Suite in the Store',
+    preparing: 'Docs, Sheets and Slides are getting ready. Try again in a moment.',
+    openFailed: 'Couldn’t open “{name}”.',
+    saveFailed: 'Couldn’t save “{name}”.',
+    unsaved: 'Save the changes to “{name}”?',
+    unsavedDetail: 'If you don’t save them, they’ll be lost.',
+    save: 'Save',
+    dontSave: 'Don’t save',
+    cancel: 'Cancel',
+    /** Nombre de los documentos nuevos hechos con una plantilla. */
+    templates: { letter: 'Letter', resume: 'Resume', invoice: 'Invoice', quote: 'Quote', budget: 'Household budget', presentation: 'Presentation' },
+    filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' },
+    formats: {
+      '.docx': 'Word document',
+      '.odt': 'OpenDocument text',
+      '.rtf': 'Rich text (RTF)',
+      '.txt': 'Plain text',
+      '.html': 'Web page',
+      '.epub': 'E-book (EPUB)',
+      '.xlsx': 'Excel workbook',
+      '.ods': 'OpenDocument spreadsheet',
+      '.csv': 'CSV (comma separated)',
+      '.pptx': 'PowerPoint presentation',
+      '.odp': 'OpenDocument presentation',
+      '.ppsx': 'PowerPoint show'
+    },
+    recoveredName: '{stem} (recovered){suffix}',
+    recentMissing: 'Can’t find “{name}”: it may have been moved or deleted. It’s been removed from your recent files.',
+    descriptions: {
+      word: 'Write and edit Word and OpenDocument documents.',
+      cell: 'Work with numbers and tables in Excel and OpenDocument spreadsheets.',
+      slide: 'Create and present PowerPoint and OpenDocument slides.'
+    },
+    fileTypes: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation' }
+  },
+  home: {
+    description: 'All the Molino apps, what’s new and what’s recent.',
+    allFiles: 'All files Molino opens'
   }
 }

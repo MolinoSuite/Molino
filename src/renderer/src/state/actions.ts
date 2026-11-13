@@ -1,4 +1,5 @@
 import type { OpenOutcome } from '@shared/api'
+import { printDoc } from './print'
 import type { DocDescriptor, FontFamily, MutationResult } from '@shared/types'
 import { L, fmt } from '@/i18n'
 import { loadExtraFontFaces } from '@/lib/fonts'
@@ -66,6 +67,11 @@ export async function initApp(): Promise<void> {
   })
   applyTheme()
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme)
+  // Ajustes cambiados en otra ventana (Documentos, Hojas o Presentaciones): el tema, al momento.
+  window.molino.settings.onChanged((next) => {
+    app().setSettings(next)
+    applyTheme()
+  })
   window.molino.files.ready()
 }
 
@@ -89,6 +95,8 @@ export function handleOutcomes(outcomes: OpenOutcome[]): void {
     if (outcome.ok) {
       if (getDoc(outcome.doc.doc)) app().setActive(outcome.doc.doc)
       else app().addDoc(outcome.doc)
+      // Un documento de Documentos, Hojas o Presentaciones que se quiere imprimir.
+      if (outcome.print) printDoc(outcome.doc.doc)
     } else if (outcome.token) {
       locked ??= outcome
     } else {
@@ -313,11 +321,11 @@ let quitting = false
  * ``install``, en lugar de cerrar sin más se instala la versión nueva ya
  * descargada (y Molino PDF se vuelve a abrir).
  */
-export async function requestQuit(options: { install?: boolean } = {}): Promise<void> {
+export async function requestQuit(): Promise<void> {
   if (quitting) return
   quitting = true
   try {
-    if (!options.install && app().order.length > 1) {
+    if (app().order.length > 1) {
       const choice = await closeManyChoice()
       if (choice === 'cancel') return
       if (choice === 'current') {
@@ -328,8 +336,7 @@ export async function requestQuit(options: { install?: boolean } = {}): Promise<
     for (const id of [...app().order]) {
       if (!(await closeDoc(id))) return
     }
-    if (options.install) window.molino.updates.install()
-    else window.molino.window.closeNow()
+    window.molino.window.closeNow()
   } finally {
     quitting = false
   }

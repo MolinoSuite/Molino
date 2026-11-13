@@ -30,7 +30,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from . import paths
-from .errors import EngineError, invalid, io_error
+from .errors import EngineError, denied, invalid, io_error
 from .i18n import N_, _
 
 log = logging.getLogger("molino.engine.host")
@@ -223,6 +223,43 @@ class DirectHost:
                 except subprocess.TimeoutExpired:
                     log.warning("el proceso de conversion a Word no ha terminado tras matarlo")
 
+
+    def run_office(self, work_root: Path, piece: Any, job: dict[str, str], check_cancel: Callable[[], None]) -> int:
+        """Lanza x2t para un trabajo del motor (ver ``office.x2t_command``) y devuelve su codigo de salida."""
+        from . import office
+
+        try:
+            command = office.x2t_command(piece, work_root, job)
+        except ValueError:
+            raise denied(_("Operación no permitida.")) from None
+        try:
+            # Sin interprete de ordenes y con la lista de argumentos cerrada. La
+            # salida se descarta: sus mensajes pueden citar el documento.
+            process = subprocess.Popen(  # noqa: S603
+                command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                cwd=str(piece.converter), env=office.x2t_environment(work_root), shell=False,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+        except OSError as exc:
+            log.warning("no se pudo lanzar x2t: %s", type(exc).__name__)
+            raise EngineError("conversion_failed", _("No se pudo convertir el documento.")) from None
+        try:
+            deadline = time.monotonic() + office.X2T_TIMEOUT
+            while True:
+                try:
+                    return process.wait(timeout=0.25)
+                except subprocess.TimeoutExpired:
+                    check_cancel()  # al cancelar se mata el proceso en el ``finally``
+                    if time.monotonic() > deadline:
+                        log.warning("x2t ha superado el tiempo maximo")
+                        raise EngineError("conversion_failed", _("La conversión tarda demasiado y se ha detenido.")) from None
+        finally:
+            if process.poll() is None:
+                process.kill()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    log.warning("x2t no ha terminado tras matarlo")
 
     def detect_documents(self, work_root: Path, request: Path, result: Path, check_cancel: Callable[[], None]) -> int:
         """Busca el papel en las fotos que lista ``request`` (ver ``scanworker.py``), en un proceso aparte."""
@@ -484,6 +521,15 @@ class BrokeredHost:
         code = result.get("code")
         if not isinstance(code, int) or isinstance(code, bool):
             raise EngineError("conversion_failed", _("No se pudo convertir este documento a Word."))
+        return code
+
+    def run_office(self, work_root: Path, piece: Any, job: dict[str, str], check_cancel: Callable[[], None]) -> int:
+        # x2t lo lanza el intermediario, con la pieza que el configuro (no la
+        # que diga este proceso). Aqui solo viaja el trabajo, con rutas relativas.
+        reply, _payload = self._call("office.x2t", dict(job), b"")
+        code = reply.get("code")
+        if not isinstance(code, int) or isinstance(code, bool):
+            raise EngineError("conversion_failed", _("No se pudo convertir el documento."))
         return code
 
     def detect_documents(self, work_root: Path, request: Path, result: Path, check_cancel: Callable[[], None]) -> int:

@@ -21,7 +21,7 @@
 
 ## Las apps
 
-Cada aspa del molino es una app. Instala solo las que necesites: las demás se añaden gratis a la misma instalación.
+Cada aspa del molino es una app. En la Microsoft Store: **Molino PDF**, si solo quieres el PDF, o **Molino Suite**, con todas.
 
 <table>
   <tr>
@@ -29,7 +29,7 @@ Cada aspa del molino es una app. Instala solo las que necesites: las demás se a
       <a href="docs/pdf.md"><img src=".github/marca/pdf.svg" width="96" alt=""></a>
       <h3><a href="docs/pdf.md">Molino PDF</a></h3>
       <p>Lee, rellena, firma, edita y organiza tus PDF.</p>
-      <img src="https://img.shields.io/badge/-muy%20pronto-B92B32?style=flat-square" alt="Muy pronto">
+      <a href="https://apps.microsoft.com/detail/9NRTWZFHG67N"><img src="https://img.shields.io/badge/-en%20la%20Microsoft%20Store-2A9358?style=flat-square" alt="En la Microsoft Store"></a>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/documentos/"><img src=".github/marca/documentos.svg" width="96" alt=""></a>
@@ -75,9 +75,12 @@ Cada aspa del molino es una app. Instala solo las que necesites: las demás se a
 
 <p align="center">Formularios que hacen las cuentas solos, firma con certificado digital, escáner con el móvil e IA que no sale de tu ordenador.<br><b><a href="docs/pdf.md">Todo lo que hace Molino PDF →</a></b></p>
 
-## Descargar
+## Instalar
 
-**La primera versión de Molino PDF sale muy pronto.** Para enterarte el primer día, pulsa arriba **Watch → Custom → Releases**, o dale una ⭐.
+- **Molino PDF**: [en la Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), o con `winget install 9NRTWZFHG67N`. Gratis, sin cuenta y sin permisos de administrador; las versiones nuevas llegan solas por la Store.
+- **Molino Suite** (Molino PDF, Documentos, Hojas y Presentaciones): muy pronto en la Microsoft Store. Para enterarte, pulsa arriba **Watch → Custom → Releases**, o dale una ⭐.
+
+Para Windows 10 y 11 de 64 bits. Linux, más adelante.
 
 ## Apoya Molino
 
@@ -92,7 +95,7 @@ Molino es software libre con licencia [GNU AGPL, versión 3 o posterior](LICENSE
 
 <br>
 
-Hoy el repositorio tiene Molino PDF. Hace falta Node 22.12 o posterior y Python 3.12 o posterior. En PowerShell:
+Hace falta Node 22.12 o posterior y Python 3.12 o posterior. En PowerShell:
 
 ```powershell
 npm ci --ignore-scripts
@@ -101,9 +104,9 @@ py -m venv engine\.venv
 engine\.venv\Scripts\python.exe -m pip install --no-deps --only-binary :all: --require-hashes -r engine\requirements.txt -r engine\requirements-nodeps.txt
 engine\.venv\Scripts\python.exe -m pip install --only-binary :all: --require-hashes -r engine\requirements-build.txt
 powershell -File scripts\fetch-tessdata.ps1
-npm run dist
+npm run dist:store
 ```
 
-El instalador queda en `dist\`.
+El paquete de Molino PDF para la Microsoft Store (MSIX, sin firmar: lo firma la Store) queda en `dist\`. El de Molino Suite, con Documentos, Hojas y Presentaciones, necesita además el motor de oficina (`engine\.venv\Scripts\python.exe -I office\build.py`) y sale con `npm run dist:suite`, en `dist-suite\`.
 
 </details>

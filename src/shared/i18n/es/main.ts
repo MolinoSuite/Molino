@@ -67,8 +67,6 @@ export const main = {
   },
   /** Versiones nuevas (updates.ts). */
   updates: {
-    mismatch: 'La descarga no coincide con la versión publicada y se ha descartado. No se ha instalado nada.',
-    downloadFailed: 'No se pudo descargar la versión nueva. Inténtalo más tarde.',
     checkFailed: 'No se pudo comprobar si hay una versión nueva. Revisa la conexión a Internet.'
   },
   /** Impresión (print.ts). */
@@ -97,5 +95,51 @@ export const main = {
     locked: 'El escáner está bloqueado o lo está usando otro programa.',
     coverOpen: 'La tapa del escáner está abierta.',
     lampOff: 'La lámpara del escáner está apagada.'
+  },
+  /** Documentos, Hojas y Presentaciones: las ventanas de los editores (officewin.ts). */
+  office: {
+    apps: { word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones' },
+    notInstalled: 'Molino PDF solo abre PDF e imágenes. Los documentos de Word, Excel y PowerPoint se abren con Molino Suite, que trae Documentos, Hojas y Presentaciones.',
+    seeSuite: 'Ver Molino Suite en la Store',
+    preparing: 'Documentos, Hojas y Presentaciones se están preparando. Vuelve a intentarlo en un momento.',
+    openFailed: 'No se pudo abrir «{name}».',
+    saveFailed: 'No se pudo guardar «{name}».',
+    unsaved: '¿Guardar los cambios de «{name}»?',
+    unsavedDetail: 'Si no los guardas, se perderán.',
+    save: 'Guardar',
+    dontSave: 'No guardar',
+    cancel: 'Cancelar',
+    /** Nombre de los documentos nuevos hechos con una plantilla. */
+    templates: { letter: 'Carta', resume: 'Currículum', invoice: 'Factura', quote: 'Presupuesto', budget: 'Presupuesto doméstico', presentation: 'Presentación' },
+    filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' },
+    /** «Guardar como»: los formatos que se pueden elegir. */
+    formats: {
+      '.docx': 'Documento de Word',
+      '.odt': 'Documento OpenDocument',
+      '.rtf': 'Texto enriquecido (RTF)',
+      '.txt': 'Texto sin formato',
+      '.html': 'Página web',
+      '.epub': 'Libro electrónico (EPUB)',
+      '.xlsx': 'Libro de Excel',
+      '.ods': 'Hoja de cálculo OpenDocument',
+      '.csv': 'CSV (valores separados)',
+      '.pptx': 'Presentación de PowerPoint',
+      '.odp': 'Presentación OpenDocument',
+      '.ppsx': 'Presentación que se abre presentando'
+    },
+    recoveredName: '{stem} (recuperado){suffix}',
+    recentMissing: 'No se encuentra «{name}»: puede que se haya movido o borrado. Se quita de los recientes.',
+    // En el menú Inicio y en «Aplicaciones predeterminadas» de Windows.
+    descriptions: {
+      word: 'Escribe y edita documentos de Word y OpenDocument.',
+      cell: 'Haz cuentas y tablas con hojas de Excel y OpenDocument.',
+      slide: 'Prepara y presenta diapositivas de PowerPoint y OpenDocument.'
+    },
+    // Tipo de los archivos que se abren con cada app (columna «Tipo» del Explorador).
+    fileTypes: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación' }
+  },
+  home: {
+    description: 'Todas las apps de Molino, lo nuevo y lo reciente.',
+    allFiles: 'Todos los que abre Molino'
   }
 }

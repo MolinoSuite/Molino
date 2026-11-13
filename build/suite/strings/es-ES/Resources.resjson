@@ -1,0 +1,13 @@
+{
+  "HomeDescription": "Todas las apps de Molino, lo nuevo y lo reciente.",
+  "PdfDescription": "Ver, rellenar, firmar y editar PDF.",
+  "DocsName": "Molino Documentos",
+  "DocsDescription": "Escribe y edita documentos de Word y OpenDocument.",
+  "DocsFileType": "Documento",
+  "SheetsName": "Molino Hojas",
+  "SheetsDescription": "Haz cuentas y tablas con hojas de Excel y OpenDocument.",
+  "SheetsFileType": "Hoja de cálculo",
+  "SlidesName": "Molino Presentaciones",
+  "SlidesDescription": "Prepara y presenta diapositivas de PowerPoint y OpenDocument.",
+  "SlidesFileType": "Presentación"
+}

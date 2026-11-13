@@ -21,6 +21,7 @@ export const dialogs: typeof source = {
     tabs: {
       general: 'General',
       appearance: 'Appearance',
+      apps: 'Apps',
       documents: 'Documents',
       signature: 'Signature'
     },
@@ -84,17 +85,32 @@ export const dialogs: typeof source = {
       current: 'Current only'
     },
     updates: {
-      label: 'Molino PDF updates',
-      check: 'Let me know when Molino PDF opens if a new version is available (nothing is downloaded without asking you)',
+      label: 'New versions',
+      check: 'Let me know when Molino opens if a new version is available',
       checkNow: 'Check now',
-      unavailable: 'This copy of Molino PDF doesn’t update itself.',
-      store: 'New versions come through the Microsoft Store.',
+      openStore: 'Update in the Store',
+      store: 'New versions are installed from the Microsoft Store; Windows also does it on its own.',
+      unavailable: 'This copy of Molino doesn’t check for new versions.',
       checking: 'Checking…',
       current: 'You have the latest version.',
-      downloading: 'Downloading the new version…',
-      ready: 'The new version will be installed when you close Molino PDF.',
       available: 'A new version is available.',
       availableVersion: 'A new version is available: {version}.'
+    },
+    apps: {
+      title: 'Docs, Sheets and Slides',
+      intro: 'They come with Molino Suite. With “Default…” you choose in Windows to open their files with a double click.',
+      home: '“Molino”: the home with all the apps',
+      names: { word: 'Molino Docs', cell: 'Molino Sheets', slide: 'Molino Slides' },
+      open: 'Open',
+      defaultApps: 'Default…',
+      dictionary: 'Personal dictionary',
+      dictionaryHint: 'The words you add with “Add to dictionary” while spellchecking: the spellchecker accepts them in all your documents.',
+      dictionaryCount: '{n} words.',
+      dictionaryOne: '1 word.',
+      dictionaryEmpty: 'You haven’t added any yet.',
+      dictionaryRemove: 'Remove “{word}” from the dictionary',
+      defaultAppsTip: 'To open its files with a double click: opens the page for {name} in Windows “Default apps”.',
+      basedOn: 'They use the ONLYOFFICE engine (AGPL-3.0) with Molino’s changes.'
     }
   },
   about: {
@@ -106,6 +122,12 @@ export const dialogs: typeof source = {
     licenseButton: 'License',
     source: 'Source code',
     notices: 'Third-party components',
+    officeTitle: 'Docs, Sheets and Slides',
+    officeText: 'They use a modified version of the ONLYOFFICE editors (AGPL-3.0, with the additional terms of its §7).',
+    officeNotice: 'Molino’s changes',
+    officeLicense: 'ONLYOFFICE license',
+    officeSource: 'Engine source code',
+    officeTrademark: 'ONLYOFFICE is a trademark of Ascensio System SIA. Molino is not affiliated with or endorsed by Ascensio System SIA.',
     support: 'Molino PDF is free and always will be. If you find it useful, you can buy me a coffee on GitHub Sponsors.',
     coffee: 'Buy me a coffee'
   },

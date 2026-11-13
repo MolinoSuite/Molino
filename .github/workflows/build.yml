@@ -83,32 +83,22 @@ jobs:
           if ($env:EMULATED -eq 'true') { $extra += '--expect-emulated' }
           engine\.venv\Scripts\python.exe scripts\engine-check.py --packaged dist-engine\molino-engine\molino-engine.exe --full --store-cert --models "$env:RUNNER_TEMP\models" --fetch-models @extra
 
-      - name: Installer and portable zip (unsigned)
-        run: |
-          $PSNativeCommandUseErrorActionPreference = $true
-          npm run notices
-          npx --no-install electron-builder --win nsis --x64 --publish never
-          node scripts/make-portable.mjs
-          if (-not (Test-Path dist\MolinoPDF-Setup.exe)) { throw 'No installer was built.' }
-          if (-not (Test-Path dist\MolinoPDF-Portable.zip)) { throw 'No portable zip was built.' }
-
-      # The Microsoft Store package (MSIX) of the same build. Unsigned: the Store
-      # signs it when it is published.
+      # The Microsoft Store package (MSIX), the way Molino is distributed on
+      # Windows. Unsigned: the Store signs it when it is published.
       - name: Store package (unsigned)
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          npx --no-install electron-builder --win appx --x64 --prepackaged dist\win-unpacked --publish never
+          npm run notices
+          npx --no-install electron-builder --win appx --x64 --publish never
           if (-not (Test-Path dist\MolinoPDF.appx)) { throw 'No Store package was built.' }
 
-      # The app: window, PDF opened and page drawn, engine sandboxed. Portable
-      # version, then the installer (install, run, uninstall, nothing left), then
-      # the Store package (same, signed with a throwaway certificate).
+      # The app: window, PDF opened and page drawn, engine sandboxed. The Store
+      # package is signed with a throwaway certificate, installed, run and
+      # uninstalled (nothing left).
       - name: App check
         run: |
           $emulated = $env:EMULATED -eq 'true'
-          ./scripts/app-check.ps1 -Zip dist\MolinoPDF-Portable.zip -Screenshot app-${{ matrix.arch }}.png -ExpectEmulated:$emulated
-          ./scripts/app-check.ps1 -Setup dist\MolinoPDF-Setup.exe -ExpectEmulated:$emulated
-          ./scripts/app-check.ps1 -Msix dist\MolinoPDF.appx -ExpectEmulated:$emulated
+          ./scripts/app-check.ps1 -Msix dist\MolinoPDF.appx -Screenshot app-${{ matrix.arch }}.png -ExpectEmulated:$emulated
 
       # Only a picture of the Molino PDF window, to see it working on each machine.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

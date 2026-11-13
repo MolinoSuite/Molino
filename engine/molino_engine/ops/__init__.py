@@ -9,6 +9,8 @@ from . import (  # noqa: F401
     forms,
     objects,
     ocr,
+    office,
+    officeai,
     pages,
     recovery,
     render,

@@ -1,9 +1,7 @@
 import { L, locale } from '@/i18n'
 
 /** Une nombres de clase ignorando los valores vacíos. */
-export function cn(...parts: (string | false | null | undefined)[]): string {
-  return parts.filter(Boolean).join(' ')
-}
+export { cn } from './cn'
 
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))

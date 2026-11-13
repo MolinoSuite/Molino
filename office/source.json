@@ -1,0 +1,12 @@
+{
+  "_": "De dónde sale el motor de oficina de Molino (office/build.py). Cambiar la versión de ONLYOFFICE es cambiar url, size y sha256, subir piece y revisar los parches (office/patches.py).",
+  "product": "ONLYOFFICE Desktop Editors",
+  "onlyoffice": "10.0.0",
+  "url": "https://github.com/ONLYOFFICE/DesktopEditors/releases/download/v10.0.0/DesktopEditors_x64.zip",
+  "size": 397286158,
+  "sha256": "54979d04f1cdca56deb0c62e0356355a45f392cdb54f04f6b7e436b1f44c3605",
+  "sourceCode": "https://github.com/ONLYOFFICE/DesktopEditors/tree/v10.0.0",
+  "piece": "10.0.0-1",
+  "modified": "2026-11-09",
+  "dictionaries": ["es_ES", "ca_ES", "ca_ES_valencia", "gl_ES", "eu_ES", "en_US", "en_GB", "fr_FR", "pt_PT", "pt_BR", "de_DE", "it_IT"]
+}

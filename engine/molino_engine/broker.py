@@ -54,7 +54,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, BinaryIO, Callable
 
-from . import __version__, i18n, paths
+from . import __version__, i18n, office, paths
 
 # El aislamiento de este intermediario es el de Windows (AppContainer). En otros
 # sistemas el modulo se puede importar, pero aun no aislar: eso llega con su
@@ -93,6 +93,16 @@ _WRITE = {
     "tools.exportWord": (".docx",),
 }
 _NEW_IN = {"pages.split": (".pdf",), "tools.exportImages": (".png", ".jpg")}
+# Documentos, Hojas y Presentaciones (office.py): que operaciones abren o
+# guardan, y cuales pueden pedir que se lance x2t.
+_READ_ONE["office.open"] = "path"
+_WRITE["office.save"] = office.SAVE_SUFFIXES
+_WRITE["office.exportPdf"] = (".pdf",)
+_OFFICE_X2T = frozenset({"office.open", "office.new", "office.save", "office.exportPdf", "office.fonts", "office.recover"})
+# La pieza es la carpeta de su version dentro de la de la aplicacion
+# (office\<version>), y el indice de fuentes, office\fonts\<huella>.
+_OFFICE_VERSION = re.compile(r"^[0-9]{1,4}(\.[0-9]{1,4}){1,3}(-[0-9]{1,4})?$")
+_OFFICE_FONTS = re.compile(r"^[0-9a-f]{16}$")
 _THUMBPRINT = re.compile(r"^[0-9A-Fa-f]{40}$")
 # Rutas de la conversion a Word dentro de la carpeta del motor: las genera el
 # motor con nombres de forma fija, y solo esas se aceptan.
@@ -161,6 +171,7 @@ class Grant:
     net_left: int = 0
     word: bool = False
     scan: bool = False
+    office: bool = False  # puede pedir que se lance x2t (ver _office_x2t)
     # Lo que esta operacion puede pedir a la IA (ver aibroker.AI_OPS) y cuantas veces lo ha hecho.
     ai_ops: frozenset[str] = frozenset()
     ai_calls: int = 0
@@ -173,7 +184,16 @@ class Grant:
 
 class Broker:
     def __init__(
-        self, rfile: BinaryIO, wfile: BinaryIO, main_workdir: Path, resources: Path | None, *, sandbox: bool, models: Path | None = None
+        self,
+        rfile: BinaryIO,
+        wfile: BinaryIO,
+        main_workdir: Path,
+        resources: Path | None,
+        *,
+        sandbox: bool,
+        models: Path | None = None,
+        office_root: Path | None = None,
+        office_bundled: Path | None = None,
     ) -> None:
         self._app_in = rfile
         self._app_out = FrameWriter(wfile)
@@ -195,6 +215,13 @@ class Broker:
         self.issue: str | None = None
         self._stopping = False
         self._ai = AiService(models, self._spawn_ai, self._grant_ai_read)
+        # Motor de oficina: la carpeta que dio la aplicacion al lanzarlo y la
+        # pieza ya comprobada (office.configure). x2t solo se lanza de esta.
+        self._office_root = office_root
+        # La pieza que trae el paquete de Molino Suite (solo lectura, junto al
+        # programa), si la trae: vale en vez de una descargada de su misma version.
+        self._office_bundled = office_bundled
+        self._office: office.Piece | None = None
 
     # ================================================================ arranque
 
@@ -514,12 +541,58 @@ class Broker:
             grant.new_dirs[_key(params["dir"])] = _NEW_IN[method]
         grant.word = method == "tools.exportWord"
         grant.scan = method == "scan.add"
+        grant.office = method in _OFFICE_X2T
         grant.ai_ops = AI_OPS.get(method, frozenset())
         if method == "sign.validate" and params.get("online") is True:
             grant.net_left = MAX_NET_FETCHES
         if method == "sign.sign":
             header = {**header, "params": self._prepare_signing(grant, params)}
+        if method == "office.configure":
+            header = {**header, "params": self._prepare_office(params)}
         return grant, header
+
+    def _prepare_office(self, params: dict[str, Any]) -> dict[str, Any]:
+        """Comprueba la pieza y el indice de fuentes que dice la aplicacion y da permiso al contenedor.
+
+        La aplicacion solo nombra la version y la huella del indice; las rutas
+        las forma este proceso dentro de la carpeta que recibio al arrancar. El
+        motor aislado recibe ya las rutas comprobadas.
+        """
+        version, fonts = params.get("piece"), params.get("fonts")
+        if version is None:
+            self._office = None
+            return {"piece": None, "fonts": None}
+        if (
+            self._office_root is None
+            or not isinstance(version, str) or not _OFFICE_VERSION.match(version)
+            or (fonts is not None and (not isinstance(fonts, str) or not _OFFICE_FONTS.match(fonts)))
+        ):
+            raise denied(_("Operación no permitida."))
+        try:
+            bundled = self._office_bundled
+            if bundled is not None and office.piece_version(bundled) == version:
+                root = office.check_piece(bundled)
+                inside = root == bundled.resolve(strict=True)
+            else:
+                root = office.check_piece(self._office_root / version)
+                inside = root.is_relative_to(self._office_root.resolve(strict=True))
+            # Con la pieza del paquete, la carpeta de datos puede no existir aun
+            # (sin indice de fuentes ni fuentes propias todavia).
+            index = office.check_fonts(self._office_root / "fonts" / fonts) if fonts else None
+            if not inside or (index is not None and not index.is_relative_to(self._office_root.resolve(strict=True))):
+                raise office.OfficeUnavailable(version)
+            own = office.own_fonts(self._office_root)
+        except (office.OfficeUnavailable, OSError):
+            self._office = None
+            raise EngineError("unsupported", _("Documentos, Hojas y Presentaciones no están instalados.")) from None
+        if self.sandboxed and self._container is not None:
+            # Solo lectura: la pieza (x2t, sus bibliotecas, los editores para
+            # dibujar el PDF, plantillas y fuentes propias), el indice, las
+            # instaladas solo en Molino y las fuentes del usuario, que x2t tambien usa.
+            for folder in (root, *([index] if index else []), *([own] if own else []), *office.user_font_dirs()):
+                winsandbox.ensure_read_access(folder, self._container)
+        self._office = office.Piece(root, index, own)
+        return {"piece": str(root), "fonts": str(index) if index else None, "ownFonts": str(own) if own else None}
 
     def _prepare_signing(self, grant: Grant, params: dict[str, Any]) -> dict[str, Any]:
         """Carga aqui la clave elegida y le pasa al motor solo los certificados publicos."""
@@ -922,6 +995,51 @@ class Broker:
             job.close()
 
 
+    def _office_x2t(self, grant: Grant, params: dict[str, Any], payload: bytes) -> tuple[dict[str, Any], bytes]:
+        """Lanza x2t (el de la pieza configurada) para un trabajo del motor, en otro proceso aislado."""
+        if not grant.office or payload or self._office is None or not set(params) <= {"task", "fonts"}:
+            raise denied(_("Operación no permitida."))
+        assert self._worker_root is not None
+        try:
+            command = office.x2t_command(self._office, self._worker_root, params)
+        except ValueError:
+            raise denied(_("Operación no permitida.")) from None
+        job = winsandbox.Job(memory_limit=winsandbox.process_memory_limit())
+        try:
+            child = winsandbox.spawn(
+                command, cwd=str(self._office.converter), env=self._env,
+                container=self._container if self.sandboxed else None, job=job,
+            )
+        except BaseException:
+            job.close()
+            raise
+        grant.process = child
+        threading.Thread(target=_drain, args=(child.stdout,), daemon=True).start()
+        threading.Thread(target=_drain, args=(child.stderr,), daemon=True).start()
+        try:
+            try:
+                child.stdin.close()  # x2t lee su tarea del archivo, no de la entrada
+            except OSError:
+                pass
+            deadline = time.monotonic() + office.X2T_TIMEOUT
+            while True:
+                code = child.wait(0.25)
+                if code is not None:
+                    break
+                if grant.cancelled:
+                    raise Cancelled()
+                if time.monotonic() > deadline:
+                    log.warning("x2t ha superado el tiempo maximo")
+                    raise EngineError("conversion_failed", _("La conversión tarda demasiado y se ha detenido."))
+            if grant.cancelled:
+                raise Cancelled()
+            return {"code": code}, b""
+        finally:
+            grant.process = None
+            child.kill()
+            child.close()
+            job.close()
+
     # ====================================================================== IA
 
     def _spawn_ai(self, args: list[str], memory: int) -> tuple[winsandbox.Child, winsandbox.Job]:
@@ -972,6 +1090,7 @@ _CALLS: dict[str, Callable[[Broker, Grant, dict[str, Any], bytes], tuple[dict[st
     "trust.material": Broker._trust,
     "word.convert": Broker._word,
     "scan.detect": Broker._scan,
+    "office.x2t": Broker._office_x2t,
     "ai.run": Broker._ai_run,
 }
 
@@ -1063,6 +1182,16 @@ def _wait_ready(child: winsandbox.Child) -> dict[str, Any] | None:
 
 
 def run(
-    rfile: BinaryIO, wfile: BinaryIO, main_workdir: Path, resources: Path | None, *, sandbox: bool = True, models: Path | None = None
+    rfile: BinaryIO,
+    wfile: BinaryIO,
+    main_workdir: Path,
+    resources: Path | None,
+    *,
+    sandbox: bool = True,
+    models: Path | None = None,
+    office_root: Path | None = None,
+    office_bundled: Path | None = None,
 ) -> int:
-    return Broker(rfile, wfile, main_workdir, resources, sandbox=sandbox, models=models).serve()
+    return Broker(
+        rfile, wfile, main_workdir, resources, sandbox=sandbox, models=models, office_root=office_root, office_bundled=office_bundled
+    ).serve()

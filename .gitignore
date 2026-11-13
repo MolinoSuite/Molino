@@ -6,6 +6,8 @@ engine/.venv/
 out/
 dist/
 dist-engine/
+dist-office/
+dist-suite/
 build-engine/
 *.tsbuildinfo
 # Avisos de terceros: se generan al compilar (npm run notices)
@@ -37,3 +39,6 @@ test-output/
 Thumbs.db
 .vscode/
 .idea/
+
+# Cache del armado del motor de oficina (office/build.py)
+build-cache/

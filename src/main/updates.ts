@@ -1,66 +1,44 @@
-import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { app, type Session, session, shell } from 'electron'
-import { autoUpdater } from 'electron-updater'
+import { app, type Session, shell } from 'electron'
 import type { UpdateStatus } from '@shared/types'
+import { storePackageFamily } from './appx'
+import { restrictedSession } from './download'
+import { edition } from './edition'
 import { L } from './i18n'
 import { log } from './log'
-import { isStoreApp } from './appx'
-import { isPortable } from './portable'
 
 /**
- * Versiones nuevas de Molino PDF, publicadas en GitHub Releases.
+ * Versiones nuevas. Molino se instala desde la Microsoft Store, que lo actualiza
+ * sola; aquí solo se avisa antes.
  *
- * Al abrir Molino PDF (si el usuario no lo ha desactivado) se mira si hay una versión
- * nueva y se avisa. No se descarga nada hasta que el usuario pulsa «Actualizar»
- * ni se instala sin su permiso: con «Reiniciar y actualizar» o, ya descargada,
- * al cerrar Molino PDF.
+ * Al abrir Molino (si el usuario no lo ha desactivado) se mira en GitHub la
+ * última versión publicada de este producto: Molino PDF (etiquetas vX.Y.Z) o
+ * Molino Suite (suite-vX.Y.Z). La versión de GitHub se publica cuando la Store
+ * ya la tiene (scripts/release.mjs). Si es más nueva, se avisa, y «Actualizar»
+ * abre la página de Molino en la Store, donde está su botón de actualizar.
  *
- * Seguridad de la cadena de suministro (OWASP A03:2025 / A08:2025):
- * - Solo se habla con GitHub y por HTTPS: la sesión de red que usa
- *   electron-updater corta cualquier otra petición, también tras una redirección.
- * - El instalador descargado se comprueba con la huella SHA-512 publicada en
- *   latest.yml; si no coincide, se descarta.
- * - Con el instalador firmado (publisherName en electron-builder.yml), además
- *   se exige que la versión nueva venga firmada por el mismo editor.
+ * Solo se habla con api.github.com por HTTPS (la sesión de red corta cualquier
+ * otra petición) y de la respuesta solo se usan las etiquetas, validadas.
  */
 
-// Partición de red que usa electron-updater (electronHttpExecutor.NET_SESSION_NAME).
-const NET_SESSION = 'electron-updater'
-/**
- * La versión portable se actualiza descargando el zip nuevo desde el navegador
- * (el instalador no sirve para una copia sin instalar). Dirección fija: la
- * última versión publicada en GitHub.
- */
-const PORTABLE_DOWNLOAD = 'https://github.com/MolinoSuite/Molino/releases/latest/download/MolinoPDF-Portable.zip'
-const VERSION = /^\d{1,4}\.\d{1,4}\.\d{1,6}(-[0-9A-Za-z.-]{1,30})?$/
+const RELEASES = 'https://api.github.com/repos/MolinoSuite/Molino/releases?per_page=30'
+const TAG: Record<'pdf' | 'suite', RegExp> = {
+  pdf: /^v(\d{1,4}\.\d{1,4}\.\d{1,6})$/,
+  suite: /^suite-v(\d{1,4}\.\d{1,4}\.\d{1,6})$/
+}
+const MAX_BYTES = 2 * 1024 * 1024
 
-/** Peticiones de actualización: solo HTTPS a GitHub (y, sin empaquetar, la dirección de prueba). */
+/** Peticiones de versiones: solo HTTPS a la API de GitHub (y, sin empaquetar, la dirección de prueba). */
 export function isUpdateUrl(raw: string, testOrigin: string | null): boolean {
   try {
     const url = new URL(raw)
     if (testOrigin !== null && url.origin === testOrigin) return true
-    if (url.protocol !== 'https:' || url.username !== '' || url.password !== '') return false
-    return url.hostname === 'github.com' || url.hostname === 'api.github.com' || url.hostname.endsWith('.githubusercontent.com')
+    return url.protocol === 'https:' && url.username === '' && url.password === '' && url.port === '' && url.hostname === 'api.github.com'
   } catch {
     return false
   }
 }
 
-function hardenUpdateSession(target: Session, testOrigin: string | null): void {
-  target.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
-  target.setPermissionCheckHandler(() => false)
-  target.webRequest.onBeforeRequest((details, callback) => {
-    const allowed = isUpdateUrl(details.url, testOrigin)
-    if (!allowed) log.warn('actualizaciones: se bloquea una petición fuera de GitHub')
-    callback({ cancel: !allowed })
-  })
-}
-
-/**
- * Dirección de prueba (solo sin empaquetar): un servidor local con un latest.yml
- * de prueba, para las pruebas de interfaz. En la aplicación instalada no existe.
- */
+/** Solo pruebas, sin empaquetar: un servidor local que hace de GitHub. */
 function testFeed(raw: string | undefined): string | null {
   if (app.isPackaged || !raw) return null
   try {
@@ -71,129 +49,95 @@ function testFeed(raw: string | undefined): string | null {
   }
 }
 
-/** Versión anunciada por el servidor: se muestra en la interfaz, así que se valida. */
-function cleanVersion(value: unknown): string {
-  return typeof value === 'string' && VERSION.test(value) ? value : '?'
+/** a > b, con versiones «x.y.z» ya validadas. */
+export function newer(a: string, b: string): boolean {
+  const x = a.split('.').map(Number)
+  const y = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0)
+  return false
+}
+
+/** La versión más nueva de este producto entre las publicadas (sin borradores ni versiones de prueba). */
+export function latestOf(releases: unknown, product: 'pdf' | 'suite'): string | null {
+  if (!Array.isArray(releases)) return null
+  let best: string | null = null
+  for (const release of releases.slice(0, 100)) {
+    if (typeof release !== 'object' || release === null) continue
+    const { tag_name: tag, draft, prerelease } = release as { tag_name?: unknown; draft?: unknown; prerelease?: unknown }
+    if (draft === true || prerelease === true || typeof tag !== 'string') continue
+    const version = TAG[product].exec(tag)?.[1]
+    if (version && (best === null || newer(version, best))) best = version
+  }
+  return best
 }
 
 export class Updates {
   private status: UpdateStatus
+  private readonly feed: string | null
   private readonly active: boolean
+  private session: Session | null = null
   private manual = false
-  private installing = false
-  private readonly portable = isPortable()
 
   constructor(private readonly notify: (status: UpdateStatus) => void) {
-    const feed = testFeed(process.env.MOLINO_TEST_UPDATES)
-    // La versión de la Microsoft Store la actualiza la propia Store.
-    const store = isStoreApp()
-    this.active = (app.isPackaged && !store) || feed !== null
-    this.status = {
-      state: this.active ? 'idle' : 'unavailable',
-      ...(this.portable ? { portable: true } : {}),
-      ...(store ? { store: true } : {})
-    }
-    if (!this.active) return
-
-    hardenUpdateSession(session.fromPartition(NET_SESSION, { cache: false }), feed)
-    autoUpdater.logger = {
-      // electron-updater registra direcciones y versiones, nada del usuario.
-      info: (message: unknown) => log.info(`actualizaciones: ${String(message).slice(0, 300)}`),
-      warn: (message: unknown) => log.warn(`actualizaciones: ${String(message).slice(0, 300)}`),
-      error: (message: unknown) => log.warn(`actualizaciones: ${String(message).slice(0, 300)}`),
-      debug: () => undefined
-    }
-    autoUpdater.autoDownload = false // se pregunta antes de descargar
-    autoUpdater.autoInstallOnAppQuit = false // se instala solo con permiso (ver install)
-    autoUpdater.allowPrerelease = false
-    autoUpdater.allowDowngrade = false
-    autoUpdater.disableWebInstaller = true
-    if (feed !== null) {
-      // Solo pruebas: configuración en el perfil (temporal) de la prueba y una
-      // carpeta de descargas propia, para no mezclarse con una instalación real.
-      const config = join(app.getPath('userData'), 'prueba-actualizaciones.yml')
-      writeFileSync(config, `provider: generic\nurl: ${feed}\nupdaterCacheDirName: molino-updater-pruebas\n`)
-      autoUpdater.forceDevUpdateConfig = true
-      autoUpdater.updateConfigPath = config
-      autoUpdater.setFeedURL({ provider: 'generic', url: feed })
-    }
-
-    autoUpdater.on('checking-for-update', () => this.set({ state: 'checking' }))
-    autoUpdater.on('update-available', (info) => this.set({ state: 'available', version: cleanVersion(info.version) }))
-    autoUpdater.on('update-not-available', () => this.set({ state: this.manual ? 'current' : 'idle' }))
-    autoUpdater.on('download-progress', (progress) =>
-      this.set({ state: 'downloading', version: this.status.version, percent: Math.max(0, Math.min(100, Math.floor(progress.percent))) })
-    )
-    autoUpdater.on('update-downloaded', (info) => this.set({ state: 'ready', version: cleanVersion(info.version) }))
-    autoUpdater.on('error', (error: Error) => {
-      // Solo el tipo y un mensaje propio: el de la biblioteca puede incluir rutas.
-      log.warn(`actualizaciones: error (${error?.name ?? 'desconocido'})`)
-      const wasDownloading = this.status.state === 'downloading'
-      if (!this.manual && !wasDownloading) {
-        // Una comprobación automática que falla (sin conexión, por ejemplo) no molesta.
-        this.set({ state: 'idle' })
-        return
-      }
-      const mismatch = /sha512|checksum/i.test(String(error?.message ?? ''))
-      this.set({
-        state: 'error',
-        version: this.status.version,
-        message: mismatch
-          ? L.main.updates.mismatch
-          : wasDownloading
-            ? L.main.updates.downloadFailed
-            : L.main.updates.checkFailed
-      })
-    })
+    this.feed = testFeed(process.env.MOLINO_TEST_UPDATES)
+    this.active = app.isPackaged || this.feed !== null
+    this.status = { state: this.active ? 'idle' : 'unavailable' }
   }
 
   private set(status: UpdateStatus): void {
-    this.status = this.portable ? { ...status, portable: true } : status
-    this.notify(this.status)
+    this.status = status
+    this.notify(status)
   }
 
   current(): UpdateStatus {
     return this.status
   }
 
-  /** Mira si hay versión nueva. ``manual``: lo ha pedido el usuario (se le dice también si no la hay). */
+  /** Mira si hay versión nueva. ``manual``: lo ha pedido el usuario (se le dice también si no la hay o si falla). */
   check(manual: boolean): void {
-    if (!this.active || this.installing || ['checking', 'downloading', 'ready'].includes(this.status.state)) return
+    if (!this.active || this.status.state === 'checking') return
     this.manual = manual
-    autoUpdater.checkForUpdates().catch(() => undefined) // el fallo llega por el evento 'error'
-  }
-
-  /** Descarga la versión anunciada: solo después de que el usuario lo pida. */
-  download(): void {
-    if (!this.active || (this.status.state !== 'available' && this.status.state !== 'error')) return
-    if (this.portable) {
-      // Se descarga en el navegador; Molino PDF no instala nada en una copia portable.
-      if (app.isPackaged) {
-        shell.openExternal(PORTABLE_DOWNLOAD).catch(() => log.warn('actualizaciones: no se pudo abrir el navegador'))
-      } else {
-        log.info('actualizaciones: se abriría la descarga de la versión portable (prueba)')
+    this.set({ state: 'checking' })
+    void this.fetchLatest().then(
+      (latest) => {
+        if (latest && newer(latest, app.getVersion())) this.set({ state: 'available', version: latest })
+        else this.set({ state: this.manual ? 'current' : 'idle' })
+      },
+      (error: unknown) => {
+        log.warn(`actualizaciones: no se pudo mirar (${error instanceof Error ? error.name : '?'})`)
+        // Una comprobación automática que falla (sin conexión, por ejemplo) no molesta.
+        this.set(this.manual ? { state: 'error', message: L.main.updates.checkFailed } : { state: 'idle' })
       }
-      this.set({ state: 'idle', version: this.status.version })
-      return
+    )
+  }
+
+  private async fetchLatest(): Promise<string | null> {
+    this.session ??= restrictedSession('molino-updates', (url) => isUpdateUrl(url, this.feed), 'actualizaciones')
+    const url = this.feed ? `${this.feed}/releases` : RELEASES
+    const response = await this.session.fetch(url, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'Molino' },
+      redirect: 'error',
+      signal: AbortSignal.timeout(20_000)
+    })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const text = await response.text()
+    if (text.length > MAX_BYTES) throw new Error('respuesta demasiado grande')
+    return latestOf(JSON.parse(text), edition)
+  }
+
+  /** «Actualizar»: abre la página de Molino en la Microsoft Store (allí se actualiza). */
+  async openStore(): Promise<boolean> {
+    const family = storePackageFamily()
+    if (!family) {
+      log.info('actualizaciones: se abriría la Microsoft Store (sin empaquetar)')
+      return true
     }
-    this.set({ state: 'downloading', version: this.status.version, percent: 0 })
-    autoUpdater.downloadUpdate().catch(() => undefined)
-  }
-
-  /** Hay una versión descargada esperando a instalarse. */
-  get pending(): boolean {
-    return this.status.state === 'ready' && !this.installing
-  }
-
-  /**
-   * Instala la versión descargada. La interfaz ya ha cerrado los documentos
-   * (preguntando qué guardar). ``relaunch``: abrir Molino PDF de nuevo al terminar.
-   */
-  install(relaunch: boolean): boolean {
-    if (!this.pending) return false
-    this.installing = true
-    log.info('actualizaciones: se instala la versión descargada')
-    autoUpdater.quitAndInstall(true, relaunch)
-    return true
+    try {
+      await shell.openExternal(`ms-windows-store://pdp/?PFN=${encodeURIComponent(family)}`)
+      return true
+    } catch {
+      log.warn('actualizaciones: no se pudo abrir la Microsoft Store')
+      return false
+    }
   }
 }

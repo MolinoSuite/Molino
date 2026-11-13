@@ -1,8 +1,7 @@
 import { app, shell } from 'electron'
 import type { DefaultAppStatus } from '@shared/types'
-import { isStoreApp } from './appx'
+import { storeAppUserModelId } from './appx'
 import { log } from './log'
-import { isPortable } from './portable'
 import { regQuery } from './registry'
 
 /**
@@ -10,15 +9,14 @@ import { regQuery } from './registry'
  *
  * Windows no deja que un programa se ponga solo como predeterminado (para que
  * nadie se lo quite a otro a escondidas): lo decide el usuario en
- * Configuración. Molino PDF solo mira si ya lo es y, si se lo pide, abre su página
- * en «Aplicaciones predeterminadas», donde basta un clic. El instalador
- * registra a Molino PDF como aplicación (build/installer.nsh).
+ * Configuración. Molino solo mira si ya lo es y, si se lo pide, abre su página
+ * en «Aplicaciones predeterminadas», donde basta un clic.
+ *
+ * El paquete de la Store declara los PDF en su manifiesto y Windows les pone un
+ * tipo de archivo propio («AppX…»), cuya clave dice de qué app es
+ * (Application\AppUserModelID): así se sabe si la elegida es esta.
  */
 
-/** Identificador del tipo de archivo de Molino PDF (fileAssociations en electron-builder.yml). */
-const PROG_ID = 'Molino.PDF'
-/** Nombre con el que el instalador registra a Molino PDF en RegisteredApplications. */
-const REGISTERED_NAME = 'Molino PDF'
 const CHOICE = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.pdf'
 
 /** Solo pruebas, sin empaquetar: simular el estado y no abrir Configuración de verdad. */
@@ -29,20 +27,17 @@ function testState(): DefaultAppStatus | null {
 }
 
 async function readStatus(): Promise<DefaultAppStatus> {
-  // La versión portable no se registra en Windows: no puede ser la predeterminada
-  // y no se le propone (con 'unknown' la interfaz no pregunta).
-  if (isPortable()) return 'unknown'
-  // La de la Store se asocia por su paquete (otro tipo de archivo, que pone
-  // Windows): de momento no se le propone.
-  if (isStoreApp()) return 'unknown'
   const simulated = testState()
   if (simulated) return simulated
-  if (!app.isPackaged || process.platform !== 'win32') return 'unknown'
+  const own = storeAppUserModelId('pdf')
+  if (!own || process.platform !== 'win32') return 'unknown'
   // Windows 11 reciente guarda la elección en el valor ProgId de la subclave
   // UserChoiceLatest\ProgId; antes, en UserChoice.
   const chosen = (await regQuery(`${CHOICE}\\UserChoiceLatest\\ProgId`, 'ProgId')) ?? (await regQuery(`${CHOICE}\\UserChoice`, 'ProgId'))
   if (chosen === null) return 'unknown'
-  return chosen.toLowerCase() === PROG_ID.toLowerCase() ? 'default' : 'other'
+  if (!/^AppX[0-9a-z]{1,40}$/i.test(chosen)) return 'other'
+  const owner = await regQuery(`HKCU\\Software\\Classes\\${chosen}\\Application`, 'AppUserModelID')
+  return owner !== null && owner.toLowerCase() === own.toLowerCase() ? 'default' : 'other'
 }
 
 let lastStatus: DefaultAppStatus | null = null
@@ -56,14 +51,17 @@ export async function pdfDefaultStatus(): Promise<DefaultAppStatus> {
   return status
 }
 
-/** Abre la página de Molino PDF en «Aplicaciones predeterminadas» (o la general, si Windows no la tiene). */
-export async function openDefaultAppSettings(): Promise<boolean> {
-  if (testState()) {
+/**
+ * Abre en «Aplicaciones predeterminadas» la página de una app del paquete
+ * (``aumid``; por omisión, Molino PDF), o la general si no se puede.
+ */
+export async function openDefaultAppSettings(aumid: string | null = storeAppUserModelId('pdf')): Promise<boolean> {
+  if (testState() || !app.isPackaged) {
     log.info('predeterminado: se abriría Configuración (prueba)')
     return true
   }
   try {
-    await shell.openExternal(`ms-settings:defaultapps?registeredAppUser=${encodeURIComponent(REGISTERED_NAME)}`)
+    await shell.openExternal(aumid ? `ms-settings:defaultapps?registeredAUMID=${encodeURIComponent(aumid)}` : 'ms-settings:defaultapps')
     return true
   } catch {
     try {

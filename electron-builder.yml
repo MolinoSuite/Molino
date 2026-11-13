@@ -1,13 +1,10 @@
-# Identificador de la suite, no solo de esta app: cuando lleguen Documentos,
-# Hojas y Presentaciones irán en esta misma instalación, que se actualizará
-# sola, sin cambiar de identidad.
+# Molino se publica en la Microsoft Store (sin instalador .exe): el paquete de
+# Molino PDF sale de aquí (npm run dist:store) y el de Molino Suite, con todas
+# las apps, de scripts/make-suite-msix.mjs (npm run dist:suite).
 appId: org.molinosuite.molino
 productName: Molino PDF
-# El programa y su carpeta llevan el nombre de la suite (Molino.exe en
-# %LOCALAPPDATA%\Programs\Molino): Documentos, Hojas y Presentaciones se añaden
-# a esta misma instalación (..\PLAN-SUITE.md). Lo que se ve (accesos, «Aplicaciones
-# instaladas») sigue diciendo Molino PDF mientras sea la única app. Sin espacio:
-# los scripts no necesitan comillas.
+# El programa lleva el nombre de la suite: en Molino Suite, el mismo Molino.exe
+# abre todas las apps. Sin espacio: los scripts no necesitan comillas.
 executableName: Molino
 copyright: Copyright © 2026 CuevasTech · AGPL-3.0-or-later
 
@@ -30,75 +27,33 @@ extraFiles:
   - from: LICENSE
     to: LICENSE.txt
 
-# Versiones nuevas: se publican en GitHub Releases y la aplicación las
-# encuentra ahí (src/main/updates.ts). Con esto electron-builder
-# genera latest.yml junto al instalador y app-update.yml dentro de la aplicación.
-# Cuando el instalador vaya firmado, añadir en win.signtoolOptions el
-# publisherName: la aplicación exigirá entonces que las versiones nuevas
-# vengan firmadas por el mismo editor.
-# El repositorio es el de la suite (github.com/MolinoSuite/Molino).
-publish:
-  provider: github
-  owner: MolinoSuite
-  repo: Molino
-  releaseType: release
-
 extraResources:
   - from: dist-engine/molino-engine
     to: engine
+  # Lo de Documentos, Hojas y Presentaciones (iconos de sus ventanas, plantillas y el
+  # motor de oficina) solo va en el paquete de Molino Suite: lo añade
+  # scripts/make-suite-msix.mjs. El de Molino PDF es solo el PDF.
   - from: resources/tessdata
     to: assets/tessdata
     filter:
       - "*.traineddata"
 
 win:
-  # Firma del instalador. Con el certificado de firma de código conectado,
-  # descomentar y poner su huella y su nombre exacto:
-  # signtoolOptions:
-  #   certificateSha1: HUELLA_DEL_CERTIFICADO
-  #   rfc3161TimeStampServer: http://time.certum.pl
-  #   signingHashAlgorithms: [sha256]
-  #   publisherName: NOMBRE_EXACTO_DEL_CERTIFICADO
   target:
-    - target: nsis
+    - target: appx
       arch: [x64]
   icon: build/icon.ico
   fileAssociations:
-    # name es el identificador del tipo de archivo (ProgId) en el registro: propio
-    # de Molino PDF, para no confundirse con el de otro programa. Lo que ve el usuario
-    # es description. build/installer.nsh registra ademas a Molino PDF como aplicacion
-    # con capacidades, para poder elegirlo como programa predeterminado.
+    # En el paquete de la Store, «Abrir con» y «Aplicaciones predeterminadas» de los PDF.
     - ext: pdf
       name: Molino.PDF
       description: PDF
       role: Editor
 
-nsis:
-  # Sin espacios: GitHub cambia los espacios de los archivos subidos y el nombre
-  # dejaria de coincidir con el que anuncia latest.yml. Sin numero de version:
-  # asi la web enlaza siempre a la ultima con una direccion fija
-  # (releases/latest/download/MolinoPDF-Setup.exe); cada version sigue teniendo la
-  # suya propia (releases/download/vX.Y.Z/MolinoPDF-Setup.exe).
-  artifactName: MolinoPDF-Setup.${ext}
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
-  createStartMenuShortcut: true
-  shortcutName: Molino PDF
-  uninstallDisplayName: Molino PDF
-  # Instalador en inglés y español: elige solo el idioma de Windows (si no es
-  # ninguno de los dos, inglés).
-  installerLanguages: [en_US, es_ES]
-  multiLanguageInstaller: true
-  displayLanguageSelector: false
-  language: "1033"
-  include: build/installer.nsh
-
 # Versión de la Microsoft Store (MSIX): npm run dist:store (o, con la app ya
 # compilada, electron-builder --win appx --prepackaged dist\win-unpacked). La
 # Store firma el paquete al publicarlo. Los datos de la app van en la carpeta del
-# paquete y las versiones nuevas llegan por la Store (src/main/appx.ts).
+# paquete y las versiones nuevas llegan por la Store (src/main/appx.ts, updates.ts).
 appx:
   # La identidad del producto en Partner Center (Producto → Administración del
   # producto → Identidad del producto): tiene que coincidir tal cual, o la

@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 import type { UpdateStatus } from '@shared/types'
 
-/** Estado de las versiones nuevas de Molino PDF, tal como lo cuenta el proceso principal (updates.ts). */
+/** Estado de las versiones nuevas, tal como lo cuenta el proceso principal (updates.ts). */
 interface UpdatesState {
   status: UpdateStatus
-  /** Aviso que el usuario ha dejado para más tarde en esta sesión: la versión («Ahora no»), 'ready' («Más tarde») o 'error'. */
+  /** La versión que el usuario ha dejado para más tarde en esta sesión («Ahora no»). */
   postponed: string | null
 }
 

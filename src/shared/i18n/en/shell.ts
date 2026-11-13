@@ -99,21 +99,11 @@ export const shell: typeof source = {
     working: 'Working…'
   },
   update: {
-    available: 'A new version of Molino PDF is available',
-    availableVersion: 'A new version of Molino PDF is available ({version})',
+    available: 'A new version of {app} is available',
+    availableVersion: 'A new version of {app} is available ({version})',
+    hint: 'It updates from the Microsoft Store.',
     update: 'Update',
-    downloadPortable: 'Download',
-    portableHint: 'It downloads in your browser. Unzip it over this folder: your settings are kept.',
-    notNow: 'Not now',
-    downloading: 'Downloading Molino PDF…',
-    downloadingVersion: 'Downloading Molino PDF {version}…',
-    ready: 'The Molino PDF update is ready',
-    readyVersion: 'Molino PDF {version} is ready to install',
-    restart: 'Restart and update',
-    laterTip: 'It will be installed when you close Molino PDF',
-    later: 'Later',
-    failed: 'Couldn’t update Molino PDF',
-    tryLater: 'Try again later.'
+    notNow: 'Not now'
   },
   recovery: {
     title: 'Recover documents',

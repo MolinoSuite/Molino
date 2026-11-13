@@ -14,7 +14,7 @@ Lee, rellena, firma, edita y organiza tus PDF en Windows. Gratis, sin anuncios, 
 </p>
 
 > [!NOTE]
-> **La primera versión sale muy pronto.** Para enterarte, pulsa **Watch → Custom → Releases** en [el repositorio](https://github.com/MolinoSuite/Molino).
+> **Ya está en la [Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N).** También con `winget install 9NRTWZFHG67N`.
 
 ## ✍️ Rellena y firma
 
@@ -51,17 +51,16 @@ Resume el documento, responde a tus preguntas indicando las páginas de donde sa
 
 ## 🏠 Tus documentos se quedan en tu equipo
 
-Molino PDF funciona sin conexión y no te pide una cuenta. Solo usa Internet cuando tú lo pides (el sello de tiempo de una firma, que recibe una huella del documento y nunca el documento; un comentario que nos envíes; o la descarga de los modelos de la IA, desde Hugging Face) y para avisarte de versiones nuevas. Cada PDF se abre en un espacio aislado de Windows, para que un archivo con trampa no pueda tocar tus otros archivos ni conectarse a Internet.
+Molino PDF funciona sin conexión y no te pide una cuenta. Solo usa Internet cuando tú lo pides (el sello de tiempo de una firma, que recibe una huella del documento y nunca el documento; un comentario que nos envíes; o la descarga de los modelos de la IA, desde Hugging Face). Cada PDF se abre en un espacio aislado de Windows, para que un archivo con trampa no pueda tocar tus otros archivos ni conectarse a Internet.
 
 ## 💻 Instalación
 
 Para Windows 10 y 11 de 64 bits, también en portátiles con Windows 11 ARM. En español y en inglés: sigue el idioma de Windows.
 
-1. Descarga **MolinoPDF-Setup** de la [última versión](https://github.com/MolinoSuite/Molino/releases/latest).
-2. Ábrelo y sigue los pasos. No hace falta ser administrador.
-3. Listo. Cuando haya una versión nueva, Molino PDF te avisará.
+1. Abre [Molino PDF en la Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N) y pulsa **Obtener**. No hace falta ser administrador ni tener cuenta.
+2. Listo. Las versiones nuevas llegan solas por la Store.
 
-**Versión portable:** descarga [MolinoPDF-Portable.zip](https://github.com/MolinoSuite/Molino/releases/latest/download/MolinoPDF-Portable.zip), descomprímelo en cualquier carpeta y abre `Molino.exe`. Guarda sus ajustes en esa carpeta y no cambia nada en Windows.
+También con winget: `winget install 9NRTWZFHG67N`.
 
 ## 💬 ¿Ideas o algo que no va bien?
 

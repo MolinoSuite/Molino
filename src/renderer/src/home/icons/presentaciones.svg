@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Molino Presentaciones: pantalla con gráfico sobre su trípode. Para 48 px o más. -->
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#E06A1A"/>
+  <rect x="11" y="13" width="42" height="28" rx="2" fill="#F5EFDF" stroke="#1C1B19" stroke-width="2.4"/>
+  <path d="M22 34 V28 M31 34 V22 M40 34 V26" stroke="#1C1B19" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M32 41 V49 M23 54 L32 49 L41 54" fill="none" stroke="#1C1B19" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

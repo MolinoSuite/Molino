@@ -17,6 +17,8 @@ import { tools } from './tools'
 import { state } from './state'
 import { ai } from './ai'
 import { main } from './main'
+import { office } from './office'
+import { home } from './home'
 
 export const es = {
   common,
@@ -36,5 +38,7 @@ export const es = {
   tools,
   state,
   main,
-  ai
+  ai,
+  office,
+  home
 }

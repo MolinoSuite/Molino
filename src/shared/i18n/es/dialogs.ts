@@ -23,6 +23,7 @@ export const dialogs = {
     tabs: {
       general: 'General',
       appearance: 'Apariencia',
+      apps: 'Aplicaciones',
       documents: 'Documentos',
       signature: 'Firma'
     },
@@ -86,17 +87,32 @@ export const dialogs = {
       current: 'Solo el actual'
     },
     updates: {
-      label: 'Versiones nuevas de Molino PDF',
-      check: 'Avisarme al abrir Molino PDF si hay una versión nueva (no se descarga nada sin preguntarte)',
+      label: 'Versiones nuevas',
+      check: 'Avisarme al abrir Molino si hay una versión nueva',
       checkNow: 'Buscar ahora',
-      unavailable: 'Esta copia de Molino PDF no se actualiza sola.',
-      store: 'Las versiones nuevas llegan por la Microsoft Store.',
+      openStore: 'Actualizar en la Store',
+      store: 'Las versiones nuevas se instalan desde la Microsoft Store; Windows también lo hace solo.',
+      unavailable: 'Esta copia de Molino no mira si hay versiones nuevas.',
       checking: 'Buscando…',
       current: 'Tienes la versión más reciente.',
-      downloading: 'Descargando la versión nueva…',
-      ready: 'La versión nueva se instalará al cerrar Molino PDF.',
       available: 'Hay una versión nueva.',
       availableVersion: 'Hay una versión nueva: {version}.'
+    },
+    apps: {
+      title: 'Documentos, Hojas y Presentaciones',
+      intro: 'Vienen con Molino Suite. Con «Predeterminada…» eliges en Windows abrir sus archivos con doble clic.',
+      home: '«Molino»: el inicio con todas las apps',
+      basedOn: 'Usan el motor de ONLYOFFICE (AGPL-3.0) con los cambios de Molino.',
+      names: { word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones' },
+      open: 'Abrir',
+      defaultApps: 'Predeterminada…',
+      defaultAppsTip: 'Para abrir sus archivos con doble clic: abre la página de {name} en «Aplicaciones predeterminadas» de Windows.',
+      dictionary: 'Diccionario personal',
+      dictionaryHint: 'Las palabras que añades con «Añadir al diccionario» al corregir: el corrector las da por buenas en todos tus documentos.',
+      dictionaryCount: '{n} palabras.',
+      dictionaryOne: '1 palabra.',
+      dictionaryEmpty: 'Aún no has añadido ninguna.',
+      dictionaryRemove: 'Quitar «{word}» del diccionario'
     }
   },
   about: {
@@ -108,6 +124,12 @@ export const dialogs = {
     licenseButton: 'Licencia',
     source: 'Código fuente',
     notices: 'Componentes de terceros',
+    officeTitle: 'Documentos, Hojas y Presentaciones',
+    officeText: 'Usan una versión modificada de los editores de ONLYOFFICE (AGPL-3.0, con los términos adicionales de su §7).',
+    officeNotice: 'Cambios de Molino',
+    officeLicense: 'Licencia de ONLYOFFICE',
+    officeSource: 'Código del motor',
+    officeTrademark: 'ONLYOFFICE es una marca de Ascensio System SIA. Molino no está afiliado a Ascensio System SIA ni cuenta con su respaldo.',
     support: 'Molino PDF es gratis y lo seguirá siendo. Si te resulta útil, puedes invitarme a un café en GitHub Sponsors.',
     coffee: 'Invítame a un café'
   },
