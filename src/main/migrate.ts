@@ -2,8 +2,14 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileS
 import { isAbsolute, join } from 'node:path'
 import { app } from 'electron'
 import { DEFAULT_ACCENT } from '@shared/types'
+import { separatePdfData } from './appx'
 
 /**
+ * Lo que el usuario tenía antes, la primera vez que se abre Molino:
+ * - **Molino Suite con Molino PDF instalado aparte**: lo de Molino PDF (la
+ *   suite lo incluye; después se ofrece desinstalar el otro, pdfapart.ts).
+ * - **Folio**, en otro caso (lo de abajo).
+ *
  * Paso de Folio a Molino PDF.
  *
  * La primera vez que Molino PDF se abre en un equipo donde se usó Folio, trae
@@ -25,8 +31,9 @@ import { DEFAULT_ACCENT } from '@shared/types'
  * con su esquema y, si no encaja, usa los valores por defecto.
  */
 
-/** Marca que deja el paso en la carpeta de Molino PDF (y que impide repetirlo). */
+/** Marca que deja el paso en la carpeta de Molino (y que impide repetirlo). */
 const MARKER = 'desde-folio.json'
+const MARKER_PDF = 'desde-molino-pdf.json'
 /** Archivos que se traen, si existen. Las firmas solo junto con su clave. */
 const CONFIG = 'config.json'
 const SIGNATURES = 'signatures.bin'
@@ -52,14 +59,18 @@ export function legacyDataDir(): string | null {
   return dir && isFolder(dir) ? dir : null
 }
 
-/** Carpeta de modelos de IA de Folio, si existe (AiModels copia de ahí lo que coincida). */
+/** Carpeta de modelos de IA de Molino PDF instalado aparte o, si no, de Folio (AiModels copia de ahí lo que coincida). */
 export function legacyModelsDir(): string | null {
-  const dir = legacyDataDir()
-  const models = dir ? join(dir, 'models') : null
-  return models && isFolder(models) ? models : null
+  for (const dir of [separatePdfData(), legacyDataDir()]) {
+    const models = dir ? join(dir, 'models') : null
+    if (models && isFolder(models)) return models
+  }
+  return null
 }
 
 export interface MigrationReport {
+  /** De dónde: «Molino PDF» o «Folio» (para el registro). */
+  label: string
   from: string
   copied: string[]
   /** Por qué no se trajeron las firmas, si había. */
@@ -71,19 +82,25 @@ export interface MigrationReport {
  * se trajo, o null si no había nada que hacer. Nunca lanza: un fallo deja la
  * carpeta como estaba (Molino PDF arranca con sus valores por defecto).
  */
-export function migrateFromFolio(userData: string): MigrationReport | null {
+export function migrateLegacy(userData: string): MigrationReport | null {
+  const pdf = separatePdfData()
+  if (pdf) return migrateFrom(userData, pdf, 'Molino PDF', MARKER_PDF)
+  const folio = legacyDataDir()
+  return folio ? migrateFrom(userData, folio, 'Folio', MARKER) : null
+}
+
+function migrateFrom(userData: string, from: string, label: string, marker: string): MigrationReport | null {
   try {
-    const from = legacyDataDir()
-    if (!from || (!isFile(join(from, CONFIG)) && !isFile(join(from, SIGNATURES)))) return null
-    if (existsSync(join(userData, MARKER))) return null
+    if (!isFile(join(from, CONFIG)) && !isFile(join(from, SIGNATURES))) return null
+    if (existsSync(join(userData, MARKER)) || existsSync(join(userData, MARKER_PDF))) return null
     // Solo en una carpeta sin usar: si Molino PDF ya tiene sus datos, no se tocan.
     if (existsSync(join(userData, CONFIG)) || existsSync(join(userData, KEYS))) return null
     mkdirSync(userData, { recursive: true })
 
-    const report: MigrationReport = { from, copied: [] }
+    const report: MigrationReport = { label, from, copied: [] }
     if (isFile(join(from, CONFIG))) {
       copyFileSync(join(from, CONFIG), join(userData, CONFIG))
-      adoptAccent(join(userData, CONFIG))
+      if (marker === MARKER) adoptAccent(join(userData, CONFIG))
       report.copied.push(CONFIG)
     }
     if (isFile(join(from, SIGNATURES))) {
@@ -95,7 +112,7 @@ export function migrateFromFolio(userData: string): MigrationReport | null {
         report.signaturesSkipped = 'sin la clave de cifrado'
       }
     }
-    writeFileSync(join(userData, MARKER), JSON.stringify({ ...report, at: new Date().toISOString() }, null, 2))
+    writeFileSync(join(userData, marker), JSON.stringify({ ...report, at: new Date().toISOString() }, null, 2))
     return report
   } catch {
     return null

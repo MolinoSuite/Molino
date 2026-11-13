@@ -25,6 +25,7 @@ export const dialogs = {
       appearance: 'Apariencia',
       apps: 'Aplicaciones',
       documents: 'Documentos',
+      pdf: 'PDF',
       signature: 'Firma'
     },
     language: {
@@ -53,8 +54,8 @@ export const dialogs = {
     sidebarOpen: 'Mostrar el panel de páginas al abrir',
     highlightFields: 'Resaltar los campos de formulario que se pueden rellenar',
     author: {
-      label: 'Nombre para comentarios',
-      hint: 'Se guarda como autor de las notas y anotaciones que añadas.'
+      label: 'Tu nombre',
+      hint: 'Firma las notas de los PDF y los comentarios y cambios de los documentos. Vacío: el de tu usuario de Windows.'
     },
     signLevel: {
       label: 'Tipo de firma con certificado',

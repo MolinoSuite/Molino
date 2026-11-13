@@ -1,6 +1,9 @@
 import { contextBridge, ipcRenderer } from 'electron'
+import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
+import type { MolinoShared } from '@shared/api'
 import type { Lang } from '@shared/i18n'
-import type { OfficeTabs, OfficeUiApi } from '@shared/officeui'
+import type { OfficeAsk, OfficeTabs, OfficeUiApi } from '@shared/officeui'
+import type { DocDescriptor, ProgressInfo, Settings, UpdateStatus } from '@shared/types'
 
 /**
  * Lo único que ven las páginas de Documentos, Hojas y Presentaciones de este
@@ -9,6 +12,10 @@ import type { OfficeTabs, OfficeUiApi } from '@shared/officeui'
  *
  * - ``molinoOffice``: la interfaz de Molino (pestañas, abrir, documento nuevo).
  *   El proceso principal solo lo atiende desde la página de la interfaz.
+ * - ``molino``: solo en la página de la interfaz, lo que comparten todas las
+ *   apps de Molino (ajustes, IA, versiones nuevas, comentarios, avisos legales):
+ *   los mismos canales que Molino PDF, que el proceso principal atiende desde
+ *   la interfaz de cada app (ipc.ts, SHARED_CHANNELS).
  * - ``molinoHost``: el puente de cada editor (office/bridge.js), que hace de
  *   «app de escritorio» de ONLYOFFICE. Cada llamada lleva su documento y el
  *   proceso principal solo la atiende desde un editor y para los documentos
@@ -47,6 +54,7 @@ const ui: OfficeUiApi = {
   openDialog: () => ipcRenderer.invoke('office:openDialog'),
   saveAs: (doc) => ipcRenderer.invoke('office:saveAs', doc),
   print: (doc) => ipcRenderer.invoke('office:print', doc),
+  showInFolder: (doc) => ipcRenderer.invoke('office:showInFolder', doc),
   exportDoc: (doc, format) => ipcRenderer.invoke('office:export', { doc, format }),
   newDoc: () => ipcRenderer.invoke('office:new'),
   recent: () => ipcRenderer.invoke('office:recent'),
@@ -66,7 +74,6 @@ const ui: OfficeUiApi = {
   fromTemplate: (id) => ipcRenderer.invoke('office:fromTemplate', id),
   ai: {
     status: () => ipcRenderer.invoke('office:aiStatus'),
-    settings: () => ipcRenderer.invoke('office:aiSettings'),
     run: (call, doc, method, params) => ipcRenderer.invoke('office:ai', { call, doc, method, params }),
     cancel: (call) => ipcRenderer.send('office:aiCancel', call),
     onProgress: (listener) => {
@@ -80,15 +87,24 @@ const ui: OfficeUiApi = {
     ipcRenderer.on('office:tabs', wrapped)
     return () => ipcRenderer.removeListener('office:tabs', wrapped)
   },
-  settings: () => ipcRenderer.invoke('office:settingsGet'),
-  setSettings: (patch) => ipcRenderer.invoke('office:settingsSet', patch),
-  dictionary: () => ipcRenderer.invoke('office:dictionary'),
-  removeFromDictionary: (words) => ipcRenderer.invoke('office:dictionaryRemove', words),
   onTheme: (listener) => {
     const wrapped = (_event: Electron.IpcRendererEvent, dark: boolean): void => listener(dark === true)
     ipcRenderer.on('office:theme', wrapped)
     return () => ipcRenderer.removeListener('office:theme', wrapped)
-  }
+  },
+  onPrint: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, pdf: DocDescriptor): void => listener(pdf)
+    ipcRenderer.on('office:printOpen', wrapped)
+    return () => ipcRenderer.removeListener('office:printOpen', wrapped)
+  },
+  printClose: (doc) => ipcRenderer.invoke('office:printClose', doc),
+  onAsk: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, ask: OfficeAsk): void => listener(ask)
+    ipcRenderer.on('office:ask', wrapped)
+    ipcRenderer.send('office:askReady')
+    return () => ipcRenderer.removeListener('office:ask', wrapped)
+  },
+  answer: (id, response) => ipcRenderer.send('office:answer', { id, response })
 }
 contextBridge.exposeInMainWorld('molinoOffice', ui)
 
@@ -107,3 +123,66 @@ contextBridge.exposeInMainWorld('molinoHost', {
   userWords: (doc: unknown) => ipcRenderer.invoke('office:userWords', doc),
   addWords: (doc: unknown, words: unknown) => ipcRenderer.invoke('office:addWords', { doc, words })
 })
+
+
+function subscribe<T>(channel: string, listener: (payload: T) => void): () => void {
+  const wrapped = (_event: Electron.IpcRendererEvent, payload: T): void => listener(payload)
+  ipcRenderer.on(channel, wrapped)
+  return () => ipcRenderer.removeListener(channel, wrapped)
+}
+
+const frameUrl = (globalThis as { location?: { href?: string } }).location?.href ?? ''
+if (frameUrl.startsWith('molino://office/__molino__/ui/')) {
+  const shared: MolinoShared = {
+    env: { version: ui.env.version, built: '', dev: process.argv.includes('--molino-dev'), lang: ui.env.lang, locale: ui.env.locale },
+    // Solo para el cuadro de imprimir: dibujar las páginas del PDF temporal e imprimirlo (officeprint.ts).
+    engine: (method, params, options) => ipcRenderer.invoke('office:printRender', { method, params, priority: options?.priority }),
+    cancel: (callId) => ipcRenderer.send('office:printCancel', callId),
+    onProgress: (listener) => subscribe<ProgressInfo>('engine:progress', listener),
+    print: {
+      printers: () => ipcRenderer.invoke('office:printers'),
+      start: (doc, pages, request, callId) => ipcRenderer.invoke('office:printStart', { doc, pages, request, callId })
+    },
+    settings: {
+      get: () => ipcRenderer.invoke('settings:get'),
+      set: (patch) => ipcRenderer.invoke('settings:set', patch),
+      onChanged: (listener) => subscribe<Settings>('settings:changed', listener)
+    },
+    shell: { openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) },
+    updates: {
+      status: () => ipcRenderer.invoke('updates:status'),
+      check: () => ipcRenderer.send('updates:check'),
+      openStore: () => ipcRenderer.invoke('updates:openStore'),
+      onStatus: (listener) => subscribe<UpdateStatus>('updates:status', listener)
+    },
+    about: {
+      open: (what) => ipcRenderer.invoke('about:open', what),
+      office: (what) => ipcRenderer.invoke('about:office', what)
+    },
+    ai: {
+      status: () => ipcRenderer.invoke('ai:status'),
+      install: () => ipcRenderer.invoke('ai:install'),
+      cancel: () => ipcRenderer.invoke('ai:cancel'),
+      remove: () => ipcRenderer.invoke('ai:remove'),
+      onProgress: (listener) => subscribe<AiDownloadProgress | null>('ai:progress', listener),
+      onChanged: (listener) => subscribe<void>('ai:changed', () => listener()),
+      onError: (listener) => subscribe<AiDownloadError>('ai:error', listener)
+    },
+    office: {
+      status: () => ipcRenderer.invoke('office:status'),
+      launch: (app) => ipcRenderer.invoke('office:launch', app),
+      defaultApps: (app) => ipcRenderer.invoke('office:defaultApps', app),
+      userWords: () => ipcRenderer.invoke('office:userWordsList'),
+      removeUserWords: (words) => ipcRenderer.invoke('office:removeUserWords', words)
+    },
+    feedback: {
+      available: () => ipcRenderer.invoke('feedback:available'),
+      send: (kind, message) => ipcRenderer.invoke('feedback:send', { kind, message })
+    },
+    defaultApp: {
+      status: () => ipcRenderer.invoke('defaultApp:status'),
+      open: () => ipcRenderer.invoke('defaultApp:open')
+    }
+  }
+  contextBridge.exposeInMainWorld('molino', shared)
+}

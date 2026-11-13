@@ -4,19 +4,26 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { ChevronDown, Ellipsis, FilePlusCorner, FileText, FolderOpen, Info, Minus, Plus, Printer, Save, SaveAll, Search, Settings2, StickyNote, X } from 'lucide-react'
-import { type KeyboardEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { OfficeTabs } from '@shared/officeui'
-import { Dialog, Menu, type MenuEntry } from '@/components/ui'
+import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, Ellipsis, FilePlusCorner, FileText, FolderOpen, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, Plus, Printer, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, X } from 'lucide-react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
+import type { OfficeTabs, OfficeAsk } from '@shared/officeui'
+import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { AI_TASKS, AiPanel, type AiTask } from './AiPanel'
-import { aiMode, APPS, type Mode, paletteEntries, type PaletteEntry, type Tool } from './apps'
+import { aiMode, APPS, HIGHLIGHT, type Mode, paletteEntries, TEXT_COLOR, type Tool } from './apps'
 import { FindBar, FunctionDialog, PromptDialog, type PromptSpec, StatsDialog, SymbolsDialog } from './dialogs'
 import { type ContextInfo, type EditorNotice, EditorSession, type EditorState } from './engine'
 import { env, fmt, L } from './i18n'
 import { ICONS } from './icons'
 import { FontsDialog, FontsNotice } from './MissingFonts'
-import { OfficeSettings } from './OfficeSettings'
+import { CommandPalette, CommandSearchButton } from '@/components/CommandPalette'
+import { FeedbackDialog } from '@/components/FeedbackDialog'
+import { type PrintableDoc, PrintDialogView } from '@/components/Print'
+import { Toasts } from '@/components/Toasts'
+import { SettingsDialog } from '@/components/Settings'
+import { useApp } from '@/state/app'
+import { setSettingsTab } from '@/state/settings'
 import { OfficeStart } from './OfficeStart'
 
 const FONTS = ['Aptos', 'Calibri', 'Arial', 'Cambria', 'Georgia', 'Times New Roman', 'Verdana', 'Segoe UI', 'Courier New', 'Carlito', 'Open Sans']
@@ -51,7 +58,6 @@ type OfficeDialog =
   | { type: 'stats'; stats: Record<string, number> | null }
   | { type: 'functions' }
 
-const plain = (text: string): string => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
 
 /**
  * Los atajos de la ventana, como en Office: Ctrl+F buscar, Ctrl+H reemplazar,
@@ -76,6 +82,33 @@ export function OfficeApp() {
   const [palette, setPalette] = useState(false)
   const [about, setAbout] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  // Diseño D: la barra de lo seleccionado, donde se suelta el ratón.
+  const [selBar, setSelBar] = useState<{ doc: string; x: number; y: number } | null>(null)
+  // Avisos y preguntas del proceso principal (guardar al cerrar, errores…), con el aspecto de la app.
+  const [asks, setAsks] = useState<OfficeAsk[]>([])
+  useEffect(() => window.molinoOffice.onAsk((ask) => setAsks((list) => [...list, ask])), [])
+  // El cuadro de imprimir de esta app, con el PDF temporal del documento (officeprint.ts).
+  const [printing, setPrinting] = useState<PrintableDoc | null>(null)
+  useEffect(
+    () =>
+      window.molinoOffice.onPrint((pdf) =>
+        setPrinting({ id: pdf.doc, pages: pdf.pages, current: pdf.pages[0]?.id ?? '', info: pdf.info })
+      ),
+    []
+  )
+  const closePrint = (): void => {
+    if (printing) void window.molinoOffice.printClose(printing.id)
+    setPrinting(null)
+  }
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  // Como en Molino PDF: con la IA activada en Ajustes (el panel dice si falta descargar algo).
+  const aiOn = useApp((s) => s.settings.aiTier !== 'off')
+  /** Ajustes de Molino en esta app; ``tab``: la pestaña con la que se abre. */
+  const openSettings = (tab?: string): void => {
+    if (tab) setSettingsTab(tab)
+    setSettingsOpen(true)
+  }
   // El tema puede cambiar con la ventana abierta (Ajustes de cualquier app, o Windows).
   const [dark, setDark] = useState(env.dark)
   // Cada pestaña se carga con el tema de cuando se abrió: su dirección no cambia (si cambiara, se volvería a cargar).
@@ -125,6 +158,7 @@ export function OfficeApp() {
       // El menú del botón derecho y los avisos del editor, con el aspecto de Molino.
       found.onContextMenu = (info) => setMenu(info ? { doc, info } : null)
       found.onNotice = setNotice
+      found.onSelectionBar = (at) => setSelBar(at ? { doc, ...at } : null)
       found.groupLabel = (id) => (T.functionGroups as Record<string, string>)[id] ?? id
       sessions.current.set(doc, found)
     }
@@ -153,6 +187,22 @@ export function OfficeApp() {
   }, [kind])
   const sessionState = useSessionState(active)
   const state = sessionState ? { ...sessionState, sidePanel } : null
+  // Documentos: las palabras, en la barra de abajo (se vuelven a contar un poco después de cada cambio).
+  const [words, setWords] = useState<number | null>(null)
+  const counting = kind === 'word' && Boolean(active) && Boolean(state?.ready)
+  const edits = state?.edits ?? 0
+  useEffect(() => {
+    if (!counting || !active) return setWords(null)
+    let alive = true
+    const timer = setTimeout(
+      () => void active.stats().then((info) => alive && setWords(typeof info.words === 'number' ? info.words : null)),
+      edits === 0 ? 400 : 1500
+    )
+    return () => {
+      alive = false
+      clearTimeout(timer)
+    }
+  }, [counting, active, edits])
   const activeHasFile = tabs?.tabs.find((t) => t.doc === tabs.active)?.hasFile ?? true
   const run = useCallback(
     (command: string, value?: string) => {
@@ -240,8 +290,8 @@ export function OfficeApp() {
 
   // Las pestañas de contexto (tabla, imagen…) solo con su objeto seleccionado; si
   // se deja de seleccionar, se vuelve a la última de las de siempre.
-  // El modo «IA» siempre está: si la IA está desactivada, su panel dice cómo activarla.
-  const modes = [...app.modes.filter((m) => !m.context || Boolean(state?.objects.includes(m.context))), aiMode(kind)]
+  // El modo «IA», como en Molino PDF: solo con la IA activada (Ajustes → IA).
+  const modes = [...app.modes.filter((m) => !m.context || Boolean(state?.objects.includes(m.context))), ...(aiOn ? [aiMode(kind)] : [])]
   const lastPlain = useRef(app.modes[0].id)
   const plainMode = app.modes.find((m) => m.id === mode && !m.context)
   if (plainMode) lastPlain.current = plainMode.id
@@ -254,7 +304,7 @@ export function OfficeApp() {
     <div className={cn('office', presenting && 'presenting')} data-app={kind}>
       <header className="titlebar office-titlebar">
         <button
-          className="brand office-file"
+          className="brand app-menu"
           aria-label={T.file.menu}
           data-tip={T.file.menu}
           aria-haspopup="menu"
@@ -275,7 +325,10 @@ export function OfficeApp() {
               run,
               about: () => setAbout(true),
               settings: () => setSettingsOpen(true),
-              doc: tabs?.active ?? null
+              shortcuts: () => setShortcutsOpen(true),
+              feedback: () => setFeedbackOpen(true),
+              doc: tabs?.active ?? null,
+              hasFile: Boolean(activeTab?.hasFile)
             })}
           />
         )}
@@ -300,11 +353,7 @@ export function OfficeApp() {
         </button>
         <div className="titlebar-fill" />
         {!empty && (
-          <button className="office-search" onClick={() => setPalette(true)}>
-            <Search size={15} />
-            <span>{T.search.button}</span>
-            <kbd>Alt Q</kbd>
-          </button>
+          <CommandSearchButton onClick={() => setPalette(true)} />
         )}
         <div className="titlebar-fill" />
         <div className="office-actions" hidden={empty}>
@@ -335,7 +384,12 @@ export function OfficeApp() {
 
       {empty ? (
         tabs && !tabs.opening ? (
-          <OfficeStart kind={kind} />
+          <div className="office-empty">
+            <OfficeStart kind={kind} />
+            <button className="office-credit" onClick={() => setAbout(true)}>
+              {T.status.basedOn}
+            </button>
+          </div>
         ) : (
           <div className="office-loading office-opening">
             <span className="spinner" />
@@ -353,7 +407,7 @@ export function OfficeApp() {
           ))}
           <div className="rail-spacer" />
           <button className="icon-btn" aria-label={T.file.settings.replace('…', '')} data-tip={T.file.settings.replace('…', '')} data-tip-side="right" onClick={() => setSettingsOpen(true)}>
-            <Settings2 size={18} />
+            <Settings size={18} />
           </button>
         </nav>
         <div className="office-main">
@@ -388,50 +442,71 @@ export function OfficeApp() {
                 {T.loading}
               </div>
             )}
+            {state?.ready && <OfficeDock kind={kind} state={state} run={run} words={words} />}
           </main>
+          {app.sheetTabs && state?.ready && (
+            <div className="office-sheetbar">
+              <SheetTabs state={state} run={run} ask={ask} />
+            </div>
+          )}
         </div>
         {currentMode.id === 'review' && state?.ready ? (
           <CommentsPanel state={state} run={run} />
         ) : currentMode.id === 'ai' && state?.ready && active && tabs?.active ? (
-          <AiPanel key={tabs.active} kind={kind} doc={tabs.active} session={active} task={aiTask} setTask={setAiTask} />
+          <AiPanel key={tabs.active} kind={kind} doc={tabs.active} session={active} task={aiTask} setTask={setAiTask} onSettings={() => openSettings('ai')} />
         ) : (
           app.panel && sidePanel && state?.ready && <SidePanel kind={kind} state={state} run={run} />
         )}
       </div>
       )}
 
-      <footer className="office-status">
-        {app.sheetTabs && state?.ready && !empty ? <SheetTabs state={state} run={run} ask={ask} /> : null}
-        <span className="grow">{statusText(kind, state)}</span>
-        {kind === 'slide' && state?.ready && !empty && (
-          <button className={cn('office-status-btn', state.notes && 'on')} aria-pressed={state.notes} onClick={() => run('notes')}>
-            <StickyNote size={13} />
-            {T.tools.notes}
-          </button>
-        )}
-        {activeTab && <span className={activeTab.modified ? 'warn' : 'ok'}>{activeTab.modified ? T.status.unsaved : T.status.saved}</span>}
-        {empty && (
-          <button className="office-credit" onClick={() => setAbout(true)}>
-            {T.status.basedOn}
-          </button>
-        )}
-        <div className="office-zoom" hidden={empty}>
-          <button className="icon-btn sm" aria-label={T.status.zoomOut} data-tip={T.status.zoomOut} onClick={() => run('zoomOut')}>
-            <Minus size={14} />
-          </button>
-          <span>{state ? `${state.zoom} %` : ''}</span>
-          <button className="icon-btn sm" aria-label={T.status.zoomIn} data-tip={T.status.zoomIn} onClick={() => run('zoomIn')}>
-            <Plus size={14} />
-          </button>
-        </div>
-      </footer>
 
-      {palette && <Palette entries={paletteEntries(app)} onRun={run} onClose={() => {
-        setPalette(false)
-        active?.focus()
-      }} />}
+      {palette && (
+        <CommandPalette
+          entries={paletteEntries(app).map((e) => ({ ...e, key: `${e.command}:${e.value ?? ''}` }))}
+          onChoose={(e) => run(e.command, e.value)}
+          onClose={() => {
+            setPalette(false)
+            active?.focus()
+          }}
+        />
+      )}
       {about && <AboutOffice onClose={() => setAbout(false)} />}
-      {settingsOpen && <OfficeSettings onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} />}
+      {feedbackOpen && <FeedbackDialog onClose={() => setFeedbackOpen(false)} onSent={() => undefined} />}
+      {shortcutsOpen && <ShortcutsOffice onClose={() => setShortcutsOpen(false)} />}
+      {printing && <PrintDialogView doc={printing} selectedIds={null} onClose={closePrint} />}
+      {selBar && state?.ready && selBar.doc === tabs?.active && !palette && currentMode.id !== 'ai' && (
+        <SelectionBar
+          at={selBar}
+          kind={kind}
+          state={state}
+          run={(command, value) => {
+            setSelBar(null)
+            run(command, value)
+          }}
+          rewrite={
+            aiOn
+              ? () => {
+                  setSelBar(null)
+                  setAiTask('rewrite')
+                  setMode('ai')
+                }
+              : null
+          }
+        />
+      )}
+      {asks[0] && (
+        <AskDialog
+          key={asks[0].id}
+          ask={asks[0]}
+          onAnswer={(response) => {
+            window.molinoOffice.answer(asks[0].id, response)
+            setAsks((list) => list.slice(1))
+          }}
+        />
+      )}
+      <Toasts />
       {fontsFor && <FontsDialog doc={fontsFor} onClose={() => setFontsFor(null)} />}
       {dialog?.type === 'prompt' && <PromptDialog spec={dialog.spec} onClose={closeDialog} />}
       {menu && active && menu.doc === tabs?.active && state && (
@@ -469,13 +544,20 @@ function fileEntries({
   run,
   about,
   settings,
-  doc
+  shortcuts,
+  feedback,
+  doc,
+  hasFile
 }: {
   kind: string
   hasDoc: boolean
+  /** El documento activo tiene archivo propio (para «Mostrar en la carpeta»). */
+  hasFile: boolean
   run: (command: string, value?: string) => void
   about: () => void
   settings: () => void
+  shortcuts: () => void
+  feedback: () => void
   doc: string | null
 }): MenuEntry[] {
   const F = T.file
@@ -499,8 +581,12 @@ function fileEntries({
     { label: F.savePdf, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('savePdf') },
     ...exports,
     { label: F.print, icon: <Printer size={15} />, kbd: 'Ctrl+P', disabled: !hasDoc || !doc, onSelect: () => run('print') },
+    { label: F.showInFolder, icon: <SquareArrowOutUpRight size={15} />, disabled: !hasFile || !doc, onSelect: () => doc && void window.molinoOffice.showInFolder(doc) },
     'sep',
-    { label: F.settings, icon: <Settings2 size={15} />, kbd: 'Ctrl+,', onSelect: settings },
+    { label: F.settings, icon: <Settings size={15} />, kbd: 'Ctrl+,', onSelect: settings },
+    { label: F.shortcuts, icon: <Keyboard size={15} />, onSelect: shortcuts },
+    { label: F.feedback, icon: <MessageSquare size={15} />, onSelect: feedback },
+    { label: F.sponsor, icon: <Coffee size={15} />, onSelect: () => void window.molino.about.open('sponsors') },
     { label: F.about, icon: <Info size={15} />, onSelect: about }
   ]
 }
@@ -508,7 +594,8 @@ function fileEntries({
 // ------------------------------------------------------------ herramientas
 
 /** Una herramienta con varias opciones (márgenes, interlineado…): botón y su menú. */
-function ToolMenu({ tool, ready, run }: { tool: Extract<Tool, { type: 'menu' }>; ready: boolean; run: (command: string, value?: string) => void }) {
+function ToolMenu({ tool, state, ready, run }: { tool: Extract<Tool, { type: 'menu' }>; state: EditorState | null; ready: boolean; run: (command: string, value?: string) => void }) {
+  const current = state && tool.current ? tool.current(state) : null
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
   const label = T.tools[tool.key]
   return (
@@ -527,11 +614,16 @@ function ToolMenu({ tool, ready, run }: { tool: Extract<Tool, { type: 'menu' }>;
         <ChevronDown size={11} />
       </button>
       {anchor && (
-        <Menu anchor={anchor} onClose={() => setAnchor(null)} entries={tool.options.map((o): MenuEntry => (o.heading ? { heading: o.label } : { label: o.label, onSelect: () => run(o.command ?? tool.command, o.value) }))} />
+        <Menu anchor={anchor} onClose={() => setAnchor(null)} entries={tool.options.map((o): MenuEntry => (o.heading ? { heading: o.label } : { label: o.label, checked: current === null ? undefined : current === o.value, onSelect: () => run(o.command ?? tool.command, o.value) }))} />
       )}
     </>
   )
 }
+
+/** El borde y el relleno de la barra flotante. */
+const PILL_CHROME = 18
+/** Lo más ancho que se hace (con más sitio, sigue igual: lo demás está en «Más»). */
+const PILL_MAX = 940
 
 /** Lo que ocupa el botón «Más» (y un poco de aire). */
 const MORE_WIDTH = 84
@@ -552,13 +644,14 @@ function ToolBar({ mode, state, run }: { mode: Mode; state: EditorState | null; 
     const element = bar.current
     if (!element) return
     const fit = (): void => {
-      const groups = element.querySelectorAll<HTMLElement>(':scope > .office-group')
+      const groups = element.querySelectorAll<HTMLElement>(':scope > .office-pill > .office-group')
       groups.forEach((group, i) => {
         widths.current[i] = group.getBoundingClientRect().width
       })
       const style = getComputedStyle(element)
       const gap = parseFloat(style.columnGap) || 0
-      const available = element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+      // Diseño A: solo lo más usado; lo demás, en «Más».
+      const available = Math.min(PILL_MAX, element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) - PILL_CHROME
       const sizes = mode.groups.map((_, i) => (widths.current[i] ?? 0) + gap)
       if (sizes.reduce((a, b) => a + b, 0) <= available) return setShown(mode.groups.length)
       let used = MORE_WIDTH
@@ -593,7 +686,8 @@ function ToolBar({ mode, state, run }: { mode: Mode; state: EditorState | null; 
     return run(command, value) as boolean | undefined
   }
   return (
-    <div ref={bar} className="office-toolbar" role="toolbar" aria-label={T.tools.label}>
+    <div ref={bar} className="office-toolbar">
+      <div className="office-pill" role="toolbar" aria-label={T.tools.label}>
       {mode.groups.slice(0, shown).map((group, g) => (
         <div key={`${mode.id}-${g}`} className="office-group">
           {group.map((tool, i) => (
@@ -619,6 +713,223 @@ function ToolBar({ mode, state, run }: { mode: Mode; state: EditorState | null; 
             </div>
           )}
         </div>
+      )}
+      </div>
+    </div>
+  )
+}
+
+/** Cómo se ve cada estilo en su vista previa (aproximado, con la letra del documento). */
+const STYLE_LOOK: Record<string, CSSProperties> = {
+  Normal: { fontSize: 13 },
+  'No Spacing': { fontSize: 13 },
+  Title: { fontSize: 17, fontWeight: 700 },
+  Subtitle: { fontSize: 14, color: 'var(--text-2)' },
+  'Heading 1': { fontSize: 16, fontWeight: 700, color: 'var(--accent-fg)' },
+  'Heading 2': { fontSize: 14, fontWeight: 700, color: 'var(--accent-fg)' },
+  'Heading 3': { fontSize: 13, fontWeight: 650, color: 'var(--text-2)' },
+  Quote: { fontSize: 13, fontStyle: 'italic', color: 'var(--text-2)' }
+}
+
+/** Estilos (diseño B al desplegar): cada uno se ve como es, con una línea de para qué sirve. */
+function StylePicker({ state, ready, run }: { state: EditorState | null; ready: boolean; run: (command: string, value?: string) => void }) {
+  const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const pop = useRef<HTMLDivElement>(null)
+  const current = state?.style ?? 'Normal'
+  const names = T.styles as Record<string, string>
+  const hints = T.styleHints as Record<string, string>
+  useEffect(() => {
+    if (!anchor) return
+    const shut = (event: Event): void => {
+      const target = event.target
+      if (target instanceof Node && (pop.current?.contains(target) || button.current?.contains(target))) return
+      setAnchor(null)
+    }
+    const key = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setAnchor(null)
+    }
+    window.addEventListener('mousedown', shut, true)
+    window.addEventListener('blur', shut)
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('mousedown', shut, true)
+      window.removeEventListener('blur', shut)
+      window.removeEventListener('keydown', key)
+    }
+  }, [anchor])
+  return (
+    <>
+      <button
+        ref={button}
+        className="tool office-style-btn"
+        aria-label={T.tools.style}
+        aria-haspopup="listbox"
+        aria-expanded={anchor !== null}
+        disabled={!ready}
+        onClick={(e) => setAnchor(anchor ? null : e.currentTarget.getBoundingClientRect())}
+      >
+        <span>{names[current] ?? current}</span>
+        <ChevronDown size={11} />
+      </button>
+      {anchor &&
+        createPortal(
+          <div
+            ref={pop}
+            className="office-styles"
+            role="listbox"
+            aria-label={T.tools.style}
+            style={{ left: Math.max(8, Math.min(anchor.left, window.innerWidth - 392)), top: anchor.bottom + 6 }}
+          >
+            {Object.keys(names).map((key) => (
+              <button
+                key={key}
+                role="option"
+                aria-selected={key === current}
+                className={cn('office-style-card', key === current && 'on')}
+                onClick={() => {
+                  setAnchor(null)
+                  run('style', key)
+                }}
+              >
+                <span style={STYLE_LOOK[key]}>{names[key]}</span>
+                <small>{hints[key] ?? ''}</small>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )}
+    </>
+  )
+}
+
+/** La barra flotante de abajo, como la de Molino PDF: página (o lo seleccionado en Hojas), palabras y zoom. */
+function OfficeDock({ kind, state, run, words }: { kind: string; state: EditorState; run: (command: string, value?: string) => void; words: number | null }) {
+  const D = T.dock
+  const [draft, setDraft] = useState(String(state.page))
+  useEffect(() => setDraft(String(state.page)), [state.page])
+  const paged = kind !== 'cell'
+  const zoomMenu: MenuEntry[] = [
+    ...(paged ? ([{ label: D.fitWidth, onSelect: () => run('fitWidth') }, { label: D.fitPage, onSelect: () => run('fitPage') }, 'sep'] as MenuEntry[]) : []),
+    ...[50, 75, 100, 125, 150, 200].map((n): MenuEntry => ({ label: `${n} %`, checked: state.zoom === n, onSelect: () => run('zoomTo', String(n)) }))
+  ]
+  const go = (n: number): void => {
+    if (n >= 1 && n <= state.pages) run('goToPage', String(n))
+  }
+  return (
+    <div className={cn('dock office-dock', kind, kind === 'slide' && state.notes && 'notes')}>
+      {paged ? (
+        <>
+          <button className="icon-btn" aria-label={D.previous} data-tip={D.previous} data-tip-side="top" disabled={state.page <= 1} onClick={() => go(state.page - 1)}>
+            <ChevronUp size={15} />
+          </button>
+          <div className="dock-page">
+            <input
+              value={draft}
+              inputMode="numeric"
+              aria-label={kind === 'slide' ? D.slide : D.page}
+              onChange={(event) => setDraft(event.target.value.replace(/[^0-9]/g, '').slice(0, 5))}
+              onFocus={(event) => event.target.select()}
+              onBlur={() => setDraft(String(state.page))}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  go(parseInt(draft, 10))
+                  event.currentTarget.blur()
+                } else if (event.key === 'Escape') event.currentTarget.blur()
+              }}
+            />
+            <span>{fmt(D.ofTotal, { total: state.pages })}</span>
+          </div>
+          <button className="icon-btn" aria-label={D.next} data-tip={D.next} data-tip-side="top" disabled={state.page >= state.pages} onClick={() => go(state.page + 1)}>
+            <ChevronDown size={15} />
+          </button>
+        </>
+      ) : (
+        <span className="office-dock-text">{statusText(kind, state)}</span>
+      )}
+      {kind === 'word' && words !== null && (
+        <>
+          <div className="sep" />
+          <span className="office-dock-text">{fmt(words === 1 ? D.word : D.words, { n: words.toLocaleString(env.locale) })}</span>
+        </>
+      )}
+      {kind === 'slide' && (
+        <>
+          <div className="sep" />
+          <button className={cn('icon-btn', state.notes && 'on')} aria-pressed={state.notes} aria-label={T.tools.notes} data-tip={T.tools.notes} data-tip-side="top" onClick={() => run('notes')}>
+            <StickyNote size={15} />
+          </button>
+        </>
+      )}
+      <div className="sep" />
+      <button className="icon-btn" aria-label={T.status.zoomOut} data-tip={T.status.zoomOut} data-tip-side="top" onClick={() => run('zoomOut')}>
+        <Minus size={15} />
+      </button>
+      <MenuButton className="dock-zoom" entries={zoomMenu} side="top" tip={D.zoom} tipSide="top">
+        {`${state.zoom} %`}
+      </MenuButton>
+      <button className="icon-btn" aria-label={T.status.zoomIn} data-tip={T.status.zoomIn} data-tip-side="top" onClick={() => run('zoomIn')}>
+        <Plus size={15} />
+      </button>
+    </div>
+  )
+}
+
+/**
+ * Lo seleccionado (diseño D): negrita, cursiva, subrayado, color, resaltado,
+ * vínculo, comentario y, con la IA activada, reescribirlo. Sale donde se suelta
+ * el ratón y no quita la selección al pulsarla.
+ */
+function SelectionBar({
+  at,
+  kind,
+  state,
+  run,
+  rewrite
+}: {
+  at: { x: number; y: number }
+  kind: string
+  state: EditorState
+  run: (command: string, value?: string) => void
+  rewrite: (() => void) | null
+}) {
+  const bar = useRef<HTMLDivElement>(null)
+  const [place, setPlace] = useState<{ left: number; top: number } | null>(null)
+  useLayoutEffect(() => {
+    const width = bar.current?.offsetWidth ?? 420
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, at.x - width / 2))
+    const top = at.y - 58 < 56 ? at.y + 20 : at.y - 58
+    setPlace({ left, top })
+  }, [at])
+  const S = T.selbar
+  return (
+    <div ref={bar} className="office-selbar" role="toolbar" aria-label={S.label} style={place ?? { left: -9999, top: -9999 }} onMouseDown={(e) => e.preventDefault()}>
+      <button className={cn('tool icon', state.bold && 'on')} aria-label={T.tools.bold} data-tip={T.tools.bold} onClick={() => run('bold')}>
+        <Bold size={15} />
+      </button>
+      <button className={cn('tool icon', state.italic && 'on')} aria-label={T.tools.italic} data-tip={T.tools.italic} onClick={() => run('italic')}>
+        <Italic size={15} />
+      </button>
+      <button className={cn('tool icon', state.underline && 'on')} aria-label={T.tools.underline} data-tip={T.tools.underline} onClick={() => run('underline')}>
+        <Underline size={15} />
+      </button>
+      <span className="office-selbar-sep" />
+      <ToolView tool={TEXT_COLOR} state={state} ready run={run} />
+      {kind === 'word' && <ToolView tool={HIGHLIGHT} state={state} ready run={run} />}
+      <span className="office-selbar-sep" />
+      <button className="tool" onClick={() => run('link')}>
+        <Link size={15} />
+        <span>{T.tools.link}</span>
+      </button>
+      <button className="tool" onClick={() => run('focusComment')}>
+        <MessageSquarePlus size={15} />
+        <span>{S.comment}</span>
+      </button>
+      {rewrite && (
+        <button className="tool office-selbar-ai" onClick={rewrite}>
+          <Sparkles size={15} />
+          <span>{S.rewrite}</span>
+        </button>
       )}
     </div>
   )
@@ -663,21 +974,8 @@ function ToolView({ tool, state, ready, run }: { tool: Tool; state: EditorState 
       </select>
     )
   }
-  if (tool.type === 'style') {
-    const styles = Object.entries(T.styles)
-    const current = state?.style ?? 'Normal'
-    return (
-      <select className="office-select wide" aria-label={T.tools.style} disabled={!ready} value={current} onChange={(e) => run('style', e.target.value)}>
-        {!styles.some(([key]) => key === current) && <option value={current}>{current}</option>}
-        {styles.map(([key, label]) => (
-          <option key={key} value={key}>
-            {label}
-          </option>
-        ))}
-      </select>
-    )
-  }
-  if (tool.type === 'menu') return <ToolMenu tool={tool} ready={ready} run={run} />
+  if (tool.type === 'style') return <StylePicker state={state} ready={ready} run={run} />
+  if (tool.type === 'menu') return <ToolMenu tool={tool} state={state} ready={ready} run={run} />
   if (tool.type === 'color') {
     const label = T.tools[tool.key]
     return (
@@ -945,58 +1243,30 @@ function CommentsPanel({ state, run }: { state: EditorState; run: (command: stri
   )
 }
 
-function Palette({ entries, onRun, onClose }: { entries: PaletteEntry[]; onRun: (command: string, value?: string) => void; onClose: () => void }) {
-  const [query, setQuery] = useState('')
-  const [index, setIndex] = useState(0)
-  const found = useMemo(() => {
-    const words = plain(query).split(/\s+/).filter(Boolean)
-    if (!words.length) return entries
-    return entries.filter((e) => {
-      const hay = plain(`${e.label} ${e.group} ${e.keywords}`)
-      return words.every((w) => hay.includes(w))
-    })
-  }, [entries, query])
-  const choose = (entry: PaletteEntry | undefined): void => {
-    if (!entry) return
-    onClose()
-    // Después de cerrar: así el teclado vuelve al documento antes de la orden.
-    setTimeout(() => onRun(entry.command, entry.value), 0)
-  }
-  const onKey = (event: KeyboardEvent<HTMLInputElement>): void => {
-    if (event.key === 'Escape') onClose()
-    else if (event.key === 'ArrowDown') {
-      event.preventDefault()
-      setIndex((i) => Math.min(found.length - 1, i + 1))
-    } else if (event.key === 'ArrowUp') {
-      event.preventDefault()
-      setIndex((i) => Math.max(0, i - 1))
-    } else if (event.key === 'Enter') choose(found[index])
-  }
+/** Los atajos de teclado de Documentos, Hojas y Presentaciones (como los de Office). */
+function ShortcutsOffice({ onClose }: { onClose: () => void }) {
+  const K = T.shortcuts
   return (
-    <div className="office-palette" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="office-palette-box" role="dialog" aria-label={T.search.button}>
-        <input
-          autoFocus
-          value={query}
-          placeholder={T.search.placeholder}
-          spellCheck={false}
-          onChange={(e) => {
-            setQuery(e.target.value)
-            setIndex(0)
-          }}
-          onKeyDown={onKey}
-        />
-        <ul role="listbox">
-          {found.map((entry, i) => (
-            <li key={`${entry.command}:${entry.value ?? ''}`} role="option" aria-selected={i === index} className={cn(i === index && 'on')} onMouseEnter={() => setIndex(i)} onClick={() => choose(entry)}>
-              <span>{entry.label}</span>
-              <span className="hint">{entry.group}</span>
-            </li>
-          ))}
-          {found.length === 0 && <li className="hint">{T.search.empty}</li>}
-        </ul>
+    <Dialog
+      title={K.title}
+      onClose={onClose}
+      footer={
+        <button className="btn primary" onClick={onClose}>
+          {T.about.close}
+        </button>
+      }
+    >
+      <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '9px 18px', alignItems: 'center' }}>
+        {K.list.map(([keys, label]) => (
+          <div key={keys} style={{ display: 'contents' }}>
+            <span className="kbd" style={{ justifySelf: 'start', padding: '2px 7px' }}>
+              {keys}
+            </span>
+            <span style={{ color: 'var(--text)' }}>{label}</span>
+          </div>
+        ))}
       </div>
-    </div>
+    </Dialog>
   )
 }
 
@@ -1220,6 +1490,40 @@ function contextEntries(kind: string, state: EditorState, session: EditorSession
 }
 
 /** Un aviso del editor (por ejemplo, «no hay títulos para la tabla de contenido»), con el aspecto de Molino. */
+const ASK_ICONS: Record<OfficeAsk['type'], ReactNode> = {
+  info: <Info size={20} />,
+  question: <CircleHelp size={20} />,
+  warning: <TriangleAlert size={20} />,
+  error: <CircleAlert size={20} />
+}
+
+/** Un aviso o una pregunta del proceso principal, como los demás cuadros de la app. */
+function AskDialog({ ask, onAnswer }: { ask: OfficeAsk; onAnswer: (response: number) => void }) {
+  return (
+    <Dialog
+      title={ask.title}
+      onClose={() => onAnswer(ask.cancelId)}
+      footer={
+        <>
+          {ask.buttons.map((label, i) => (
+            <button key={i} className={cn('btn', i === ask.defaultId && 'primary')} data-autofocus={i === ask.defaultId || undefined} onClick={() => onAnswer(i)}>
+              {label}
+            </button>
+          ))}
+        </>
+      }
+    >
+      <div className={cn('office-ask', ask.type)}>
+        {ASK_ICONS[ask.type]}
+        <div>
+          <p className="office-ask-message">{ask.message}</p>
+          {ask.detail && <p className="office-ask-detail">{ask.detail}</p>}
+        </div>
+      </div>
+    </Dialog>
+  )
+}
+
 function NoticeDialog({ notice, onClose }: { notice: EditorNotice; onClose: () => void }) {
   const N = T.notice
   const label = (b: { value: string; label: string }): string => (N.buttons as Record<string, string>)[b.value] ?? b.label

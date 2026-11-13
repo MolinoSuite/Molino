@@ -1,5 +1,14 @@
 /** «Molino», el inicio común de la suite (renderer/src/home). */
 export const home = {
+  pdfApart: {
+    title: 'Molino PDF ya está dentro de Molino Suite',
+    text: 'Tenías instalada aparte la app Molino PDF. Molino Suite ya la incluye y ha traído tu configuración: ajustes, recientes, firmas y la IA. Desinstala la otra para no tener dos «Molino PDF» en el menú Inicio.',
+    remove: 'Desinstalar la otra',
+    removing: 'Desinstalando…',
+    later: 'Ahora no',
+    removed: 'Hecho: ya solo queda Molino PDF dentro de Molino Suite.',
+    settings: 'Se ha abierto Configuración de Windows: pulsa «Desinstalar» en la página de Molino PDF.'
+  },
   title: '¿Qué vamos a hacer hoy?',
   search: 'Busca en tus recientes',
   clearSearch: 'Borrar la búsqueda',

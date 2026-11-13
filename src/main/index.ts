@@ -9,7 +9,8 @@ import { EngineClient, type EngineLaunch } from './engine'
 import { Bridge, isOpenable } from './ipc'
 import { initLang, L } from './i18n'
 import { initLog, log } from './log'
-import { legacyModelsDir, migrateFromFolio } from './migrate'
+import { legacyModelsDir, migrateLegacy } from './migrate'
+import { firstPdfNotice, removeSeparatePdf, separatePdfInstalled } from './pdfapart'
 import { bundledPieceDir, OfficePiece } from './office'
 import type { HomeApp } from '@shared/home'
 import type { OfficeKind } from '@shared/officeui'
@@ -64,9 +65,10 @@ if (!firstInstance) {
   app.quit()
 }
 
-// La primera vez, lo que el usuario tenía en Folio (ver migrate.ts). Tiene que
-// ser aquí, antes de app.ready: después Electron ya ha leído la carpeta de datos.
-const fromFolio = firstInstance ? migrateFromFolio(app.getPath('userData')) : null
+// La primera vez, lo que el usuario tenía en Molino PDF (si esto es Molino Suite)
+// o en Folio (ver migrate.ts). Tiene que ser aquí, antes de app.ready: después
+// Electron ya ha leído la carpeta de datos.
+const migrated = firstInstance ? migrateLegacy(app.getPath('userData')) : null
 
 registerAppScheme()
 hardenContents()
@@ -253,8 +255,8 @@ void app.whenReady().then(async () => {
   initLog(join(localBase(), 'logs'))
   log.info(`${productName} ${app.getVersion()} iniciado${isStoreApp() ? ' (Microsoft Store)' : ''}`)
   // Sin rutas en el registro: solo qué archivos se trajeron.
-  if (fromFolio) {
-    log.info(`datos traídos de Folio: ${fromFolio.copied.join(', ') || 'ninguno'}${fromFolio.signaturesSkipped ? `; firmas no (${fromFolio.signaturesSkipped})` : ''}`)
+  if (migrated) {
+    log.info(`datos traídos de ${migrated.label}: ${migrated.copied.join(', ') || 'ninguno'}${migrated.signaturesSkipped ? `; firmas no (${migrated.signaturesSkipped})` : ''}`)
   }
 
   hardenSession(session.defaultSession)
@@ -289,31 +291,14 @@ void app.whenReady().then(async () => {
     dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
     author: () => store.settings.author || windowsUser(),
     ignoredFonts: { list: () => store.ignoredFonts(), add: (names) => store.ignoreFonts(names) },
-    userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words), remove: (words) => store.removeUserWords(words) },
-    // Ajustes desde Documentos, Hojas y Presentaciones: los mismos de Molino; Molino PDF se entera y el tema cambia en todas.
-    settings: {
-      get: () => ({ theme: store.settings.theme, language: store.settings.language, author: store.settings.author }),
-      set: (patch) => {
-        store.updateSettings(patch)
-        bridge?.sendSettings()
-        themeChanged()
-      },
-      authorDefault: () => windowsUser()
-    },
+    userWords: { list: () => store.userWords(), add: (words) => store.addUserWords(words) },
     fontLicenses: join(app.getPath('userData'), 'fonts-licenses'),
     recents: { list: () => store.officeRecent(), add: (path) => store.addOfficeRecent(path), forget: (id) => store.forgetOfficeRecent(id) },
     ai: {
-      status: async () => (bridge ? bridge.officeAi() : { on: false, ready: false }),
-      openSettings: () => {
-        showPdfWindow()
-        bridge?.openAiSettings()
-      }
+      status: async () => (bridge ? bridge.officeAi() : { on: false, ready: false })
     },
-    // Imprimir un documento de oficina: con el cuadro de imprimir de Molino PDF.
-    print: (path) => {
-      showPdfWindow()
-      void bridge?.printFile(path)
-    }
+    // Imprimir: cada app con su cuadro de imprimir (officeprint.ts).
+    printer
   })
   officeWindows = editors
   bridge.officeBusy = () => editors.busy
@@ -324,7 +309,15 @@ void app.whenReady().then(async () => {
     launch: (which) => (which === 'pdf' ? showPdfWindow() : editors.showApp(which)),
     create: (kind) => editors.create(kind),
     openFiles: openPaths,
-    dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors)
+    dark: () => store.settings.theme === 'dark' || (store.settings.theme === 'system' && nativeTheme.shouldUseDarkColors),
+    // Molino PDF instalado aparte: antes de quitarlo, la IA que tuviera se trae (si falta).
+    pdfApart: {
+      installed: separatePdfInstalled,
+      remove: async () => {
+        await bridge?.adoptLegacyAi()
+        return removeSeparatePdf()
+      }
+    }
   })
   homeWindow = home
   // El tema (de Ajustes, en cualquier ventana, o el de Windows con «Como Windows»), al momento en todas.
@@ -338,6 +331,9 @@ void app.whenReady().then(async () => {
     home.setDark(dark)
   }
   bridge.onTheme = () => themeChanged()
+  // Ajustes, IA, versiones nuevas…: lo mismo en Documentos, Hojas y Presentaciones (ipc.ts, SHARED_CHANNELS).
+  bridge.sharedSender = (event) => editors.uiWindow(event)
+  bridge.sharedWindows = () => editors.uiContents()
   nativeTheme.on('updated', () => themeChanged())
   bridge.officeLaunch = (which) => (which === 'home' ? home.show() : editors.showApp(which))
   engine.on('ready', () => void editors.configure())
@@ -356,6 +352,8 @@ void app.whenReady().then(async () => {
   // Quien tenía la IA en Folio la sigue teniendo: sus modelos se copian
   // (comprobados) en vez de descargarse. Sin red; si falta alguno, no se hace nada.
   setTimeout(() => void bridge?.adoptLegacyAi(), 3000)
+  // Molino Suite con Molino PDF instalado aparte: la primera vez, el inicio con el aviso (pdfapart.ts).
+  if (firstPdfNotice(app.getPath('userData'))) setTimeout(() => homeWindow?.show(), 1500)
   // Al minuto, sin estorbar el arranque: huella de los modelos de IA instalados.
   // En pruebas (sin empaquetar) se puede adelantar con MOLINO_TEST_AI_RECHECK_MS.
   const recheckDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_AI_RECHECK_MS) : NaN

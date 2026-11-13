@@ -18,7 +18,6 @@ export const start: typeof source = {
     filtered: 'Recent · {shown} of {total}',
     search: 'Search recent files',
     clearSearch: 'Clear search',
-    clearList: 'Clear list',
     removeOne: 'Remove “{name}” from recent files',
     removeTip: 'Remove from list',
     noMatch: 'No recent document matches “{query}”.'

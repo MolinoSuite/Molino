@@ -28,6 +28,7 @@ import { viewerOf } from '@/lib/viewerControl'
 import { readSelection } from '@/modes/annotate/selection'
 import { mutate } from '@/state/actions'
 import { aiHas, aiReady, useAi } from '@/state/ai'
+import { setSettingsTab } from '@/state/settings'
 import { type DocView, useApp } from '@/state/app'
 
 /**
@@ -574,12 +575,3 @@ export function AiPanel({ doc }: { doc: DocView }) {
 }
 
 // La pestaña de Ajustes que se abre la próxima vez (la pone el panel).
-let nextSettingsTab: string | null = null
-export function setSettingsTab(tab: string): void {
-  nextSettingsTab = tab
-}
-export function takeSettingsTab(): string | null {
-  const tab = nextSettingsTab
-  nextSettingsTab = null
-  return tab
-}

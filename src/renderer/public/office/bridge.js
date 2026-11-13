@@ -90,7 +90,10 @@
     // En Hojas se queda la barra de fórmulas del editor (#cell-editing-box), unida a su editor de celdas.
     css.textContent =
       '#app-title,#toolbar,#left-menu,#right-menu,#statusbar,#left-panel-history,#file-menu-panel,#header-logo{display:none!important}' +
-      '#cell-editing-box,#cell-editing-box *{font-family:"Inter Variable","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}'
+      '#cell-editing-box,#cell-editing-box *{font-family:"Inter Variable","Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}' +
+      // El fondo del documento, el mismo que el de Molino (tokens.css, --bg-app): la barra flota sobre él.
+      'body.theme-light,body.theme-classic-light,body.theme-white,body.theme-type-light{--canvas-background:#f1f2f5!important}' +
+      'body.theme-dark,body.theme-contrast-dark,body.theme-night,body.theme-type-dark{--canvas-background:#141518!important}'
     ;(w.document.head || w.document.documentElement).appendChild(css)
     w.addEventListener(
       'keydown',

@@ -2,16 +2,18 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
-import { app, BrowserWindow, clipboard, dialog, ipcMain, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session, type WebContents } from 'electron'
 import { EngineError, type EngineClient } from './engine'
 import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
 import { log } from './log'
 import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
-import type { OfficeTabs, OfficeSettingsInfo } from '@shared/officeui'
+import type { OfficeAsk, OfficeTabs } from '@shared/officeui'
 import { installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
 import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontIndex, ownFontsDir, saveFontIndex } from './officefonts'
+import { OfficePrint } from './officeprint'
+import type { PrintService } from './print'
 
 /**
  * Las ventanas de Documentos, Hojas y Presentaciones: una por app, con una
@@ -192,6 +194,9 @@ interface AppWindow {
   closing: boolean
   /** Documentos que se están abriendo (la interfaz muestra «Abriendo…»). */
   opening: number
+  /** La interfaz ya muestra avisos (OfficeAsk); hasta entonces esperan aquí. */
+  askReady: boolean
+  waitingAsks: OfficeAsk[]
 }
 
 interface Setup {
@@ -213,19 +218,12 @@ export interface OfficeOptions {
   dark: () => boolean
   /** Quien firma los comentarios y los cambios (Ajustes de Molino o el usuario de Windows). */
   author: () => string
-  /** Imprimir: abre ese PDF (temporal) en Molino PDF con su cuadro de imprimir (index.ts). */
-  print(path: string): void
+  /** Imprimir (el mismo servicio que Molino PDF; officeprint.ts). */
+  printer: PrintService
   /** Fuentes de las que no se vuelve a avisar (store.ts). */
   ignoredFonts: { list(): string[]; add(names: string[]): void }
   /** El diccionario personal del corrector (store.ts). */
-  userWords: { list(): string[]; add(words: string[]): void; remove(words: string[]): void }
-  /** Los ajustes de Molino que se cambian desde aquí (tema, idioma, autor); al cambiar, index.ts los reparte. */
-  settings: {
-    get(): { theme: 'system' | 'light' | 'dark'; language: 'auto' | 'es' | 'en'; author: string }
-    set(patch: { theme?: 'system' | 'light' | 'dark'; language?: 'auto' | 'es' | 'en'; author?: string }): void
-    /** El usuario de Windows: el autor si no se pone otro. */
-    authorDefault(): string
-  }
+  userWords: { list(): string[]; add(words: string[]): void }
   /** Carpeta donde quedan las licencias de las fuentes instaladas. */
   fontLicenses: string
   /** Los recientes de Documentos, Hojas y Presentaciones (store.ts). */
@@ -236,10 +234,9 @@ export interface OfficeOptions {
   }
   /** Carpeta de las plantillas para empezar (resources/templates). */
   templatesDir: string
-  /** La IA local de Molino (Ajustes → IA): su estado y abrir sus ajustes (index.ts). */
+  /** La IA local de Molino (Ajustes → IA): su estado (index.ts). */
   ai: {
     status(): Promise<{ on: boolean; ready: boolean }>
-    openSettings(): void
   }
 }
 
@@ -273,6 +270,9 @@ export class OfficeWindows {
   /** Las peticiones de IA en curso: número de la interfaz → número del motor (para cancelarlas). */
   private readonly aiCalls = new Map<number, number>()
 
+  /** Imprimir en cada app, con su propio cuadro. */
+  private readonly printing: OfficePrint
+
   constructor(private readonly options: OfficeOptions) {
     rmSync(PRINT_DIR, { recursive: true, force: true, maxRetries: 2 })
     this.engine = options.engine
@@ -285,6 +285,7 @@ export class OfficeWindows {
     setOfficeSession(this.session)
     this.session.protocol.handle('molino', (request) => this.serve(request))
     this.registerIpc()
+    this.printing = new OfficePrint(this.engine, options.printer, (event) => this.uiWindow(event))
   }
 
   /** El tema ha cambiado: cada ventana (su barra de título y su interfaz, con los editores dentro) sin volver a cargarse. */
@@ -295,6 +296,40 @@ export class OfficeWindows {
       win.window.setTitleBarOverlay({ color: dark ? '#1c1d20' : '#ffffff', symbolColor: dark ? '#e5e7eb' : '#1f2937', height: 40 })
       win.window.webContents.send('office:theme', dark)
     }
+  }
+
+  /** La ventana de una app si lo pide la página de su interfaz (para lo compartido con Molino PDF; ipc.ts). */
+  uiWindow(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow | null {
+    return this.uiSender(event)?.window ?? null
+  }
+
+  /** Las ventanas abiertas, para los avisos compartidos (ajustes, IA, versiones nuevas). */
+  uiContents(): WebContents[] {
+    return [...this.windows.values()].filter((w) => !w.window.isDestroyed()).map((w) => w.window.webContents)
+  }
+
+  private readonly asks = new Map<number, { win: AppWindow; ask: OfficeAsk; done: (response: number) => void }>()
+  private nextAsk = 1
+
+  /**
+   * Un aviso o una pregunta en la ventana de la app, con su aspecto (no el
+   * cuadro de Windows). Devuelve el botón elegido (``cancelId`` si se cierra).
+   */
+  private ask(win: AppWindow, spec: Omit<OfficeAsk, 'id' | 'defaultId' | 'cancelId'> & { defaultId?: number; cancelId?: number }): Promise<number> {
+    const ask: OfficeAsk = { ...spec, id: this.nextAsk++, defaultId: spec.defaultId ?? 0, cancelId: spec.cancelId ?? spec.buttons.length - 1 }
+    if (win.window.isDestroyed()) return Promise.resolve(ask.cancelId)
+    return new Promise((done) => {
+      this.asks.set(ask.id, { win, ask, done })
+      if (win.askReady) win.window.webContents.send('office:ask', ask)
+      else win.waitingAsks.push(ask)
+      if (win.window.isMinimized()) win.window.restore()
+      if (win.window.isVisible()) win.window.focus()
+    })
+  }
+
+  /** Un aviso con un solo botón (Aceptar). */
+  private notify(win: AppWindow, type: OfficeAsk['type'], message: string, detail?: string, title?: string): void {
+    void this.ask(win, { type, title: title ?? L.main.office.apps[win.kind], message, detail, buttons: [L.common.accept] })
   }
 
   /** ¿Hay algún documento de oficina abierto? */
@@ -441,7 +476,7 @@ export class OfficeWindows {
       await this.configuring
       if (!this.setup) {
         const message = this.piece.available ? L.main.office.preparing : L.main.office.notInstalled
-        void dialog.showMessageBox(win.window, { type: 'info', title: 'Molino', message })
+        this.notify(win, 'info', message)
         return false
       }
       return await this.loadInto(win, name, path, ask, recovered)
@@ -505,13 +540,7 @@ export class OfficeWindows {
       return true
     } catch (error) {
       log.warn(`oficina: no se pudo abrir (${error instanceof EngineError ? error.code : error instanceof Error ? error.name : '?'})`)
-      const options = {
-        type: 'error' as const,
-        title: L.main.office.apps[win.kind],
-        message: fmt(L.main.office.openFailed, { name }),
-        detail: error instanceof EngineError ? error.message : undefined
-      }
-      void (win.window.isDestroyed() ? dialog.showMessageBox(options) : dialog.showMessageBox(win.window, options))
+      this.notify(win, 'error', fmt(L.main.office.openFailed, { name }), error instanceof EngineError ? error.message : undefined)
       return false
     }
   }
@@ -562,7 +591,7 @@ export class OfficeWindows {
     // Cada app es un programa aparte en la barra de tareas: su grupo, su icono y,
     // si se ancla, se vuelve a abrir esa app (officeapps.ts).
     if (process.platform === 'win32') window.setAppDetails(windowDetails(kind))
-    const win: AppWindow = { kind, window, docs: new Map(), order: [], active: null, closing: false, opening: 0 }
+    const win: AppWindow = { kind, window, docs: new Map(), order: [], active: null, closing: false, opening: 0, askReady: false, waitingAsks: [] }
     this.windows.set(kind, win)
     // El título es el de Molino (documento y app), no el de la página.
     window.on('page-title-updated', (event) => event.preventDefault())
@@ -571,12 +600,21 @@ export class OfficeWindows {
       event.preventDefault()
       void this.closeWindow(win)
     })
+    window.webContents.on('did-start-navigation', (details) => {
+      if (details.isMainFrame && !details.isSameDocument) win.askReady = false
+    })
     // El editor tiene su propio aviso de cambios sin guardar (beforeunload): la
     // pregunta ya la ha hecho Molino.
     window.webContents.on('will-prevent-unload', (event) => {
       if (win.closing) event.preventDefault()
     })
     window.on('closed', () => {
+      this.printing.closeWindow(window)
+      for (const [id, entry] of this.asks) {
+        if (entry.win !== win) continue
+        this.asks.delete(id)
+        entry.done(entry.ask.cancelId)
+      }
       for (const doc of win.docs.keys()) this.engine.request('office.close', { doc }, { priority: 7 }).catch(() => undefined)
       win.docs.clear()
       if (this.windows.get(kind) === win) this.windows.delete(kind)
@@ -672,15 +710,14 @@ export class OfficeWindows {
         win.active = doc
         this.sendTabs(win)
       }
-      const { response } = await dialog.showMessageBox(win.window, {
+      const response = await this.ask(win, {
         type: 'question',
         title: T.apps[win.kind],
         message: fmt(T.unsaved, { name: open.name }),
         detail: T.unsavedDetail,
         buttons: [T.save, T.dontSave, T.cancel],
         defaultId: 0,
-        cancelId: 2,
-        noLink: true
+        cancelId: 2
       })
       if (response === 2) return false
       if (response === 0 && (await this.saveFromEditor(win, open)) !== 0) return false
@@ -759,18 +796,13 @@ export class OfficeWindows {
       return true
     } catch (error) {
       log.warn(`oficina: no se pudo exportar (${error instanceof EngineError ? error.code : '?'})`)
-      void dialog.showMessageBox(win.window, {
-        type: 'error',
-        title: L.main.office.apps[open.kind],
-        message: fmt(L.main.office.saveFailed, { name: basename(dest) }),
-        detail: error instanceof EngineError ? error.message : undefined
-      })
+      this.notify(win, 'error', fmt(L.main.office.saveFailed, { name: basename(dest) }), error instanceof EngineError ? error.message : undefined)
       return false
     }
   }
 
-  /** Imprimir: un PDF temporal hecho por el motor, en el cuadro de imprimir de Molino PDF. */
-  private async printDoc(open: OpenDoc): Promise<boolean> {
+  /** Imprimir: un PDF temporal hecho por el motor, en el cuadro de imprimir de esta misma app (officeprint.ts). */
+  private async printDoc(win: AppWindow, open: OpenDoc): Promise<boolean> {
     const folder = join(PRINT_DIR, randomBytes(6).toString('hex'))
     mkdirSync(folder, { recursive: true })
     const dest = join(folder, `${parse(open.name).name}.pdf`)
@@ -778,10 +810,10 @@ export class OfficeWindows {
       await this.engine.request('office.exportPdf', { doc: open.doc, path: dest }, { priority: 7 })
     } catch (error) {
       log.warn(`oficina: no se pudo preparar la impresión (${error instanceof EngineError ? error.code : '?'})`)
+      rmSync(folder, { recursive: true, force: true, maxRetries: 2 })
       return false
     }
-    this.options.print(dest)
-    return true
+    return this.printing.show(win.window, dest, folder)
   }
 
   /** Guarda como si el usuario pulsara Guardar: así el editor manda antes los cambios que le queden. */
@@ -828,6 +860,22 @@ export class OfficeWindows {
 
   private registerIpc(): void {
     // ---- la interfaz
+    ipcMain.on('office:askReady', (event) => {
+      const win = this.uiSender(event)
+      if (!win) return
+      win.askReady = true
+      for (const ask of win.waitingAsks.splice(0)) win.window.webContents.send('office:ask', ask)
+    })
+    ipcMain.on('office:answer', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      if (!win || typeof raw !== 'object' || raw === null) return
+      const { id, response } = raw as { id?: unknown; response?: unknown }
+      const entry = typeof id === 'number' ? this.asks.get(id) : undefined
+      if (!entry || entry.win !== win) return
+      this.asks.delete(entry.ask.id)
+      const valid = typeof response === 'number' && Number.isInteger(response) && response >= 0 && response < entry.ask.buttons.length
+      entry.done(valid ? response : entry.ask.cancelId)
+    })
     ipcMain.handle('office:tabs', (event) => {
       const win = this.uiSender(event)
       return win ? this.tabs(win) : null
@@ -863,7 +911,14 @@ export class OfficeWindows {
     ipcMain.handle('office:print', async (event, raw: unknown) => {
       const win = this.uiSender(event)
       const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
-      return win && open ? this.printDoc(open) : false
+      return win && open ? this.printDoc(win, open) : false
+    })
+    ipcMain.handle('office:showInFolder', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
+      if (!open?.path || !existsSync(open.path)) return false
+      shell.showItemInFolder(open.path)
+      return true
     })
     ipcMain.handle('office:export', async (event, raw: unknown) => {
       const win = this.uiSender(event)
@@ -887,7 +942,7 @@ export class OfficeWindows {
       if (!win || !entry) return false
       if (!existsSync(entry.path)) {
         this.options.recents.forget(entry.id)
-        void dialog.showMessageBox(win.window, { type: 'info', title: L.main.office.apps[win.kind], message: fmt(L.main.office.recentMissing, { name: basename(entry.path) }) })
+        this.notify(win, 'info', fmt(L.main.office.recentMissing, { name: basename(entry.path) }))
         return false
       }
       return this.open(entry.path)
@@ -920,29 +975,6 @@ export class OfficeWindows {
       const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
       if (!win || !open || !Array.isArray(names)) return { installed: [], failed: [] }
       return this.installFonts(open, names.filter((n): n is string => typeof n === 'string'))
-    })
-    // Ajustes de Documentos, Hojas y Presentaciones: tema, idioma, autor y el diccionario personal.
-    const settingsInfo = async (): Promise<OfficeSettingsInfo> => ({
-      ...this.options.settings.get(),
-      authorDefault: this.options.settings.authorDefault(),
-      ai: await this.options.ai.status()
-    })
-    ipcMain.handle('office:settingsGet', (event) => (this.uiSender(event) ? settingsInfo() : null))
-    ipcMain.handle('office:settingsSet', (event, raw: unknown) => {
-      if (!this.uiSender(event) || typeof raw !== 'object' || raw === null) return null
-      const { theme, language, author } = raw as Record<string, unknown>
-      const patch: Parameters<OfficeOptions['settings']['set']>[0] = {}
-      if (theme === 'system' || theme === 'light' || theme === 'dark') patch.theme = theme
-      if (language === 'auto' || language === 'es' || language === 'en') patch.language = language
-      if (typeof author === 'string') patch.author = author.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100)
-      this.options.settings.set(patch)
-      return settingsInfo()
-    })
-    ipcMain.handle('office:dictionary', (event) => (this.uiSender(event) ? this.options.userWords.list() : []))
-    ipcMain.handle('office:dictionaryRemove', (event, raw: unknown) => {
-      if (!this.uiSender(event) || !Array.isArray(raw)) return []
-      this.options.userWords.remove(raw.filter((w): w is string => typeof w === 'string' && w.length <= 64).slice(0, 5000))
-      return this.options.userWords.list()
     })
     ipcMain.handle('office:legal', async (event, raw: unknown) => {
       const legal = ['notice', 'license', 'thirdParty', 'source', 'original'] as const
@@ -998,7 +1030,7 @@ export class OfficeWindows {
         return false
       }
       if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) return false
-      const answer = await dialog.showMessageBox(win.window, {
+      const answer = await this.ask(win, {
         type: 'question',
         buttons: [L.common.open, L.common.cancel],
         defaultId: 1,
@@ -1007,7 +1039,7 @@ export class OfficeWindows {
         message: url.protocol === 'mailto:' ? L.main.link.mail : fmt(L.main.link.web, { host: url.host }),
         detail: url.href.slice(0, 400)
       })
-      if (answer.response !== 0) return false
+      if (answer !== 0) return false
       await shell.openExternal(url.href)
       return true
     })
@@ -1024,11 +1056,6 @@ export class OfficeWindows {
 
     // ---- la IA local (Ajustes → IA de Molino), sobre un documento de la ventana
     ipcMain.handle('office:aiStatus', (event) => (this.uiSender(event) ? this.options.ai.status() : { on: false, ready: false }))
-    ipcMain.handle('office:aiSettings', (event) => {
-      if (!this.uiSender(event)) return false
-      this.options.ai.openSettings()
-      return true
-    })
     ipcMain.handle('office:ai', async (event, raw: unknown) => {
       const win = this.uiSender(event)
       const { doc, method, params, call } = (raw ?? {}) as { doc?: unknown; method?: unknown; params?: unknown; call?: unknown }
@@ -1191,16 +1218,11 @@ export class OfficeWindows {
       await this.engine.request(pdf ? 'office.exportPdf' : 'office.save', { doc: open.doc, path: dest, ...(options ? { options } : {}) }, { priority: 7 })
     } catch (error) {
       log.warn(`oficina: no se pudo guardar (${error instanceof EngineError ? error.code : '?'})`)
-      void dialog.showMessageBox(win.window, {
-        type: 'error',
-        title: L.main.office.apps[open.kind],
-        message: fmt(L.main.office.saveFailed, { name: basename(dest) }),
-        detail: error instanceof EngineError ? error.message : undefined
-      })
+      this.notify(win, 'error', fmt(L.main.office.saveFailed, { name: basename(dest) }), error instanceof EngineError ? error.message : undefined)
       return 2
     }
     if (printing) {
-      this.options.print(dest)
+      void this.printing.show(win.window, dest, dirname(dest))
       return 0
     }
     if (!exporting) {

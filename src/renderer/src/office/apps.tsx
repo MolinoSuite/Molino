@@ -158,7 +158,16 @@ export type Tool =
       none?: boolean
       swatches?: string[]
     }
-  | { type: 'menu'; key: ToolKey; command: string; icon: ReactNode; caption?: boolean; options: MenuOption[] }
+  | {
+      type: 'menu'
+      key: ToolKey
+      command: string
+      icon: ReactNode
+      caption?: boolean
+      options: MenuOption[]
+      /** La opción que está puesta (se marca en el menú). */
+      current?: (s: EditorState) => string
+    }
 
 /** Una opción de un desplegable: su valor (y su orden, si no es la del desplegable) o un título de grupo. */
 export interface MenuOption {
@@ -228,6 +237,35 @@ const LISTS: Tool[] = [
   B('bullets', 'bullets', { icon: <List size={ICON} />, active: (s) => s.list === 'bullets' }),
   B('numbers', 'numbers', { icon: <ListOrdered size={ICON} />, active: (s) => s.list === 'numbers' })
 ]
+/** Diseño A: la alineación y las listas, cada una en su desplegable con nombre. */
+const ALIGN_MENU: Tool = {
+  type: 'menu',
+  key: 'alignMenu',
+  command: 'align',
+  icon: <AlignLeft size={ICON} />,
+  caption: true,
+  current: (s) => s.align,
+  options: [
+    { value: 'left', label: T.alignLeft },
+    { value: 'center', label: T.alignCenter },
+    { value: 'right', label: T.alignRight },
+    { value: 'justify', label: T.justify }
+  ]
+}
+const LIST_MENU: Tool = {
+  type: 'menu',
+  key: 'listMenu',
+  command: 'bullets',
+  icon: <List size={ICON} />,
+  caption: true,
+  current: (s) => s.list,
+  options: [
+    { value: 'bullets', label: T.bullets, command: 'bullets' },
+    { value: 'numbers', label: T.numbers, command: 'numbers' }
+  ]
+}
+/** El color del texto y el resaltado (también en la barra de lo seleccionado). */
+export const TEXT_COLOR: Tool = { type: 'color', key: 'color', icon: <Baseline size={ICON} />, swatch: (s) => s.color }
 
 /** Revisar: comentarios en las tres apps; control de cambios, en Documentos. */
 const COMMENT: Tool = B('comment', 'focusComment', { icon: <MessageSquarePlus size={ICON} />, caption: true })
@@ -280,6 +318,7 @@ const O = L.office.options
 
 /** Los colores de resaltado de Word. */
 const HIGHLIGHTS = ['#ffff00', '#00ff00', '#00ffff', '#ff00ff', '#0000ff', '#ff0000', '#000080', '#008080', '#008000', '#800080', '#800000', '#808000']
+export const HIGHLIGHT: Tool = { type: 'color', key: 'highlight', icon: <Highlighter size={ICON} />, swatch: (s) => s.highlight, none: true, swatches: HIGHLIGHTS }
 const FIND: Tool[] = [B('find', 'find', { icon: <Search size={ICON} /> }), B('replace', 'replace', { icon: <Replace size={ICON} /> })]
 const PAINTER = B('formatPainter', 'formatPainter', { icon: <Paintbrush size={ICON} />, active: (s) => s.painting })
 const SCRIPT: Tool[] = [
@@ -328,16 +367,10 @@ const word: AppConfig = {
         UNDO,
         [{ type: 'style' }],
         LETTER,
+        [...FORMAT.slice(0, 3), FORMAT[4], HIGHLIGHT],
+        [ALIGN_MENU, LIST_MENU],
+        [FORMAT[3], ...SCRIPT, CASE],
         [
-          ...FORMAT.slice(0, 4),
-          ...SCRIPT,
-          CASE,
-          { type: 'color', key: 'highlight', icon: <Highlighter size={ICON} />, swatch: (s) => s.highlight, none: true, swatches: HIGHLIGHTS },
-          FORMAT[4]
-        ],
-        ALIGN,
-        [
-          ...LISTS,
           B('indentLess', 'indentLess', { icon: <ListIndentDecrease size={ICON} /> }),
           B('indentMore', 'indentMore', { icon: <ListIndentIncrease size={ICON} /> }),
           MENU('lineSpacing', 'lineSpacing', O.lineSpacing, <ArrowUpDown size={ICON} />),
@@ -660,9 +693,9 @@ const slide: AppConfig = {
           B('deleteSlide', 'deleteSlide', { icon: <Trash2 size={ICON} /> })
         ],
         LETTER,
-        [...FORMAT.slice(0, 4), ...SCRIPT, CASE, FORMAT[4]],
-        ALIGN.slice(0, 3),
-        LISTS,
+        [...FORMAT.slice(0, 3), FORMAT[4]],
+        [ALIGN_MENU, LIST_MENU],
+        [FORMAT[3], ...SCRIPT, CASE],
         [PAINTER, ...ARRANGE],
         FIND
       ]

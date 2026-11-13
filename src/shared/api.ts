@@ -212,7 +212,6 @@ export interface MolinoApi {
   }
   recent: {
     list(): Promise<RecentFile[]>
-    clear(): Promise<RecentFile[]>
     remove(id: string): Promise<RecentFile[]>
   }
   shell: {
@@ -253,8 +252,6 @@ export interface MolinoApi {
     onProgress(listener: (progress: AiDownloadProgress | null) => void): () => void
     onChanged(listener: () => void): () => void
     onError(listener: (reason: AiDownloadError) => void): () => void
-    /** Documentos, Hojas o Presentaciones piden abrir Ajustes en la IA. */
-    onOpenSettings(listener: () => void): () => void
   }
   /** Documentos, Hojas y Presentaciones (las trae Molino Suite; Molino PDF no). */
   office: {
@@ -281,3 +278,12 @@ export interface MolinoApi {
     closeNow(): void
   }
 }
+
+/**
+ * Lo que tienen también las ventanas de Documentos, Hojas y Presentaciones
+ * (preload/office.ts): ajustes, IA, versiones nuevas, comentarios y avisos.
+ */
+export type MolinoShared = Pick<
+  MolinoApi,
+  'env' | 'settings' | 'shell' | 'updates' | 'about' | 'ai' | 'office' | 'feedback' | 'defaultApp' | 'engine' | 'cancel' | 'onProgress' | 'print'
+>

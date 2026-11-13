@@ -2,8 +2,6 @@ import { Send } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { L } from '@/i18n'
 import { errorMessage, unwrap } from '@/lib/api'
-import { useApp } from '@/state/app'
-import { registerDialog } from './Dialogs'
 import { Dialog, Segmented } from './ui'
 
 /**
@@ -20,9 +18,9 @@ const PLACEHOLDER: Record<Kind, string> = {
   'Otra cosa': L.feedback.placeholder.other
 }
 
-function FeedbackDialog() {
-  const close = useApp((s) => s.closeDialog)
-  const toast = useApp((s) => s.toast)
+/** ``onSent``: después de enviarlo (cada app da las gracias a su manera). Lo usan todas las apps. */
+export function FeedbackDialog({ onClose, onSent }: { onClose: () => void; onSent: () => void }) {
+  const close = onClose
   const [available, setAvailable] = useState<boolean | null>(null)
   const [kind, setKind] = useState<Kind>('Fallo')
   const [message, setMessage] = useState('')
@@ -41,7 +39,7 @@ function FeedbackDialog() {
     setError('')
     try {
       unwrap(await window.molino.feedback.send(kind, message.trim()))
-      toast('success', L.feedback.thanks)
+      onSent()
       close()
     } catch (failure) {
       setError(errorMessage(failure))
@@ -120,4 +118,3 @@ function FeedbackDialog() {
   )
 }
 
-registerDialog('feedback', FeedbackDialog)

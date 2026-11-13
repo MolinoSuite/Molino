@@ -9,11 +9,7 @@ export const office: typeof es = {
     new: { word: 'New document (Ctrl+N)', cell: 'New spreadsheet (Ctrl+N)', slide: 'New presentation (Ctrl+N)' },
     open: 'Open (Ctrl+O)'
   },
-  search: {
-    button: 'What do you want to do?',
-    placeholder: 'Type what you want to do…',
-    empty: 'No command has that name.'
-  },
+
   actions: { save: 'Save', savePdf: 'Save as PDF', present: 'Present', printTip: 'Print (Ctrl+P)', findTip: 'Find and replace (Ctrl+F)' },
   start: {
     subtitle: {
@@ -87,6 +83,8 @@ export const office: typeof es = {
     transitions: 'Transitions'
   },
   tools: {
+    alignMenu: 'Align',
+    listMenu: 'List',
     label: 'Tools',
     undo: 'Undo (Ctrl+Z)',
     redo: 'Redo (Ctrl+Y)',
@@ -373,27 +371,30 @@ export const office: typeof es = {
     exportEpub: 'Export as e-book (EPUB)…',
     exportPpsx: 'Export as PowerPoint show…',
     about: 'About',
-    settings: 'Settings…'
+    settings: 'Settings…',
+    showInFolder: 'Show in folder',
+    shortcuts: 'Keyboard shortcuts',
+    feedback: 'Send feedback',
+    sponsor: 'Buy me a coffee'
   },
-  settings: {
-    title: 'Settings',
-    theme: 'Theme',
-    themes: { system: 'Like Windows', light: 'Light', dark: 'Dark' },
-    language: 'Language',
-    languages: { auto: 'Automatic (like Windows)' },
-    languageHint: 'It applies the next time you open Molino.',
-    author: 'Your name',
-    authorHint: 'It signs the comments and changes you make in the documents you open from now on.',
-    ai: 'AI',
-    aiOff: 'It’s off. Turn it on to write, summarize and make formulas or slides with it, offline.',
-    aiNotReady: 'It’s on, but its models still need to be downloaded.',
-    aiReady: 'Ready: it’s in each app’s “AI” mode.',
-    aiSettings: 'AI settings',
-    dictionary: 'Personal dictionary',
-    dictionaryEmpty: 'The words you add while spellchecking will show up here.',
-    dictionaryCount: '{n} words: the spellchecker accepts them.',
-    dictionaryRemove: 'Remove “{word}” from the dictionary',
-    done: 'Done'
+  shortcuts: {
+    title: 'Keyboard shortcuts',
+    list: [
+      ['Ctrl + N', 'New document'],
+      ['Ctrl + O', 'Open'],
+      ['Ctrl + S', 'Save'],
+      ['Ctrl + Shift + S', 'Save as'],
+      ['Ctrl + P', 'Print'],
+      ['Ctrl + W', 'Close the tab'],
+      ['Ctrl + Tab', 'Go to the next tab'],
+      ['Ctrl + Z · Ctrl + Y', 'Undo · Redo'],
+      ['Ctrl + B · I · U', 'Bold · Italic · Underline'],
+      ['Ctrl + F', 'Find'],
+      ['Ctrl + H', 'Replace'],
+      ['Ctrl + K', 'Link'],
+      ['Alt + Q', 'What do you want to do?'],
+      ['Ctrl + ,', 'Settings']
+    ] as [string, string][]
   },
   keywords: {
     bold: 'strong heavy',
@@ -467,6 +468,33 @@ export const office: typeof es = {
     validation: 'drop-down list validation data'
   },
   groups: { format: 'Format', insert: 'Insert', edit: 'Edit', view: 'View', file: 'File', style: 'Style', layout: 'Layout', data: 'Data', sheets: 'Sheets', slides: 'Slides', present: 'Present' },
+  styleHints: {
+    Normal: 'Everyday text',
+    'No Spacing': 'No space between paragraphs',
+    Title: 'The cover',
+    Subtitle: 'Below the title',
+    'Heading 1': 'A section',
+    'Heading 2': 'A subsection',
+    'Heading 3': 'A detail',
+    Quote: 'A highlighted quote'
+  },
+  dock: {
+    page: 'Page',
+    slide: 'Slide',
+    ofTotal: 'of {total}',
+    previous: 'Previous',
+    next: 'Next',
+    words: '{n} words',
+    word: '{n} word',
+    zoom: 'Zoom',
+    fitWidth: 'Fit width',
+    fitPage: 'Fit page'
+  },
+  selbar: {
+    label: 'Selection',
+    comment: 'Comment',
+    rewrite: 'Rewrite with AI'
+  },
   styles: {
     Normal: 'Normal',
     'No Spacing': 'No spacing',

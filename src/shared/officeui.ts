@@ -1,7 +1,21 @@
 /** Lo que comparten el proceso principal (officewin.ts) y la interfaz de Documentos, Hojas y Presentaciones. */
+import type { DocDescriptor } from './types'
 import type { OfficeLegal } from './office'
 
 export type OfficeKind = 'word' | 'cell' | 'slide'
+
+/** Un aviso o una pregunta del proceso principal, que la app muestra con su aspecto (no el cuadro de Windows). */
+export interface OfficeAsk {
+  id: number
+  type: 'info' | 'error' | 'warning' | 'question'
+  title: string
+  message: string
+  detail?: string
+  buttons: string[]
+  /** El botón principal y el de cancelar (Esc o cerrar el cuadro). */
+  defaultId: number
+  cancelId: number
+}
 
 export interface OfficeTab {
   doc: string
@@ -26,7 +40,7 @@ export interface OfficeTabs {
   active: string | null
   /** Se está abriendo algún documento (sin pestañas aún, la interfaz muestra «Abriendo…»). */
   opening: boolean
-  /** Mientras se abre: la pieza nueva que se está instalando sola, y cuánto lleva. */
+  /** Las pestañas, en orden. */
   tabs: OfficeTab[]
 }
 
@@ -45,16 +59,6 @@ export interface OfficeRecoverable {
   time: string
 }
 
-/** Lo que se ve en Ajustes de Documentos, Hojas y Presentaciones (los mismos ajustes de Molino). */
-export interface OfficeSettingsInfo {
-  theme: 'system' | 'light' | 'dark'
-  language: 'auto' | 'es' | 'en'
-  /** Nombre para los comentarios y cambios ('' = el usuario de Windows, ``authorDefault``). */
-  author: string
-  authorDefault: string
-  ai: { on: boolean; ready: boolean }
-}
-
 export interface OfficeUiApi {
   /** ``piece``: la versión del motor de oficina (para «Acerca de»). */
   env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; piece: string; author: string }
@@ -64,17 +68,20 @@ export interface OfficeUiApi {
   openDialog(): Promise<boolean>
   /** «Guardar como»: pregunta dónde y con qué nombre. */
   saveAs(doc: string): Promise<boolean>
-  /** Imprimir, con el cuadro de imprimir de Molino PDF. */
+  /** Imprimir: el motor hace un PDF temporal y llega por ``onPrint`` para el cuadro de imprimir de esta app. */
   print(doc: string): Promise<boolean>
+  /** Muestra el archivo en el Explorador (solo si tiene archivo propio). */
+  showInFolder(doc: string): Promise<boolean>
+  onPrint(listener: (pdf: DocDescriptor) => void): () => void
+  /** Avisos y preguntas (al suscribirse, el proceso principal sabe que ya se pueden mostrar). */
+  onAsk(listener: (ask: OfficeAsk) => void): () => void
+  answer(id: number, response: number): void
+  /** Cerrado el cuadro de imprimir: fuera el PDF temporal. */
+  printClose(doc: string): Promise<boolean>
   /** Exportar una copia (pdf, txt, html, epub, ppsx): el documento sigue con sus cambios sin guardar. */
   exportDoc(doc: string, format: string): Promise<boolean>
   newDoc(): Promise<boolean>
   onTabs(listener: (tabs: OfficeTabs) => void): () => void
-  /** Ajustes (tema, idioma, autor) y el diccionario personal. */
-  settings(): Promise<OfficeSettingsInfo>
-  setSettings(patch: Partial<Pick<OfficeSettingsInfo, 'theme' | 'language' | 'author'>>): Promise<OfficeSettingsInfo>
-  dictionary(): Promise<string[]>
-  removeFromDictionary(words: string[]): Promise<string[]>
   /** Ha cambiado el tema (en cualquier ventana de Molino o en Windows): oscuro o no. */
   onTheme(listener: (dark: boolean) => void): () => void
   recent(): Promise<OfficeRecent[]>
@@ -105,8 +112,6 @@ export interface OfficeUiApi {
   /** La IA local de Molino (la de Ajustes → IA), sobre los documentos de esta ventana. */
   ai: {
     status(): Promise<{ on: boolean; ready: boolean }>
-    /** Abre Molino PDF en Ajustes → IA (para activarla o descargar el modelo). */
-    settings(): Promise<boolean>
     /** Una operación de ops/officeai.py; ``call`` (positivo, distinto en cada una) sirve para cancelarla y para su avance. */
     run(call: number, doc: string, method: OfficeAiMethod, params: Record<string, unknown>): Promise<{ result?: Record<string, unknown>; error?: { code: string; message: string } }>
     cancel(call: number): void

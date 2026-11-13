@@ -103,10 +103,13 @@ export interface EditorState {
   lineWidth: number
   /** El panel lateral abierto (lo pone la ventana, no el editor). */
   sidePanel: boolean
+  /** Sube con cada cambio del documento (para volver a contar las palabras). */
+  edits: number
 }
 
 function initialState(): EditorState {
   return {
+    edits: 0,
     ready: false,
     modified: false,
     bold: false,
@@ -252,6 +255,9 @@ export class EditorSession {
   private statsDone: ((stats: Record<string, number>) => void) | null = null
   /** Lo que pide la interfaz cuando el editor quiere enseñar su menú o un aviso. */
   onContextMenu: (info: ContextInfo | null) => void = () => undefined
+  /** Se ha soltado el ratón con texto seleccionado (dónde, en la ventana de Molino), o ya no hay selección. */
+  onSelectionBar: (at: { x: number; y: number } | null) => void = () => undefined
+  private statsRunning: Promise<Record<string, number>> | null = null
   onNotice: (notice: EditorNotice) => void = () => undefined
   /** La última palabra mal escrita bajo el cursor (para el menú del botón derecho). */
   private spellObject: Api = null
@@ -302,6 +308,7 @@ export class EditorSession {
         this.ew = w
         this.api = api
         this.listen()
+        this.watchSelection(w)
       }
       // El «load» de la pestaña llega cuando ya ha cargado también el editor
       // que lleva dentro: entonces ya no hay «load» que esperar.
@@ -766,7 +773,17 @@ export class EditorSession {
       redo: () => api.Redo(),
       image: () => api.asc_addImage(),
       zoomIn: () => api.zoomIn(),
-      zoomOut: () => api.zoomOut()
+      zoomOut: () => api.zoomOut(),
+      zoomTo: (v) => {
+        const n = Number(v)
+        if (Number.isFinite(n) && n >= 10 && n <= 500) api.zoom(n)
+      },
+      fitWidth: () => api.zoomFitToWidth(),
+      fitPage: () => api.zoomFitToPage(),
+      goToPage: (v) => {
+        const n = Number(v)
+        if (Number.isInteger(n) && n >= 1 && n <= s.pages) api.goToPage(n - 1)
+      }
     }
     if (this.kind === 'word') {
       return {
@@ -1068,7 +1085,11 @@ export class EditorSession {
         undo: () => api.asc_Undo(),
         redo: () => api.asc_Redo(),
         zoomIn: () => api.asc_setZoom(Math.min(5, (s.zoom + 10) / 100)),
-        zoomOut: () => api.asc_setZoom(Math.max(0.1, (s.zoom - 10) / 100))
+        zoomOut: () => api.asc_setZoom(Math.max(0.1, (s.zoom - 10) / 100)),
+        zoomTo: (v) => {
+          const n = Number(v)
+          if (Number.isFinite(n) && n >= 10 && n <= 500) api.asc_setZoom(n / 100)
+        }
       }
     }
     return {
@@ -1411,7 +1432,8 @@ export class EditorSession {
   /** Documentos: páginas, palabras, caracteres y párrafos (el editor los cuenta poco a poco). */
   stats(): Promise<Record<string, number>> {
     if (!this.api || this.kind !== 'word') return Promise.resolve({})
-    return new Promise((resolve) => {
+    if (this.statsRunning) return this.statsRunning
+    const running = new Promise<Record<string, number>>((resolve) => {
       this.docInfo = {}
       this.statsDone = resolve
       try {
@@ -1421,6 +1443,11 @@ export class EditorSession {
         resolve({})
       }
     })
+    this.statsRunning = running
+    void running.finally(() => {
+      if (this.statsRunning === running) this.statsRunning = null
+    })
+    return running
   }
 
   /** El vínculo donde está el cursor (o el de la celda activa). */
@@ -1771,6 +1798,32 @@ export class EditorSession {
     }
   }
 
+  /**
+   * La barra de lo seleccionado (diseño D): al soltar el ratón con texto
+   * seleccionado, dónde; al pulsar, escribir o desplazar, que se quite.
+   */
+  private watchSelection(w: Window): void {
+    if (this.kind === 'cell') return
+    const hide = (): void => this.onSelectionBar(null)
+    // Con el puntero: el editor cancela los eventos de ratón de compatibilidad.
+    w.addEventListener(
+      'pointerup',
+      (event: PointerEvent) => {
+        if (event.button !== 0) return
+        const at = this.toTop(event.clientX, event.clientY)
+        // Después del editor, que es quien termina la selección.
+        setTimeout(() => {
+          if (this.disposed) return
+          this.onSelectionBar(this.selectedText().trim() ? at : null)
+        }, 30)
+      },
+      true
+    )
+    w.addEventListener('pointerdown', hide, true)
+    w.addEventListener('keydown', hide, true)
+    w.addEventListener('wheel', hide, { capture: true, passive: true })
+  }
+
   /** Un punto de la ventana del editor, en la de Molino (sumando los marcos que hay por medio). */
   private toTop(x: number, y: number): { x: number; y: number } {
     let win: Window | null = this.ew as Window
@@ -1925,7 +1978,10 @@ export class EditorSession {
       on('asc_onFontSize', (v) => (s.size = v))
       on('asc_onFontFamily', (f) => (s.font = f && (f.get_Name ? f.get_Name() : f.asc_getFontName())))
       on('asc_onTextColor', (c) => (s.color = this.hex(c) ?? '#000000'))
-      on('asc_onCanUndo', (v) => (s.canUndo = !!v))
+      on('asc_onCanUndo', (v) => {
+        s.canUndo = !!v
+        s.edits++
+      })
       on('asc_onCanRedo', (v) => (s.canRedo = !!v))
       on('asc_onZoomChange', (z) => (s.zoom = z))
       on('asc_onCountPages', (n) => (s.pages = n))

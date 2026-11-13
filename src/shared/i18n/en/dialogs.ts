@@ -23,6 +23,7 @@ export const dialogs: typeof source = {
       appearance: 'Appearance',
       apps: 'Apps',
       documents: 'Documents',
+      pdf: 'PDF',
       signature: 'Signature'
     },
     language: {
@@ -51,8 +52,8 @@ export const dialogs: typeof source = {
     sidebarOpen: 'Show the pages panel when opening a document',
     highlightFields: 'Highlight form fields you can fill in',
     author: {
-      label: 'Name for comments',
-      hint: 'Saved as the author of the notes and annotations you add.'
+      label: 'Your name',
+      hint: 'It signs your PDF notes and the comments and changes in your documents. Empty: your Windows user name.'
     },
     signLevel: {
       label: 'Certificate signature type',

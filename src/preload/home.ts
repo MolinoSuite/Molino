@@ -34,6 +34,13 @@ const api: HomeApi = {
     const wrapped = (_event: Electron.IpcRendererEvent, dark: boolean): void => listener(dark === true)
     ipcRenderer.on('home:theme', wrapped)
     return () => ipcRenderer.removeListener('home:theme', wrapped)
+  },
+  pdfApart: () => ipcRenderer.invoke('home:pdfApart'),
+  removePdfApart: () => ipcRenderer.invoke('home:removePdfApart'),
+  onNotice: (listener) => {
+    const wrapped = (_event: Electron.IpcRendererEvent, text: unknown): void => listener(String(text).slice(0, 500))
+    ipcRenderer.on('home:notice', wrapped)
+    return () => ipcRenderer.removeListener('home:notice', wrapped)
   }
 }
 contextBridge.exposeInMainWorld('molinoHome', api)

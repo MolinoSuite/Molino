@@ -7,6 +7,7 @@ import { call, type CallExtras, errorMessage, MolinoError, isCancelled, query, u
 import { dropDocCaches } from '@/lib/pageData'
 import { getDoc, type Mode, useApp } from './app'
 import { refreshSearch } from './search'
+import { updateSettings, whenSettingsApplied } from './settings'
 
 const app = () => useApp.getState()
 
@@ -65,6 +66,7 @@ export async function initApp(): Promise<void> {
       })
       .catch(() => undefined)
   })
+  whenSettingsApplied(() => applyTheme())
   applyTheme()
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme)
   // Ajustes cambiados en otra ventana (Documentos, Hojas o Presentaciones): el tema, al momento.
@@ -75,13 +77,7 @@ export async function initApp(): Promise<void> {
   window.molino.files.ready()
 }
 
-export async function updateSettings(patch: Partial<ReturnType<typeof app>['settings']>): Promise<void> {
-  const next = await window.molino.settings.set(patch)
-  if (next) {
-    app().setSettings(next)
-    applyTheme()
-  }
-}
+export { updateSettings }
 
 export async function refreshRecent(): Promise<void> {
   app().setRecent((await window.molino.recent.list()) ?? [])

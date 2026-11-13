@@ -31,6 +31,25 @@
   justify-content: center;
   color: var(--accent-fg);
 }
+/* El logo de cada app abre su menú (en todas las apps igual). */
+.app-menu {
+  gap: 2px;
+  height: 32px;
+  margin: 0 5px;
+  width: auto;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-3);
+  -webkit-app-region: no-drag;
+}
+.app-menu:hover,
+.app-menu.on,
+.app-menu[aria-expanded='true'] {
+  background: var(--bg-hover);
+  color: var(--text);
+}
 .tabs {
   display: flex;
   align-items: center;
@@ -1390,4 +1409,95 @@
   height: 100%;
   background: var(--accent);
   transition: width 200ms var(--ease);
+}
+
+/* «¿Qué quieres hacer?»: el botón de la barra de título y el buscador (todas las apps; CommandPalette.tsx). */
+.command-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  min-width: 220px;
+  padding: 0 8px 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  color: var(--text-3);
+  font-size: 12.5px;
+}
+.command-search:hover {
+  border-color: var(--border-strong);
+  color: var(--text-2);
+}
+.command-search span {
+  flex: 1;
+  text-align: left;
+}
+.command-search kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font: 10.5px var(--font-ui);
+  color: var(--text-3);
+}
+
+.palette {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  padding-top: 90px;
+  background: rgba(0, 0, 0, 0.18);
+}
+.palette-box {
+  width: min(560px, calc(100% - 40px));
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.palette-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-3);
+}
+.palette-box input {
+  flex: 1;
+  min-width: 0;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 15px var(--font-ui);
+  outline: none;
+}
+.palette-box ul {
+  max-height: 360px;
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  list-style: none;
+}
+.palette-box li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.palette-box li.on {
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+}
+.palette-box .hint {
+  color: var(--text-3);
 }

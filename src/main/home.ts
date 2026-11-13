@@ -29,6 +29,8 @@ export interface HomeOptions {
   /** Abre archivos, cada uno en su app (index.ts). */
   openFiles(paths: string[]): Promise<void>
   dark(): boolean
+  /** Molino PDF instalado aparte (pdfapart.ts). */
+  pdfApart: { installed(): boolean; remove(): Promise<'removed' | 'settings'> }
 }
 
 export class HomeWindow {
@@ -134,6 +136,17 @@ export class HomeWindow {
   private registerIpc(): void {
     const apps = new Set<HomeApp>(['pdf', ...OFFICE_KINDS])
     ipcMain.handle('home:apps', async (event) => (this.trusted(event) ? this.options.apps() : null))
+    ipcMain.handle('home:pdfApart', (event) => Boolean(this.trusted(event)) && this.options.pdfApart.installed())
+    let removing = false
+    ipcMain.handle('home:removePdfApart', async (event) => {
+      if (!this.trusted(event) || removing) return null
+      removing = true
+      try {
+        return await this.options.pdfApart.remove()
+      } finally {
+        removing = false
+      }
+    })
     ipcMain.handle('home:recent', (event) => (this.trusted(event) ? this.recentList() : []))
     ipcMain.handle('home:forgetRecent', (event, raw: unknown) => {
       if (!this.trusted(event)) return []
@@ -146,7 +159,7 @@ export class HomeWindow {
       if (!window || !entry) return false
       if (!existsSync(entry.path)) {
         this.forget(entry.id)
-        void dialog.showMessageBox(window, { type: 'info', title: 'Molino', message: fmt(L.main.office.recentMissing, { name: entry.name }) })
+        window.webContents.send('home:notice', fmt(L.main.office.recentMissing, { name: entry.name }))
         return false
       }
       await this.options.openFiles([entry.path])

@@ -17,7 +17,6 @@ export const start = {
     filtered: 'Recientes · {shown} de {total}',
     search: 'Buscar en recientes',
     clearSearch: 'Borrar la búsqueda',
-    clearList: 'Borrar lista',
     removeOne: 'Quitar «{name}» de recientes',
     removeTip: 'Quitar de la lista',
     noMatch: 'Ningún documento reciente coincide con «{query}».'

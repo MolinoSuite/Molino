@@ -21,7 +21,7 @@ body,
 .office {
   height: 100%;
   display: grid;
-  grid-template-rows: var(--titlebar-h) minmax(0, 1fr) 26px;
+  grid-template-rows: var(--titlebar-h) minmax(0, 1fr);
   background: var(--bg-surface);
   color: var(--text);
   font-family: var(--font-ui);
@@ -32,51 +32,10 @@ body,
 .office-titlebar .tabs {
   flex: 0 1 auto;
 }
-/* «Archivo»: el icono de la app abre el menú (Nuevo, Abrir, Guardar…). */
-.office-file {
-  gap: 2px;
-  height: 32px;
-  margin: 0 5px;
-  border-radius: 8px;
-  color: var(--text-3);
-}
-.office-file:hover,
-.office-file[aria-expanded='true'] {
-  background: var(--bg-hover);
-  color: var(--text);
-}
 .office-titlebar .tab-name {
   height: 100%;
   font: inherit;
   color: inherit;
-}
-.office-search {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  height: 28px;
-  min-width: 220px;
-  padding: 0 8px 0 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-subtle);
-  color: var(--text-3);
-  font-size: 12.5px;
-}
-.office-search:hover {
-  border-color: var(--border-strong);
-  color: var(--text-2);
-}
-.office-search span {
-  flex: 1;
-  text-align: left;
-}
-.office-search kbd {
-  padding: 1px 5px;
-  border: 1px solid var(--border);
-  border-radius: 5px;
-  font: 10.5px var(--font-ui);
-  color: var(--text-3);
 }
 .office-actions {
   display: flex;
@@ -115,20 +74,34 @@ body,
   background: var(--bg-app);
 }
 
-/* Una sola fila: lo que no cabe va a «Más» (ToolBar). Se recorta solo a lo
-   ancho, para que los colores y los menús que se abren hacia abajo se vean. */
+/* Diseño A: la barra de herramientas flota, centrada, sobre el fondo del
+   documento (el del editor es el mismo, bridge.js). Una sola fila: lo que no
+   cabe va a «Más» (ToolBar). Se recorta solo a lo ancho, para que los colores
+   y los menús que se abren hacia abajo se vean. */
 .office-toolbar {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 10px 12px 6px;
+  overflow-x: clip;
+}
+.office-pill {
   position: relative;
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
   gap: 2px;
   min-width: 0;
-  padding: 6px 10px;
-  border-bottom: 1px solid var(--border);
+  max-width: 100%;
+  padding: 5px 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
   background: var(--bg-surface);
-  overflow-x: clip;
-  overflow-y: visible;
+  box-shadow:
+    0 1px 2px rgba(17, 24, 39, 0.05),
+    0 6px 18px -6px rgba(17, 24, 39, 0.16);
 }
 .office-group {
   display: flex;
@@ -145,7 +118,7 @@ body,
 .office-toolbar .tool:not(.icon) {
   padding: 0 8px;
 }
-.office-toolbar > .office-group:last-of-type,
+.office-pill > .office-group:last-of-type,
 .office-more-pop .office-group {
   border-right: none;
 }
@@ -382,27 +355,45 @@ body,
   object-fit: contain;
 }
 
-/* ------------------------------------------------------- barra de estado */
+/* ------------------------------------------------ barra de abajo (diseño A) */
 
-.office-status {
+/* Flota sobre el documento, como la de Molino PDF (.dock, shell.css). */
+.office-dock {
+  z-index: 6;
+}
+/* En Hojas, a la derecha: en el centro taparía las celdas que se miran. */
+.office-dock.cell {
+  left: auto;
+  right: 28px;
+  bottom: 22px;
+  translate: 0 0;
+}
+/* Presentaciones con las notas a la vista: encima de ellas. */
+.office-dock.slide.notes {
+  bottom: 56px;
+}
+.office-dock-text {
+  max-width: 46vw;
+  padding: 0 8px;
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 12.5px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Hojas: las pestañas de las hojas, en su barra, debajo del documento. */
+.office-sheetbar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  height: 30px;
   min-width: 0;
   padding: 0 8px;
   border-top: 1px solid var(--border);
   background: var(--bg-surface);
-  color: var(--text-2);
-  font-size: 11.5px;
 }
-.office-status .icon-btn.sm {
-  width: 22px;
-  height: 22px;
-}
-/* Hojas: las pestañas de las hojas van en la barra de estado (como en Hojas de cálculo de Google). */
-.office-status .office-sheets {
+.office-sheetbar .office-sheets {
   flex: 0 1 auto;
-  max-width: 60%;
+  max-width: 100%;
   height: 100%;
   padding: 0;
   border: 0;
@@ -410,39 +401,27 @@ body,
   overflow-y: hidden;
   scrollbar-width: none;
 }
-.office-status .office-sheets .sheet {
-  height: 20px;
+.office-sheetbar .office-sheets .sheet {
+  height: 22px;
   padding: 0 10px;
-  border-radius: 5px;
+  border-radius: 6px;
   font-size: 12px;
 }
-.office-status-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  height: 20px;
-  padding: 0 7px;
-  border-radius: 5px;
-  color: var(--text-2);
+/* Sin documentos: la pantalla de inicio, con el aviso de ONLYOFFICE abajo a la derecha. */
+.office-empty {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
-.office-status-btn:hover {
-  background: var(--bg-hover);
-}
-.office-status-btn.on {
-  color: var(--text);
-}
-.office-status .grow {
+.office-empty > :first-child {
   flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  min-height: 0;
 }
-.office-status .ok {
-  color: var(--success);
-}
-.office-status .warn {
-  color: var(--warning);
+.office-empty .office-credit {
+  position: absolute;
+  right: 16px;
+  bottom: 10px;
 }
 .office-credit {
   color: var(--text-3);
@@ -451,72 +430,6 @@ body,
 .office-credit:hover {
   color: var(--text);
   text-decoration: underline;
-}
-.office-zoom {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-}
-.office-zoom span {
-  min-width: 44px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ------------------------------------------------------------- buscador */
-
-.office-palette {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  justify-items: center;
-  align-items: start;
-  padding-top: 90px;
-  background: rgba(0, 0, 0, 0.18);
-}
-.office-palette-box {
-  width: min(560px, calc(100% - 40px));
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--bg-surface);
-  box-shadow: var(--shadow-lg);
-  overflow: hidden;
-}
-.office-palette-box input {
-  width: 100%;
-  box-sizing: border-box;
-  height: 48px;
-  padding: 0 16px;
-  border: 0;
-  border-bottom: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  font: 15px var(--font-ui);
-  outline: none;
-}
-.office-palette-box ul {
-  max-height: 360px;
-  margin: 0;
-  padding: 6px;
-  overflow: auto;
-  list-style: none;
-}
-.office-palette-box li {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.office-palette-box li.on {
-  background: var(--accent-soft);
-  color: var(--accent-fg);
-}
-.office-palette-box .hint {
-  color: var(--text-3);
 }
 
 .office-about p {
@@ -544,8 +457,8 @@ body,
 .office.presenting .rail,
 .office.presenting .office-toolbar,
 .office.presenting .office-panel,
-.office.presenting .office-sheets,
-.office.presenting .office-status {
+.office.presenting .office-sheetbar,
+.office.presenting .office-dock {
   display: none;
 }
 .office.presenting .office-body {
@@ -570,8 +483,7 @@ body,
 .office-opening {
   position: static;
 }
-.office-actions[hidden],
-.office-zoom[hidden] {
+.office-actions[hidden] {
   display: none;
 }
 
@@ -954,36 +866,132 @@ body,
   color: var(--text-3);
 }
 
-/* Ajustes de Documentos, Hojas y Presentaciones */
-.office-settings {
+/* Avisos y preguntas del proceso principal (AskDialog), en vez del cuadro de Windows. */
+.office-ask {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  max-width: 440px;
+}
+.office-ask > svg {
+  flex: none;
+  margin-top: 1px;
+  color: var(--accent-fg);
+}
+.office-ask.error > svg {
+  color: var(--danger);
+}
+.office-ask.warning > svg {
+  color: var(--warning, #b7791f);
+}
+.office-ask-message {
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.45;
+}
+.office-ask-detail {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------- estilos con vista previa (B) */
+
+/* Dentro de la barra flotante, los desplegables sin marco (como «Calibri · 11 ▾» del diseño A). */
+.office-pill .office-select {
+  border-color: transparent;
+  background-color: transparent;
+}
+.office-pill .office-select:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+}
+.office-style-btn {
+  justify-content: space-between;
+  min-width: 112px;
+  gap: 6px;
+}
+.office-styles {
+  position: fixed;
+  z-index: 80;
+  display: grid;
+  grid-template-columns: repeat(2, 196px);
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+.office-style-card {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  min-width: 0;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  height: 58px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-surface);
+  color: var(--text);
+  font-family: Calibri, Carlito, 'Segoe UI', sans-serif;
+  text-align: left;
+  overflow: hidden;
 }
-.user-words {
+.office-style-card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-subtle);
+}
+.office-style-card.on {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.office-style-card span {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.office-style-card small {
+  color: var(--text-3);
+  font-family: var(--font-ui);
+  font-size: 10.5px;
+}
+
+/* ------------------------------------------- barra de lo seleccionado (D) */
+
+.office-selbar {
+  position: fixed;
+  z-index: 60;
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  max-height: 132px;
-  overflow-y: auto;
-  margin: 2px 0 0;
-  padding: 0;
-  list-style: none;
-}
-.user-words li {
-  display: inline-flex;
   align-items: center;
   gap: 2px;
-  max-width: 100%;
-  padding: 1px 2px 1px 8px;
+  height: 40px;
+  padding: 0 5px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--bg-subtle);
-  font-size: 12.5px;
+  border-radius: 11px;
+  background: var(--bg-surface);
+  box-shadow:
+    0 2px 6px rgba(17, 24, 39, 0.06),
+    0 18px 44px -12px rgba(17, 24, 39, 0.24);
 }
-.user-words li span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.office-selbar .tool {
+  height: 30px;
+}
+.office-selbar .tool.icon {
+  width: 30px;
+}
+.office-selbar .tool:not(.icon) {
+  padding: 0 8px;
+}
+.office-selbar-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 2px;
+  background: var(--border);
+}
+.office-selbar-ai {
+  color: var(--accent-fg);
 }

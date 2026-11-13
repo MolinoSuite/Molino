@@ -233,12 +233,6 @@ export class Store {
     return this.recentList()
   }
 
-  clearRecent(): RecentFile[] {
-    this.config.recent = []
-    this.persist()
-    return []
-  }
-
   // ------------------------------------- recientes de Documentos, Hojas y Presentaciones
 
   /** Rutas completas, para el proceso principal (officewin.ts decide qué ve cada ventana). */

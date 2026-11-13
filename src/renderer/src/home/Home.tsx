@@ -3,7 +3,7 @@
  * nuevo» y los recientes de todas las apps, con buscador. Sigue la maqueta
  * «Inicio» de la suite; las plantillas llegarán cuando las haya.
  */
-import { FolderOpen, Search, X } from 'lucide-react'
+import { CircleAlert, FolderOpen, Info, Search, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { HomeApp, HomeRecent } from '@shared/home'
 import documentsIcon from './icons/documentos.svg'
@@ -38,10 +38,33 @@ export function Home() {
   const [apps, setApps] = useState<Record<HomeApp, boolean> | null>(null)
   const [recent, setRecent] = useState<HomeRecent[] | null>(null)
   const [query, setQuery] = useState('')
+  // Avisos del proceso principal, como los de las demás apps (no el cuadro de Windows).
+  const [notice, setNotice] = useState<string | null>(null)
+  useEffect(() => window.molinoHome.onNotice(setNotice), [])
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(null), 7000)
+    return () => clearTimeout(timer)
+  }, [notice])
+
+  // Molino PDF instalado aparte (Molino Suite ya lo incluye): aviso importante, con un botón para quitarlo.
+  const [pdfApart, setPdfApart] = useState(false)
+  const [pdfLater, setPdfLater] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const removePdf = async (): Promise<void> => {
+    setRemoving(true)
+    const result = await window.molinoHome.removePdfApart().catch(() => null)
+    setRemoving(false)
+    if (result === 'removed') {
+      setPdfApart(false)
+      setNotice(H.pdfApart.removed)
+    } else if (result === 'settings') setNotice(H.pdfApart.settings)
+  }
 
   const refresh = useCallback(() => {
     void window.molinoHome.apps().then(setApps)
     void window.molinoHome.recent().then(setRecent)
+    void window.molinoHome.pdfApart().then(setPdfApart)
   }, [])
   // Al volver a la ventana, por si se abrió algo en otra app.
   useEffect(() => {
@@ -68,28 +91,6 @@ export function Home() {
           <span>Molino</span>
         </div>
         <div className="titlebar-fill" />
-        <label className="home-search">
-          <Search size={15} />
-          <input
-            type="text"
-            value={query}
-            placeholder={H.search}
-            aria-label={H.search}
-            spellCheck={false}
-            maxLength={200}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Escape') setQuery('')
-              else if (event.key === 'Enter' && shown[0]) void window.molinoHome.openRecent(shown[0].id)
-            }}
-          />
-          {query && (
-            <button className="icon-btn sm" aria-label={H.clearSearch} onClick={() => setQuery('')}>
-              <X size={13} />
-            </button>
-          )}
-        </label>
-        <div className="titlebar-fill" />
       </header>
 
       <div className="home-body">
@@ -110,6 +111,24 @@ export function Home() {
         <main className="home-main">
           <div className="home-inner">
             <h1>{H.title}</h1>
+
+            {pdfApart && !pdfLater && (
+              <div className="home-important" role="alert">
+                <CircleAlert size={20} />
+                <div>
+                  <strong>{H.pdfApart.title}</strong>
+                  <p>{H.pdfApart.text}</p>
+                  <div className="home-important-actions">
+                    <button className="btn primary" disabled={removing} onClick={() => void removePdf()}>
+                      {removing ? H.pdfApart.removing : H.pdfApart.remove}
+                    </button>
+                    <button className="btn" disabled={removing} onClick={() => setPdfLater(true)}>
+                      {H.pdfApart.later}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <section className="home-section" aria-labelledby="home-create">
               <h2 id="home-create">{H.create}</h2>
@@ -134,7 +153,32 @@ export function Home() {
             </section>
 
             <section className="home-section" aria-labelledby="home-recent">
-              <h2 id="home-recent">{H.recent}</h2>
+              <div className="recent-head">
+                <h2 id="home-recent" className="recent-title">
+                  {H.recent}
+                </h2>
+                <label className="recent-search">
+                  <Search size={14} />
+                  <input
+                    type="text"
+                    value={query}
+                    placeholder={H.search}
+                    aria-label={H.search}
+                    spellCheck={false}
+                    maxLength={200}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setQuery('')
+                      else if (event.key === 'Enter' && shown[0]) void window.molinoHome.openRecent(shown[0].id)
+                    }}
+                  />
+                  {query && (
+                    <button className="icon-btn sm" aria-label={H.clearSearch} onClick={() => setQuery('')}>
+                      <X size={13} />
+                    </button>
+                  )}
+                </label>
+              </div>
               <ul className="home-recent">
                 {shown.map((file) => (
                   <li key={file.id} className="home-recent-row">
@@ -160,6 +204,17 @@ export function Home() {
           </div>
         </main>
       </div>
+      {notice && (
+        <div className="toasts" role="status" aria-live="polite">
+          <div className="toast info">
+            <Info size={16} />
+            <span>{notice}</span>
+            <button aria-label={L.shell.dismiss} onClick={() => setNotice(null)}>
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

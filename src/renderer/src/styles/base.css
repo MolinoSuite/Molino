@@ -780,3 +780,61 @@ p {
   color: var(--danger);
   font-size: 12.5px;
 }
+
+/* Campo numérico con flechas (NumberField): ajustes de las herramientas y cuadro de imprimir. */
+.num {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 7px;
+  gap: 3px;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg-surface);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+/* Al escribir el campo se ve igual que en reposo (el cursor ya indica dónde se escribe). */
+.num:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: none;
+}
+.num input:focus,
+.num input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+/* Flechas para subir o bajar el número */
+.num-steps {
+  display: flex;
+  flex-direction: column;
+  margin-right: -4px;
+}
+.num-steps button {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 11px;
+  padding: 0;
+  border-radius: 3px;
+  color: var(--text-3);
+}
+.num-steps button:hover:not(:disabled) {
+  color: var(--text-1);
+  background: var(--bg-hover);
+}
+.num-steps button:disabled {
+  opacity: 0.35;
+}
+.num input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  text-align: right;
+  user-select: text;
+}
+.num span {
+  color: var(--text-3);
+  font-size: 11.5px;
+}

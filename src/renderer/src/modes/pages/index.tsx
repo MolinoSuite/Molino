@@ -2,7 +2,7 @@ import { Check, Copy, FileOutput, FilePlus, FileUp, Plus, RotateCcw, RotateCw, S
 import { type DragEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MutationResult, PageInfo } from '@shared/types'
 import { type CustomDialogProps, registerDialog } from '@/components/Dialogs'
-import { useThumb } from '@/components/SidePanel'
+import { useThumb } from '@/lib/thumb'
 import { Dialog, Field, MenuButton, Segmented } from '@/components/ui'
 import { L, fmt, plural } from '@/i18n'
 import { trackProgress, unwrap } from '@/lib/api'

@@ -1,0 +1,74 @@
+/* Ajustes de Molino (los mismos en todas sus apps): la IA, las aplicaciones y el diccionario. */
+
+.ai-models {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12.5px;
+}
+.ai-models li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.ai-models .ok,
+.settings-panel .ok {
+  color: var(--success);
+  font-size: 12.5px;
+}
+.ai-download {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+/* Ajustes → Aplicaciones: Documentos, Hojas y Presentaciones, una por fila. */
+.office-apps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.office-apps .grow {
+  min-width: 0;
+}
+.office-apps .btn {
+  flex: none;
+}
+/* Diccionario personal (Ajustes → Aplicaciones): las palabras, con su botón para quitarlas. */
+.user-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-height: 132px;
+  overflow-y: auto;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.user-words li {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 1px 2px 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-subtle);
+  font-size: 12.5px;
+}
+.user-words li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ai-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--danger-soft);
+  font-size: 12.5px;
+}

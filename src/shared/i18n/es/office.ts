@@ -8,11 +8,7 @@ export const office = {
     new: { word: 'Documento nuevo (Ctrl+N)', cell: 'Hoja de cálculo nueva (Ctrl+N)', slide: 'Presentación nueva (Ctrl+N)' },
     open: 'Abrir (Ctrl+O)'
   },
-  search: {
-    button: '¿Qué quieres hacer?',
-    placeholder: 'Escribe lo que quieres hacer…',
-    empty: 'No hay ninguna orden con ese nombre.'
-  },
+
   actions: { save: 'Guardar', savePdf: 'Guardar como PDF', present: 'Presentar', printTip: 'Imprimir (Ctrl+P)', findTip: 'Buscar y reemplazar (Ctrl+F)' },
   loading: 'Abriendo…',
   start: {
@@ -87,6 +83,8 @@ export const office = {
     transitions: 'Transiciones'
   },
   tools: {
+    alignMenu: 'Alinear',
+    listMenu: 'Lista',
     label: 'Herramientas',
     undo: 'Deshacer (Ctrl+Z)',
     redo: 'Rehacer (Ctrl+Y)',
@@ -374,28 +372,30 @@ export const office = {
     exportEpub: 'Exportar como libro electrónico (EPUB)…',
     exportPpsx: 'Exportar como presentación que se abre presentando…',
     about: 'Acerca de',
-    settings: 'Ajustes…'
+    settings: 'Ajustes…',
+    showInFolder: 'Mostrar en la carpeta',
+    shortcuts: 'Atajos de teclado',
+    feedback: 'Enviar comentarios',
+    sponsor: 'Invítame a un café'
   },
-  /** Ajustes de Documentos, Hojas y Presentaciones (los mismos de Molino). */
-  settings: {
-    title: 'Ajustes',
-    theme: 'Tema',
-    themes: { system: 'Como Windows', light: 'Claro', dark: 'Oscuro' },
-    language: 'Idioma',
-    languages: { auto: 'Automático (como Windows)' },
-    languageHint: 'Se aplica la próxima vez que abras Molino.',
-    author: 'Tu nombre',
-    authorHint: 'Firma los comentarios y los cambios que hagas en los documentos que abras desde ahora.',
-    ai: 'IA',
-    aiOff: 'Está desactivada. Actívala para escribir, resumir y hacer fórmulas o diapositivas con ella, sin Internet.',
-    aiNotReady: 'Está activada, pero falta descargar sus modelos.',
-    aiReady: 'Lista: la tienes en el modo «IA» de cada app.',
-    aiSettings: 'Ajustes de la IA',
-    dictionary: 'Diccionario personal',
-    dictionaryEmpty: 'Las palabras que añadas al corregir saldrán aquí.',
-    dictionaryCount: '{n} palabras: el corrector las da por buenas.',
-    dictionaryRemove: 'Quitar «{word}» del diccionario',
-    done: 'Listo'
+  shortcuts: {
+    title: 'Atajos de teclado',
+    list: [
+      ['Ctrl + N', 'Documento nuevo'],
+      ['Ctrl + O', 'Abrir'],
+      ['Ctrl + S', 'Guardar'],
+      ['Ctrl + Mayús + S', 'Guardar como'],
+      ['Ctrl + P', 'Imprimir'],
+      ['Ctrl + W', 'Cerrar la pestaña'],
+      ['Ctrl + Tab', 'Ir a la siguiente pestaña'],
+      ['Ctrl + Z · Ctrl + Y', 'Deshacer · Rehacer'],
+      ['Ctrl + B · I · U', 'Negrita · Cursiva · Subrayado'],
+      ['Ctrl + F', 'Buscar'],
+      ['Ctrl + H', 'Reemplazar'],
+      ['Ctrl + K', 'Vínculo'],
+      ['Alt + Q', '¿Qué quieres hacer?'],
+      ['Ctrl + ,', 'Ajustes']
+    ] as [string, string][]
   },
   /** Palabras con las que también se encuentra cada orden en el buscador (sin acentos). */
   keywords: {
@@ -470,6 +470,34 @@ export const office = {
     validation: 'lista desplegable validacion datos'
   },
   groups: { format: 'Formato', insert: 'Insertar', edit: 'Edición', view: 'Vista', file: 'Archivo', style: 'Estilo', layout: 'Diseño', data: 'Datos', sheets: 'Hojas', slides: 'Diapositivas', present: 'Presentar' },
+  /** Debajo de cada estilo, al desplegarlos (diseño B). */
+  styleHints: {
+    Normal: 'El texto de siempre',
+    'No Spacing': 'Sin espacio entre párrafos',
+    Title: 'La portada',
+    Subtitle: 'Debajo del título',
+    'Heading 1': 'Un apartado',
+    'Heading 2': 'Un subapartado',
+    'Heading 3': 'Un detalle',
+    Quote: 'Una cita destacada'
+  },
+  dock: {
+    page: 'Página',
+    slide: 'Diapositiva',
+    ofTotal: 'de {total}',
+    previous: 'Anterior',
+    next: 'Siguiente',
+    words: '{n} palabras',
+    word: '{n} palabra',
+    zoom: 'Zoom',
+    fitWidth: 'Ajustar al ancho',
+    fitPage: 'Ajustar a la página'
+  },
+  selbar: {
+    label: 'Lo seleccionado',
+    comment: 'Comentar',
+    rewrite: 'Reescribir con IA'
+  },
   styles: {
     Normal: 'Normal',
     'No Spacing': 'Sin espacio',

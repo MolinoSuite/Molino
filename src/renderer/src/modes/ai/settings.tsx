@@ -3,7 +3,7 @@ import { useState } from 'react'
 import type { AiTier } from '@shared/ai'
 import { Checkbox, Field, Segmented } from '@/components/ui'
 import { fmt, L, locale } from '@/i18n'
-import { updateSettings } from '@/state/actions'
+import { updateSettings } from '@/state/settings'
 import { refreshAi, sizeText, useAi } from '@/state/ai'
 import { useApp } from '@/state/app'
 

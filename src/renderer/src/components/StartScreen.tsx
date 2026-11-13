@@ -152,9 +152,6 @@ function RecentList() {
             </button>
           )}
         </label>
-        <button className="btn ghost sm" onClick={() => void window.molino.recent.clear().then(setRecent)}>
-          {L.start.recent.clearList}
-        </button>
       </div>
       <div className="recent-list" onKeyDown={onListKey}>
         {shown.map((file) => (

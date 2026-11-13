@@ -1,6 +1,6 @@
 import {
+  ChevronDown,
   Coffee,
-  Ellipsis,
   FileText,
   FolderOpen,
   Images,
@@ -34,6 +34,8 @@ import {
 } from '@/state/actions'
 import { useActiveDoc, useApp } from '@/state/app'
 import { printDoc } from '@/state/print'
+import { CommandSearchButton } from './CommandPalette'
+import { openCommands } from './PdfCommands'
 import { openScan } from './ScanDialog'
 import { Logo, MenuButton, type MenuEntry } from './ui'
 
@@ -83,9 +85,10 @@ export function TitleBar() {
 
   return (
     <header className="titlebar">
-      <div className="brand">
+      <MenuButton className="brand app-menu" entries={() => [...createMenu, 'sep', ...moreMenu()]} tip={L.shell.titleBar.menuTip}>
         <Logo size={21} />
-      </div>
+        <ChevronDown size={11} />
+      </MenuButton>
       <div className="tabs">
         {order.map((id) => {
           const doc = docs[id]
@@ -120,6 +123,8 @@ export function TitleBar() {
         <Plus size={16} />
       </MenuButton>
       <div className="titlebar-fill" />
+      {active && <CommandSearchButton onClick={openCommands} />}
+      {active && <div className="titlebar-fill" />}
       <div className="titlebar-actions">
         {isolated === false && (
           <button
@@ -151,6 +156,9 @@ export function TitleBar() {
             >
               <Redo2 size={16} />
             </button>
+            <button className="icon-btn" data-tip={L.shell.titleBar.printTip} aria-label={L.shell.titleBar.printTip} onClick={() => void printDoc(active.id)}>
+              <Printer size={16} />
+            </button>
             <button
               className={cn('icon-btn', active.state.dirty && 'on')}
               data-tip={active.state.dirty ? L.shell.titleBar.save : L.shell.titleBar.noChanges}
@@ -160,9 +168,6 @@ export function TitleBar() {
             </button>
           </>
         )}
-        <MenuButton className="icon-btn" entries={moreMenu} align="end" tip={L.shell.titleBar.more}>
-          <Ellipsis size={17} />
-        </MenuButton>
       </div>
     </header>
   )

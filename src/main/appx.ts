@@ -73,6 +73,19 @@ export function storePackageFamily(): string | null {
 
 /** La familia del paquete de Molino Suite (Partner Center: CuevasTech.MolinoSuite, del mismo editor): para abrirla en la Store desde Molino PDF. */
 export const SUITE_FAMILY = 'CuevasTech.MolinoSuite_txf9mqjyats40'
+/** La de Molino PDF, el paquete solo de PDF (Partner Center: CuevasTech.MolinoPDF, del mismo editor). */
+export const PDF_FAMILY = 'CuevasTech.MolinoPDF_txf9mqjyats40'
+
+/**
+ * La carpeta de datos de Molino PDF instalado aparte (su LocalState), vista
+ * desde Molino Suite; null si no está instalado o si esto no es Molino Suite.
+ * Windows la crea al instalar el paquete y la borra al desinstalarlo.
+ */
+export function separatePdfData(): string | null {
+  if (storePackageFamily() !== SUITE_FAMILY || !process.env.LOCALAPPDATA) return null
+  const folder = join(process.env.LOCALAPPDATA, 'Packages', PDF_FAMILY, 'LocalState')
+  return existsSync(folder) ? folder : null
+}
 
 /**
  * Cada app del paquete: el Id de su <Application> en el manifiesto. El paquete

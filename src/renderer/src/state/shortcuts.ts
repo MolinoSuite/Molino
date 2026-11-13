@@ -29,7 +29,10 @@ export function useGlobalShortcuts(): void {
       const typing = isTyping(event.target)
       let handled = true
 
-      if (mod && key === 'o') void openWithDialog()
+      if (event.altKey && !mod && key === 'q') {
+        // «¿Qué quieres hacer?» (components/PdfCommands.tsx).
+        if (!state.dialog) state.openDialog({ type: 'custom', id: 'commands' })
+      } else if (mod && key === 'o') void openWithDialog()
       else if (mod && key === 'n') void newBlank()
       else if (mod && key === ',') state.openDialog({ type: 'settings' })
       else if (!doc && !state.dialog && mod && key === 'f') {

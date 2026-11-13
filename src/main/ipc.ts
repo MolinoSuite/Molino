@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
-import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron'
 import { z } from 'zod'
 import type { EngineStatus, ExportOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
 import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
@@ -15,6 +15,7 @@ import { log } from './log'
 import { openOfficeLegal, type OfficePiece } from './office'
 import { openDefaultApps } from './officeapps'
 import type { PrintService } from './print'
+import { CallId, DocId, PageId, PrintStartSchema } from './printschema'
 import { isTrustedSender } from './security'
 import type { Store } from './store'
 import type { Updates } from './updates'
@@ -79,28 +80,43 @@ const PASSTHROUGH = new Set<string>([
   'ai.search', 'ai.summarize', 'ai.ask', 'ai.transform', 'ai.addNote'
 ])
 
-const DocId = z.string().regex(/^d[0-9a-f]{16}$/)
-const PageId = z.string().regex(/^p[0-9]{1,9}$/)
 const Token = z.string().regex(/^[0-9a-f]{32}$/)
 const Binary = z.instanceof(Uint8Array)
-const CallId = z.number().int().positive().max(2_000_000_000)
 /** Una digitalización en curso y sus páginas (engine/molino_engine/ops/scan.py). */
 const ScanJob = z.string().regex(/^j[0-9a-f]{16}$/)
 const ScanPage = z.string().regex(/^s[0-9]{1,4}$/)
-/** Composición de las hojas al imprimir (src/shared/printLayout.ts), con cada valor acotado. */
-const PrintLayoutSchema = z.object({
-  mode: z.enum(['size', 'multiple', 'booklet', 'poster']),
-  paper: z.enum(['document', 'A4', 'A3', 'A5', 'Letter', 'Legal', 'Tabloid']),
-  orientation: z.enum(['auto', 'portrait', 'landscape']),
-  scale: z.enum(['fit', 'actual', 'shrink', 'custom']),
-  customScale: z.number().min(10).max(400),
-  perSheet: z.union([z.literal(2), z.literal(4), z.literal(6), z.literal(9), z.literal(16)]),
-  order: z.enum(['horizontal', 'vertical']),
-  borders: z.boolean(),
-  fill: z.boolean(),
-  bookletSides: z.enum(['both', 'front', 'back']),
-  posterScale: z.number().min(110).max(400)
-})
+
+/**
+ * Lo que comparten todas las apps de Molino (Ajustes, IA, versiones nuevas,
+ * comentarios, avisos legales): además de la ventana de Molino PDF, se atiende
+ * desde la página de la interfaz de Documentos, Hojas y Presentaciones (nunca
+ * desde los editores que llevan dentro; officewin.ts, uiSender).
+ */
+const SHARED_CHANNELS = new Set([
+  'settings:get',
+  'settings:set',
+  'shell:openExternal',
+  'updates:status',
+  'updates:check',
+  'updates:openStore',
+  'about:open',
+  'about:office',
+  'ai:status',
+  'ai:install',
+  'ai:cancel',
+  'ai:remove',
+  'office:status',
+  'office:launch',
+  'office:defaultApps',
+  'office:userWordsList',
+  'office:removeUserWords',
+  'feedback:available',
+  'feedback:send',
+  'defaultApp:status',
+  'defaultApp:open'
+])
+/** Y sus avisos, que llegan a todas esas ventanas. */
+const SHARED_EVENTS = new Set(['settings:changed', 'ai:progress', 'ai:changed', 'ai:error', 'updates:status'])
 
 /** Filtros del diálogo de abrir (es una función: el idioma se fija después de cargar este módulo). */
 const openFilters = (): Electron.FileFilter[] => [
@@ -201,13 +217,24 @@ export class Bridge {
   officeBusy: () => boolean = () => false
   /** Abre la ventana de una app de oficina (index.ts lo conecta con officewin.ts). */
   officeLaunch: (app: OfficeApp | 'home') => void = () => undefined
+  /** ¿Lo pide la interfaz de Documentos, Hojas o Presentaciones? (index.ts lo conecta con officewin.ts). */
+  sharedSender: (event: IpcMainEvent | IpcMainInvokeEvent) => BrowserWindow | null = () => null
+  /** Las ventanas de esas apps, para los avisos compartidos. */
+  sharedWindows: () => WebContents[] = () => []
+
+  /** La ventana de Molino PDF o, para lo compartido (SHARED_CHANNELS), la interfaz de las otras apps. */
+  private trusted(event: IpcMainEvent | IpcMainInvokeEvent, channel: string): boolean {
+    if (isTrustedSender(event, this.window?.webContents ?? null)) return true
+    return SHARED_CHANNELS.has(channel) && this.sharedSender(event) !== null
+  }
+
+  /** La ventana desde la que se pide algo (para colgar de ella sus cuadros). */
+  private senderWindow(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow {
+    return this.sharedSender(event) ?? this.requireWindow()
+  }
   /** Ha cambiado el tema en Ajustes de Molino PDF (index.ts lo lleva a las demás ventanas). */
   onTheme: () => void = () => undefined
 
-  /** Los ajustes han cambiado en otra ventana (Documentos, Hojas o Presentaciones): la interfaz los vuelve a leer. */
-  sendSettings(): void {
-    this.send('settings:changed', this.store.settings)
-  }
 
   /** Lo que el motor dice de la IA al configurarla: gráfica en uso y si el procesador sirve. */
   private aiEngine: { gpu: string | null; cpuOk: boolean } | null = null
@@ -271,9 +298,9 @@ export class Bridge {
     if (tier === 'off' || !(await this.ai.legacyCovers(tier))) return
     try {
       await this.ai.install(tier, { onlyLocal: true })
-      log.info('ia: modelos traídos de Folio')
+      log.info('ia: modelos traídos de la instalación anterior')
     } catch (error) {
-      log.warn(`ia: no se pudieron traer los modelos de Folio (${error instanceof AiError ? error.reason : '?'})`)
+      log.warn(`ia: no se pudieron traer los modelos de la instalación anterior (${error instanceof AiError ? error.reason : '?'})`)
     }
     await this.configureAi()
   }
@@ -292,11 +319,6 @@ export class Bridge {
     return { on, ready: on && status.cpuOk !== false && status.components.some((c) => c.kind === 'llm' && c.installed) }
   }
 
-  /** Abre Ajustes en la pestaña de la IA (lo piden las apps de oficina; la ventana ya está a la vista). */
-  openAiSettings(): void {
-    this.send('ai:openSettings')
-  }
-
   /** Estado de las versiones nuevas (lo emite updates.ts). */
   sendUpdate(status: UpdateStatus): void {
     this.send('updates:status', status)
@@ -312,6 +334,9 @@ export class Bridge {
   private send(channel: string, payload?: unknown): void {
     const contents = this.window?.webContents
     if (contents && !contents.isDestroyed()) contents.send(channel, payload)
+    if (SHARED_EVENTS.has(channel)) {
+      for (const other of this.sharedWindows()) if (!other.isDestroyed()) other.send(channel, payload)
+    }
   }
 
   /** Registra un manejador que valida el origen y los parámetros, y nunca lanza. */
@@ -321,7 +346,7 @@ export class Bridge {
     fn: (args: z.infer<S>, event: IpcMainInvokeEvent) => Promise<R> | R
   ): void {
     ipcMain.handle(channel, async (event, raw): Promise<Envelope<R>> => {
-      if (!isTrustedSender(event, this.window?.webContents ?? null)) {
+      if (!this.trusted(event, channel)) {
         return { ok: false, error: { code: 'forbidden', message: L.main.errors.forbiddenOrigin } }
       }
       const parsed = schema.safeParse(raw)
@@ -869,23 +894,7 @@ export class Bridge {
 
     this.handle(
       'print:start',
-      z.object({
-        doc: DocId,
-        pages: z.array(PageId).min(1).max(20000),
-        // Opciones acotadas: la impresora se comprueba además contra las instaladas (print.ts).
-        request: z.discriminatedUnion('mode', [
-          z.object({
-            mode: z.literal('molino'),
-            printer: z.string().min(1).max(260),
-            copies: z.number().int().min(1).max(99),
-            color: z.boolean(),
-            duplex: z.enum(['simplex', 'longEdge', 'shortEdge']),
-            layout: PrintLayoutSchema
-          }),
-          z.object({ mode: z.literal('system'), layout: PrintLayoutSchema })
-        ]),
-        callId: z.number().int().positive().max(2_000_000_000).optional()
-      }),
+      PrintStartSchema,
       async ({ doc, pages, request, callId }) => {
         this.docPath(doc)
         // La cancelación se registra antes de esperar nada: si llega enseguida, no se pierde.
@@ -933,15 +942,16 @@ export class Bridge {
 
     // ---- ajustes y recientes
     ipcMain.handle('settings:get', (event) =>
-      isTrustedSender(event, this.window?.webContents ?? null) ? this.store.settings : null
+      this.trusted(event, 'settings:get') ? this.store.settings : null
     )
     ipcMain.handle('settings:set', (event, raw) => {
-      if (!isTrustedSender(event, this.window?.webContents ?? null)) return null
+      if (!this.trusted(event, 'settings:set')) return null
       const before = this.store.settings
       const after = this.store.updateSettings(raw)
       // Cambiar el nivel de IA o la gráfica cambia lo que el motor puede cargar.
       if (after.aiTier !== before.aiTier || after.aiGpu !== before.aiGpu) void this.configureAi()
       if (after.theme !== before.theme) this.onTheme()
+      this.send('settings:changed', after)
       return after
     })
 
@@ -988,9 +998,6 @@ export class Bridge {
     ipcMain.handle('recent:list', (event) =>
       isTrustedSender(event, this.window?.webContents ?? null) ? this.store.recentList() : []
     )
-    ipcMain.handle('recent:clear', (event) =>
-      isTrustedSender(event, this.window?.webContents ?? null) ? this.store.clearRecent() : []
-    )
     ipcMain.handle('recent:remove', (event, raw) => {
       if (!isTrustedSender(event, this.window?.webContents ?? null)) return []
       const id = z.string().regex(/^[0-9a-f]{16}$/).safeParse(raw)
@@ -1009,7 +1016,7 @@ export class Bridge {
     })
 
     ipcMain.handle('shell:openExternal', async (event, raw): Promise<boolean> => {
-      if (!isTrustedSender(event, this.window?.webContents ?? null)) return false
+      if (!this.trusted(event, 'shell:openExternal')) return false
       const parsed = z.string().max(2000).safeParse(raw)
       if (!parsed.success) return false
       let url: URL
@@ -1021,7 +1028,7 @@ export class Bridge {
       // Los enlaces vienen del PDF, que no es de fiar: solo se admiten web y
       // correo, y siempre se pregunta mostrando el destino real (A01:2025).
       if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) return false
-      const answer = await dialog.showMessageBox(this.requireWindow(), {
+      const answer = await dialog.showMessageBox(this.senderWindow(event), {
         type: 'question',
         buttons: [L.common.open, L.common.cancel],
         defaultId: 1,
@@ -1055,18 +1062,18 @@ export class Bridge {
 
     // ---- versiones nuevas: la interfaz solo puede pedir estas tres cosas
     ipcMain.handle('updates:status', (event) =>
-      isTrustedSender(event, this.window?.webContents ?? null) ? this.updates.current() : { state: 'unavailable' }
+      this.trusted(event, 'updates:status') ? this.updates.current() : { state: 'unavailable' }
     )
     ipcMain.on('updates:check', (event) => {
-      if (isTrustedSender(event, this.window?.webContents ?? null)) this.updates.check(true)
+      if (this.trusted(event, 'updates:check')) this.updates.check(true)
     })
     // «Actualizar»: la página de Molino en la Microsoft Store.
     ipcMain.handle('updates:openStore', (event) =>
-      isTrustedSender(event, this.window?.webContents ?? null) ? this.updates.openStore() : false
+      this.trusted(event, 'updates:openStore') ? this.updates.openStore() : false
     )
 
     // ---- comentarios: el texto va al servicio de comentarios (feedback.ts), acotado aquí
-    ipcMain.handle('feedback:available', (event) => isTrustedSender(event, this.window?.webContents ?? null) && feedbackAvailable())
+    ipcMain.handle('feedback:available', (event) => this.trusted(event, 'feedback:available') && feedbackAvailable())
     this.handle(
       'feedback:send',
       z.object({ kind: z.enum(['Fallo', 'Mejora', 'Otra cosa']), message: z.string().trim().min(3).max(4000) }),
@@ -1078,10 +1085,10 @@ export class Bridge {
 
     // ---- programa predeterminado para PDF (solo consultar y abrir Configuración de Windows)
     ipcMain.handle('defaultApp:status', (event) =>
-      isTrustedSender(event, this.window?.webContents ?? null) ? pdfDefaultStatus() : 'unknown'
+      this.trusted(event, 'defaultApp:status') ? pdfDefaultStatus() : 'unknown'
     )
     ipcMain.handle('defaultApp:open', (event) =>
-      isTrustedSender(event, this.window?.webContents ?? null) ? openDefaultAppSettings() : false
+      this.trusted(event, 'defaultApp:open') ? openDefaultAppSettings() : false
     )
 
     // ---- acerca de: licencia, componentes de terceros y código fuente (rutas y

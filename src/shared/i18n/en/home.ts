@@ -2,6 +2,15 @@ import type { home as es } from '../es/home'
 
 /** «Molino», the suite's shared home (renderer/src/home). */
 export const home: typeof es = {
+  pdfApart: {
+    title: 'Molino PDF is already inside Molino Suite',
+    text: 'You had the Molino PDF app installed separately. Molino Suite already includes it and has brought your settings, recent files, signatures and AI. Uninstall the other one so you don’t have two “Molino PDF” entries in the Start menu.',
+    remove: 'Uninstall the other one',
+    removing: 'Uninstalling…',
+    later: 'Not now',
+    removed: 'Done: only the Molino PDF inside Molino Suite is left.',
+    settings: 'Windows Settings is open: press “Uninstall” on the Molino PDF page.'
+  },
   title: 'What shall we do today?',
   search: 'Search your recent files',
   clearSearch: 'Clear search',

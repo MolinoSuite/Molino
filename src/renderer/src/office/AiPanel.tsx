@@ -75,7 +75,22 @@ function useAiCall() {
   return { busy, run, cancel }
 }
 
-export function AiPanel({ kind, doc, session, task, setTask }: { kind: OfficeKind; doc: string; session: EditorSession; task: AiTask; setTask: (task: AiTask) => void }) {
+export function AiPanel({
+  kind,
+  doc,
+  session,
+  task,
+  setTask,
+  onSettings
+}: {
+  kind: OfficeKind
+  doc: string
+  session: EditorSession
+  task: AiTask
+  setTask: (task: AiTask) => void
+  /** Abre Ajustes → IA en esta misma app. */
+  onSettings: () => void
+}) {
   const [status, setStatus] = useState<{ on: boolean; ready: boolean } | null>(null)
   const [input, setInput] = useState('')
   const [rewrite, setRewrite] = useState<Rewrite>('rewrite')
@@ -107,7 +122,7 @@ export function AiPanel({ kind, doc, session, task, setTask }: { kind: OfficeKin
             <Sparkles size={14} /> {A.title}
           </h3>
           <p className="hint">{status.on ? A.notReady : A.off}</p>
-          <button className="btn sm" onClick={() => void window.molinoOffice.ai.settings()}>
+          <button className="btn sm" onClick={onSettings}>
             <Settings2 size={14} />
             {A.openSettings}
           </button>

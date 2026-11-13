@@ -104,7 +104,6 @@ const api: MolinoApi = {
   },
   recent: {
     list: () => ipcRenderer.invoke('recent:list'),
-    clear: () => ipcRenderer.invoke('recent:clear'),
     remove: (id) => ipcRenderer.invoke('recent:remove', id)
   },
   shell: {
@@ -130,8 +129,7 @@ const api: MolinoApi = {
     remove: () => ipcRenderer.invoke('ai:remove'),
     onProgress: (listener) => subscribe<AiDownloadProgress | null>('ai:progress', listener),
     onChanged: (listener) => subscribe<void>('ai:changed', () => listener()),
-    onError: (listener) => subscribe<AiDownloadError>('ai:error', listener),
-    onOpenSettings: (listener) => subscribe<void>('ai:openSettings', () => listener())
+    onError: (listener) => subscribe<AiDownloadError>('ai:error', listener)
   },
   office: {
     status: () => ipcRenderer.invoke('office:status'),
