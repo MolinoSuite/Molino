@@ -64,7 +64,7 @@ export function registerAppScheme(): void {
 export function serveApp(
   rendererDir: string,
   printPages: (url: URL) => Promise<Response>,
-  extraFont: (style: string) => Promise<Buffer | null> = async () => null
+  extraFont: (family: string, style: string) => Promise<Buffer | null> = async () => null
 ): void {
   const base = normalize(rendererDir)
   protocol.handle(APP_SCHEME, async (request) => {
@@ -73,10 +73,10 @@ export function serveApp(
       if (request.method !== 'GET') return new Response(null, { status: 405 })
       if (url.host === 'print') return await printPages(url)
       if (url.host !== 'app') return new Response(null, { status: 404 })
-      // Fuentes extra (Aptos, ver fonts.ts): nombres fijos, nunca una ruta recibida.
-      const font = /^\/fonts\/aptos-(regular|bold|italic|boldItalic)\.ttf$/.exec(url.pathname)
+      // Fuentes extra (Aptos e Inter, ver fonts.ts): nombres fijos, nunca una ruta recibida.
+      const font = /^\/fonts\/(aptos|inter)-(regular|bold|italic|boldItalic)\.ttf$/.exec(url.pathname)
       if (font) {
-        const data = await extraFont(font[1])
+        const data = await extraFont(font[1], font[2])
         if (!data) return new Response(null, { status: 404 })
         return new Response(new Uint8Array(data), {
           status: 200,

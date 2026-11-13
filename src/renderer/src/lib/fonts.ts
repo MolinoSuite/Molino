@@ -8,21 +8,24 @@ const loaded = new Set<string>()
  * ve al escribir coincida con lo que el motor escribe en el PDF.
  */
 export async function loadExtraFontFaces(fonts: FontFamily[]): Promise<void> {
-  const aptos = fonts.find((font) => font.family === 'Aptos')
-  if (!aptos || loaded.has('Aptos')) return
-  loaded.add('Aptos')
-  const variants: [string, FontFaceDescriptors][] = [
-    ['regular', {}],
-    ...(aptos.bold ? ([['bold', { weight: '700' }]] as [string, FontFaceDescriptors][]) : []),
-    ...(aptos.italic ? ([['italic', { style: 'italic' }]] as [string, FontFaceDescriptors][]) : []),
-    ...(aptos.boldItalic ? ([['boldItalic', { weight: '700', style: 'italic' }]] as [string, FontFaceDescriptors][]) : [])
-  ]
-  for (const [style, descriptors] of variants) {
-    try {
-      const face = new FontFace('Aptos', `url(molino://app/fonts/aptos-${style}.ttf)`, descriptors)
-      document.fonts.add(await face.load())
-    } catch {
-      // La vista previa usará otra fuente; el PDF lleva Aptos igualmente.
+  // Aptos (del equipo) e Inter (la de Molino): las dos se sirven en molino://app/fonts/…
+  for (const family of ['Aptos', 'Inter']) {
+    const found = fonts.find((font) => font.family === family)
+    if (!found || loaded.has(family)) continue
+    loaded.add(family)
+    const variants: [string, FontFaceDescriptors][] = [
+      ['regular', {}],
+      ...(found.bold ? ([['bold', { weight: '700' }]] as [string, FontFaceDescriptors][]) : []),
+      ...(found.italic ? ([['italic', { style: 'italic' }]] as [string, FontFaceDescriptors][]) : []),
+      ...(found.boldItalic ? ([['boldItalic', { weight: '700', style: 'italic' }]] as [string, FontFaceDescriptors][]) : [])
+    ]
+    for (const [style, descriptors] of variants) {
+      try {
+        const face = new FontFace(family, `url(molino://app/fonts/${family.toLowerCase()}-${style}.ttf)`, descriptors)
+        document.fonts.add(await face.load())
+      } catch {
+        // La vista previa usará otra fuente; el PDF lleva la de verdad igualmente.
+      }
     }
   }
 }

@@ -1,5 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
+import { app } from 'electron'
 import { log } from './log'
 
 /**
@@ -111,4 +112,27 @@ export async function aptosFile(style: string): Promise<Buffer | null> {
   if (!FONT_STYLES.includes(style as FontStyle)) return null
   const file = (await findAptos())[style as FontStyle]
   return file ? readFile(file) : null
+}
+
+/**
+ * Inter, la letra de Molino (libre, OFL, y parecida a Aptos), que va dentro de
+ * la aplicación (resources/fonts/inter): la de los textos nuevos en los PDF.
+ */
+const INTER_FILES: Record<FontStyle, string> = { regular: 'Inter-Regular.ttf', bold: 'Inter-Bold.ttf', italic: 'Inter-Italic.ttf', boldItalic: 'Inter-BoldItalic.ttf' }
+export function interPath(style: FontStyle): string {
+  const base = app.isPackaged ? join(process.resourcesPath, 'fonts') : join(app.getAppPath(), 'resources', 'fonts')
+  return join(base, 'inter', INTER_FILES[style])
+}
+export async function interFile(style: string): Promise<Buffer | null> {
+  if (!FONT_STYLES.includes(style as FontStyle)) return null
+  try {
+    return await readFile(interPath(style as FontStyle))
+  } catch {
+    return null
+  }
+}
+
+/** Una variante de una fuente extra para la interfaz (Aptos, del equipo; Inter, de Molino). */
+export function extraFontFile(family: string, style: string): Promise<Buffer | null> {
+  return family === 'inter' ? interFile(style) : family === 'aptos' ? aptosFile(style) : Promise.resolve(null)
 }

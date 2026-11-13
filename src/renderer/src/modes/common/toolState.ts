@@ -16,7 +16,8 @@ interface ToolStore extends ToolOptions {
 }
 
 export const useTools = create<ToolStore>()((set) => ({
-  text: { font: 'Arial', bold: false, italic: false, size: 12, color: [0, 0, 0], align: 'left', lineHeight: 1.2 },
+  // Inter: la letra de Molino (si el motor aún no la tiene, escribe en Arial).
+  text: { font: 'Inter', bold: false, italic: false, size: 12, color: [0, 0, 0], align: 'left', lineHeight: 1.2 },
   shape: { stroke: [0.12, 0.14, 0.2], fill: null, width: 1.5 },
   markup: {
     highlight: [1, 0.86, 0.2],

@@ -33,6 +33,9 @@ extraResources:
   # Lo de Documentos, Hojas y Presentaciones (iconos de sus ventanas, plantillas y el
   # motor de oficina) solo va en el paquete de Molino Suite: lo añade
   # scripts/make-suite-msix.mjs. El de Molino PDF es solo el PDF.
+  # Inter, la letra de Molino (los textos nuevos de los PDF; en la suite, también de los documentos).
+  - from: resources/fonts
+    to: fonts
   - from: resources/tessdata
     to: assets/tessdata
     filter:

@@ -40,7 +40,7 @@ _FALLBACKS = ("segoeui.ttf", "seguisym.ttf", "arial.ttf")
 # aplicacion en memoria (ver fonts.register): Aptos, la de Office, que suele
 # estar solo en la cache de Office, donde este proceso aislado no puede leer.
 # Lista cerrada, como FAMILIES.
-EXTRA_FAMILIES = ("Aptos",)
+EXTRA_FAMILIES = ("Aptos", "Inter")
 STYLES = ("regular", "bold", "italic", "boldItalic")
 MAX_FONT_BYTES = 8 * 1024 * 1024
 _registered: dict[str, list[bytes | None]] = {}
@@ -61,6 +61,11 @@ def register(family: str, style: str, data: bytes) -> None:
     slots = _registered.setdefault(family, [None, None, None, None])
     slots[STYLES.index(style)] = bytes(data)
     get_font.cache_clear()
+
+
+def default_family() -> str:
+    """La de los textos nuevos: Inter (la de Molino, libre y parecida a Aptos) si ya llego; si no, Arial."""
+    return "Inter" if _registered.get("Inter", [None])[0] else DEFAULT_FAMILY
 
 
 def known(family: str) -> bool:

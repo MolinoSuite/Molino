@@ -10,7 +10,7 @@ from pydantic import Field, StringConstraints, ValidationError
 
 from .. import content
 from ..errors import invalid
-from ..fonts import DEFAULT_FAMILY, available_families, known, register as register_font
+from ..fonts import DEFAULT_FAMILY, available_families, default_family, known, register as register_font
 from ..geometry import Geom, box_corners
 from ..i18n import _
 from ..imaging import load_image
@@ -78,11 +78,11 @@ def _rotate(vec: tuple[float, float], angle: float) -> tuple[float, float]:
 
 @method("fonts.list")
 def fonts_list(ctx: Ctx, p: Params) -> dict[str, Any]:
-    return {"fonts": available_families(), "default": DEFAULT_FAMILY}
+    return {"fonts": available_families(), "default": default_family()}
 
 
 class RegisterFontParams(Params):
-    family: Literal["Aptos"]
+    family: Literal["Aptos", "Inter"]
     style: Literal["regular", "bold", "italic", "boldItalic"]
 
 

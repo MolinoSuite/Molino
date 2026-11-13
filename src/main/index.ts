@@ -23,12 +23,27 @@ import { hardenContents, hardenSession, registerAppScheme, serveApp } from './se
 import { Store } from './store'
 import { Updates } from './updates'
 import { darkFor } from '@shared/appearance'
-import { aptosFile, findAptos, FONT_STYLES } from './fonts'
+import { extraFontFile, findAptos, FONT_STYLES, interFile } from './fonts'
 
 async function shareExtraFonts(): Promise<void> {
-  const files = await findAptos()
-  if (!files.regular || !engine) return
+  if (!engine) return
   let shared = 0
+  // Inter (va con Molino): la letra de los textos nuevos en los PDF.
+  for (const style of FONT_STYLES) {
+    const data = await interFile(style)
+    if (!data) continue
+    try {
+      await engine.request('fonts.register', { family: 'Inter', style }, { binary: new Uint8Array(data), priority: 9 })
+      shared++
+    } catch {
+      log.warn(`fuentes: no se pudo entregar Inter (${style})`)
+    }
+  }
+  const files = await findAptos()
+  if (!files.regular) {
+    if (shared) bridge?.sendFontsChanged()
+    return
+  }
   for (const style of FONT_STYLES) {
     const file = files[style]
     if (!file) continue
@@ -289,7 +304,7 @@ void app.whenReady().then(async () => {
   officePiece = office
   engine = new EngineClient(engineLaunch)
   const printer = new PrintService(engine)
-  serveApp(join(__dirname, '../renderer'), (url) => printer.respond(url), aptosFile)
+  serveApp(join(__dirname, '../renderer'), (url) => printer.respond(url), extraFontFile)
   updates = new Updates((status) => bridge?.sendUpdate(status))
   bridge = new Bridge(engine, store, printer, updates, aiModels, office)
   // Documentos, Hojas y Presentaciones: sus ventanas, y el motor configurado con
