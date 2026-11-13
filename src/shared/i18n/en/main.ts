@@ -93,6 +93,13 @@ export const main: typeof source = {
     lampOff: 'The scanner lamp is off.'
   },
   office: {
+    password: {
+      title: 'Password-protected document',
+      message: '“{name}” is password-protected. Type the password to open it.',
+      wrong: 'That isn’t the password for “{name}”. Try again.',
+      label: 'Password',
+      open: 'Open'
+    },
     apps: { word: 'Molino Docs', cell: 'Molino Sheets', slide: 'Molino Slides' },
     notInstalled: 'Molino PDF only opens PDFs and images. Word, Excel and PowerPoint documents open with Molino Suite, which brings Docs, Sheets and Slides.',
     seeSuite: 'See Molino Suite in the Store',

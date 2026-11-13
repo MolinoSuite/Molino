@@ -103,6 +103,13 @@ export const main = {
   },
   /** Documentos, Hojas y Presentaciones: las ventanas de los editores (officewin.ts). */
   office: {
+    password: {
+      title: 'Documento con contraseña',
+      message: '«{name}» está protegido con contraseña. Escríbela para abrirlo.',
+      wrong: 'Esa no es la contraseña de «{name}». Inténtalo de nuevo.',
+      label: 'Contraseña',
+      open: 'Abrir'
+    },
     apps: { word: 'Molino Documentos', cell: 'Molino Hojas', slide: 'Molino Presentaciones' },
     notInstalled: 'Molino PDF solo abre PDF e imágenes. Los documentos de Word, Excel y PowerPoint se abren con Molino Suite, que trae Documentos, Hojas y Presentaciones.',
     seeSuite: 'Ver Molino Suite en la Store',

@@ -107,7 +107,8 @@ const ui: OfficeUiApi = {
     ipcRenderer.send('office:askReady')
     return () => ipcRenderer.removeListener('office:ask', wrapped)
   },
-  answer: (id, response) => ipcRenderer.send('office:answer', { id, response })
+  answer: (id, response, password) => ipcRenderer.send('office:answer', { id, response, password }),
+  setPassword: (doc, password) => ipcRenderer.invoke('office:setPassword', { doc, password })
 }
 contextBridge.exposeInMainWorld('molinoOffice', ui)
 

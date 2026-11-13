@@ -40,6 +40,11 @@ from ..server import Ctx, Reply, method
 log = logging.getLogger("molino.office")
 
 OfficeDocId = Annotated[str, StringConstraints(pattern=r"^o[0-9a-f]{16}$")]
+# La contrasena de un documento cifrado (como las de Word, Excel y PowerPoint): sin
+# caracteres de control (va en la tarea de x2t) y como mucho 255.
+DocPassword = Annotated[str, StringConstraints(min_length=1, max_length=255, pattern=r"^[^\x00-\x1f\x7f]+$")]
+# Los formatos que se pueden guardar cifrados (los de Office).
+_ENCRYPTABLE = {".docx", ".xlsx", ".pptx"}
 # Firmas de los formatos que se abren: comprimidos (OOXML y ODF), OLE (doc,
 # xls, ppt) y RTF. Lo demas no llega a x2t (A05:2025).
 _MAGIC = (b"PK\x03\x04", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", b"{\\rtf")
@@ -70,6 +75,8 @@ class OfficeDoc:
     dirty: bool = False
     # El indice de fuentes propio (con sus letras incrustadas), si lo tiene.
     index: Path | None = None
+    # Su contrasena, si esta cifrado: solo en memoria, para volver a cifrarlo al guardar.
+    password: str | None = field(default=None, repr=False)
 
     def note(self) -> None:
         recovery.note_office(self.folder, self.name or "?", self.kind, self.dirty)
@@ -140,7 +147,10 @@ def _convert(ctx: Ctx, piece: office.Piece, folder: Path, fields: dict[str, obje
     finally:
         shutil.rmtree(job, ignore_errors=True)
     if code in _X2T_PROTECTED:
-        raise EngineError("protected", _("Este documento está protegido con contraseña y Molino aún no puede abrirlo."))
+        # Cifrado: sin contrasena, se pide; con una que no vale, se dice.
+        if "m_sPassword" in fields:
+            raise EngineError("wrong_password", _("La contraseña no es correcta."))
+        raise EngineError("protected", _("Este documento está protegido con contraseña."))
     if code != 0:
         # Solo el codigo: los mensajes de x2t podrian citar el documento (A09:2025).
         log.warning("x2t termino con el codigo %s", code)
@@ -166,9 +176,10 @@ def _load(
     name: str = "",
     dirty: bool = False,
     fonts: list[str] | None = None,
+    password: str | None = None,
 ) -> Reply:
     """Convierte ``source`` a Editor.bin y deja el documento abierto (``extra``: campos de x2t, como los del CSV)."""
-    item = OfficeDoc(doc_id, kind, folder, name=name, dirty=dirty)
+    item = OfficeDoc(doc_id, kind, folder, name=name, dirty=dirty, password=password)
     all_fonts: str | None = None
     embedded: list[str] = []
     try:
@@ -300,6 +311,8 @@ def office_fonts(ctx: Ctx, _p: Params) -> Reply:
 
 class OfficeOpenParams(Params):
     path: PathStr
+    # La de un documento cifrado (la pide la aplicacion si el motor dice «protected»).
+    password: DocPassword | None = None
 
 
 @method("office.open", OfficeOpenParams)
@@ -333,7 +346,9 @@ def office_open(ctx: Ctx, p: OfficeOpenParams) -> Reply:
         raise
     # Las fuentes que nombra, para avisar de las que no estan en el equipo (la aplicacion las compara con el indice).
     fonts = office.used_fonts(source, suffix)
-    return _load(ctx, piece, source, kind, doc_id, folder, extra, name=Path(p.path).name, fonts=fonts)
+    if p.password:
+        extra = {**(extra or {}), "m_sPassword": p.password}
+    return _load(ctx, piece, source, kind, doc_id, folder, extra, name=Path(p.path).name, fonts=fonts, password=p.password)
 
 
 class OfficeNewParams(Params):
@@ -510,6 +525,9 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
         raise invalid(_("Este documento no se puede guardar en ese formato."))
     ctx.progress(0, 0, _("Guardando…"))
     extra = {"m_nCsvTxtEncoding": office.UTF8, "m_nCsvDelimiter": office.CSV_DELIMITERS[";" if language() == "es" else ","]} if code == office.CSV else None
+    # Con contrasena, cifrado (los de Office; las copias exportadas, no).
+    if item.password and suffix in _ENCRYPTABLE and not p.export:
+        extra = {**(extra or {}), "m_sSavePassword": item.password}
     out = _export(ctx, piece, item, code, suffix, _options(p.options), extra)
     try:
         size, _mtime = ctx.engine.host.install(out, dest)
@@ -546,6 +564,20 @@ def office_export_pdf(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
 
 class CloseParams(Params):
     doc: OfficeDocId
+
+
+class PasswordParams(Params):
+    doc: OfficeDocId
+    # Sin contrasena (o vacia): se quita.
+    password: DocPassword | None = None
+
+
+@method("office.setPassword", PasswordParams)
+def office_set_password(ctx: Ctx, p: PasswordParams) -> dict[str, Any]:
+    """Pone, cambia o quita la contrasena con la que se cifrara el documento al guardarlo."""
+    item = _doc(ctx, p.doc)
+    item.password = p.password or None
+    return {"protected": item.password is not None}
 
 
 def _recovery_area(ctx: Ctx) -> Path:

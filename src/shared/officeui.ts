@@ -22,6 +22,8 @@ export interface OfficeAsk {
   /** El botón principal y el de cancelar (Esc o cerrar el cuadro). */
   defaultId: number
   cancelId: number
+  /** Pide además una contraseña (la de un documento cifrado): su etiqueta. */
+  password?: string
 }
 
 export interface OfficeTab {
@@ -34,6 +36,8 @@ export interface OfficeTab {
   hasFile: boolean
   /** Fuentes que nombra el documento y no están en el equipo (vacío si no falta ninguna o ya se dijo «Ahora no»). */
   missingFonts: string[]
+  /** Se guarda cifrado, con contraseña. */
+  locked: boolean
 }
 
 /** Qué se puede hacer con una fuente que falta (src/main/fontcatalog.ts). */
@@ -87,7 +91,12 @@ export interface OfficeUiApi {
   onPrint(listener: (pdf: DocDescriptor) => void): () => void
   /** Avisos y preguntas (al suscribirse, el proceso principal sabe que ya se pueden mostrar). */
   onAsk(listener: (ask: OfficeAsk) => void): () => void
-  answer(id: number, response: number): void
+  answer(id: number, response: number, password?: string): void
+  /**
+   * Pone, cambia o quita (null) la contraseña del documento y, si tiene archivo,
+   * lo guarda ya cifrado. «saved»: guardado; si no, se cifrará al guardarlo.
+   */
+  setPassword(doc: string, password: string | null): Promise<{ ok: boolean; saved: boolean }>
   /** Cerrado el cuadro de imprimir: fuera el PDF temporal. */
   printClose(doc: string): Promise<boolean>
   /** Exportar una copia (pdf, txt, html, epub, ppsx): el documento sigue con sus cambios sin guardar. */

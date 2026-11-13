@@ -4,7 +4,7 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
+import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
@@ -247,6 +247,55 @@ export function OfficeApp() {
       if (command === 'dialog' && value) {
         const [id, ...rest] = value.split(':')
         setFeatureDialog({ id, value: rest.length ? rest.join(':') : undefined })
+        return true
+      }
+      if (command === 'passwordAsk' && tabs?.active) {
+        const doc = tabs.active
+        const locked = Boolean(tabs.tabs.find((t) => t.doc === doc)?.locked)
+        const P = T.password
+        const apply = async (password: string | null): Promise<void> => {
+          await active.flush()
+          const result = await window.molinoOffice.setPassword(doc, password)
+          const toast = useApp.getState().toast
+          if (!result.ok) toast('error', P.failed)
+          else toast('success', password ? (result.saved ? P.saved : P.onSave) : result.saved ? P.removedSaved : P.removed)
+        }
+        setDialog({
+          type: 'prompt',
+          spec: {
+            title: P.title,
+            intro: locked ? P.introLocked : P.intro,
+            fields: [
+              { key: 'password', label: P.password, value: '', type: 'password', maxLength: 255 },
+              { key: 'repeat', label: P.repeat, value: '', type: 'password', maxLength: 255 }
+            ],
+            extra: locked ? { label: P.remove, onSelect: () => void apply(null) } : undefined,
+            onOk: (v) => {
+              if (!v.password) return
+              if (v.password !== v.repeat) return void useApp.getState().toast('error', P.mismatch)
+              void apply(v.password)
+            }
+          }
+        })
+        return true
+      }
+      if (command === 'propertiesAsk') {
+        const props = active.coreProps()
+        const R = T.properties
+        setDialog({
+          type: 'prompt',
+          spec: {
+            title: R.title,
+            fields: [
+              { key: 'title', label: R.docTitle, value: props.title, maxLength: 255 },
+              { key: 'subject', label: R.subject, value: props.subject, maxLength: 255 },
+              { key: 'creator', label: R.author, value: props.creator, maxLength: 255 },
+              { key: 'keywords', label: R.keywords, value: props.keywords, maxLength: 255 },
+              { key: 'description', label: R.description, value: props.description, type: 'textarea', maxLength: 2000 }
+            ],
+            onOk: (v) => active.setCoreProps(v)
+          }
+        })
         return true
       }
       if (command === 'symbol') return (setDialog({ type: 'symbols' }), true)
@@ -549,8 +598,8 @@ export function OfficeApp() {
         <AskDialog
           key={asks[0].id}
           ask={asks[0]}
-          onAnswer={(response) => {
-            window.molinoOffice.answer(asks[0].id, response)
+          onAnswer={(response, password) => {
+            window.molinoOffice.answer(asks[0].id, response, password)
             setAsks((list) => list.slice(1))
           }}
         />
@@ -657,6 +706,9 @@ function fileEntries({
     ...exports,
     { label: F.print, icon: <Printer size={15} />, kbd: 'Ctrl+P', disabled: !hasDoc || !doc, onSelect: () => run('print') },
     { label: F.showInFolder, icon: <SquareArrowOutUpRight size={15} />, disabled: !hasFile || !doc, onSelect: () => doc && void window.molinoOffice.showInFolder(doc) },
+    'sep',
+    { label: F.password, icon: <KeyRound size={15} />, disabled: !hasDoc || !doc, onSelect: () => run('passwordAsk') },
+    { label: F.properties, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('propertiesAsk') },
     'sep',
     { label: F.settings, icon: <Settings size={15} />, kbd: 'Ctrl+,', onSelect: settings },
     { label: F.shortcuts, icon: <Keyboard size={15} />, onSelect: shortcuts },
@@ -1345,7 +1397,10 @@ const ASK_ICONS: Record<OfficeAsk['type'], ReactNode> = {
 }
 
 /** Un aviso o una pregunta del proceso principal, como los demás cuadros de la app. */
-function AskDialog({ ask, onAnswer }: { ask: OfficeAsk; onAnswer: (response: number) => void }) {
+function AskDialog({ ask, onAnswer }: { ask: OfficeAsk; onAnswer: (response: number, password?: string) => void }) {
+  // La contraseña de un documento cifrado, si la pide.
+  const [password, setPassword] = useState('')
+  const answer = (i: number): void => onAnswer(i, i === ask.defaultId && ask.password ? password : undefined)
   return (
     <Dialog
       title={ask.title}
@@ -1353,7 +1408,13 @@ function AskDialog({ ask, onAnswer }: { ask: OfficeAsk; onAnswer: (response: num
       footer={
         <>
           {ask.buttons.map((label, i) => (
-            <button key={i} className={cn('btn', i === ask.defaultId && 'primary')} data-autofocus={i === ask.defaultId || undefined} onClick={() => onAnswer(i)}>
+            <button
+              key={i}
+              className={cn('btn', i === ask.defaultId && 'primary')}
+              data-autofocus={(!ask.password && i === ask.defaultId) || undefined}
+              disabled={Boolean(ask.password) && i === ask.defaultId && !password}
+              onClick={() => answer(i)}
+            >
               {label}
             </button>
           ))}
@@ -1365,6 +1426,23 @@ function AskDialog({ ask, onAnswer }: { ask: OfficeAsk; onAnswer: (response: num
         <div>
           <p className="office-ask-message">{ask.message}</p>
           {ask.detail && <p className="office-ask-detail">{ask.detail}</p>}
+          {ask.password && (
+            <label className="field office-ask-password">
+              <span>{ask.password}</span>
+              <input
+                className="input"
+                type="password"
+                autoFocus
+                data-autofocus
+                maxLength={255}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && password) answer(ask.defaultId)
+                }}
+              />
+            </label>
+          )}
         </div>
       </div>
     </Dialog>

@@ -411,6 +411,8 @@ export const office = {
     about: 'Acerca de',
     settings: 'Ajustes…',
     showInFolder: 'Mostrar en la carpeta',
+    password: 'Contraseña…',
+    properties: 'Propiedades…',
     shortcuts: 'Atajos de teclado',
     feedback: 'Enviar comentarios',
     sponsor: 'Invítame a un café'
@@ -959,6 +961,28 @@ export const office = {
       fix: 'Corregir la ortografía',
       translate: 'Traducir al inglés'
     }
+  },
+  password: {
+    title: 'Proteger con contraseña',
+    intro: 'Hará falta para abrir el documento, aquí y en Word, Excel o PowerPoint. Si la olvidas, no hay forma de recuperarlo.',
+    introLocked: 'El documento ya tiene contraseña: escribe otra para cambiarla o quítala.',
+    password: 'Contraseña',
+    repeat: 'Repite la contraseña',
+    remove: 'Quitar la contraseña',
+    mismatch: 'Las dos contraseñas no coinciden.',
+    saved: 'Guardado con contraseña.',
+    onSave: 'Se protegerá con contraseña al guardarlo.',
+    removed: 'Se guardará sin contraseña.',
+    removedSaved: 'Guardado sin contraseña.',
+    failed: 'No se pudo cambiar la contraseña.'
+  },
+  properties: {
+    title: 'Propiedades del documento',
+    docTitle: 'Título',
+    subject: 'Asunto',
+    author: 'Autor',
+    keywords: 'Palabras clave',
+    description: 'Descripción'
   },
   colors: 'Colores',
   sheetTabs: 'Hojas del libro',

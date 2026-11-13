@@ -61,6 +61,11 @@ const SAVE_FORMATS: Record<Kind, Record<number, string>> = {
   slide: { 129: '.pptx', 131: '.odp' }
 }
 const DEFAULT_SUFFIX: Record<Kind, string> = { word: '.docx', cell: '.xlsx', slide: '.pptx' }
+/** Una contraseña de documento: texto de 1 a 255 caracteres, sin caracteres de control. */
+function validPassword(value: unknown): value is string {
+  return typeof value === 'string' && value.length > 0 && value.length <= 255 && !/[\u0000-\u001f\u007f]/.test(value)
+}
+
 /** Las plantillas para empezar de cada app (resources/templates/<idioma>/). */
 const TEMPLATES: Record<Kind, { id: string; file: { es: string; en: string } }[]> = {
   word: [
@@ -183,6 +188,8 @@ interface OpenDoc {
   index: { text: string; listed: Set<string>; families: Set<string> } | null
   /** Se dijo «Ahora no» al aviso de fuentes que faltan. */
   fontsDismissed: boolean
+  /** Se guarda cifrado (el motor tiene su contraseña). */
+  locked: boolean
 }
 
 interface AppWindow {
@@ -315,7 +322,7 @@ export class OfficeWindows {
     return [...this.windows.values()].filter((w) => !w.window.isDestroyed()).map((w) => w.window.webContents)
   }
 
-  private readonly asks = new Map<number, { win: AppWindow; ask: OfficeAsk; done: (response: number) => void }>()
+  private readonly asks = new Map<number, { win: AppWindow; ask: OfficeAsk; done: (response: number, password?: string) => void }>()
   private nextAsk = 1
 
   /**
@@ -327,6 +334,29 @@ export class OfficeWindows {
     if (win.window.isDestroyed()) return Promise.resolve(ask.cancelId)
     return new Promise((done) => {
       this.asks.set(ask.id, { win, ask, done })
+      if (win.askReady) win.window.webContents.send('office:ask', ask)
+      else win.waitingAsks.push(ask)
+      if (win.window.isMinimized()) win.window.restore()
+      if (win.window.isVisible()) win.window.focus()
+    })
+  }
+
+  /** Pide la contraseña de un documento cifrado (null si se cancela). */
+  private askPassword(win: AppWindow, name: string, wrong: boolean): Promise<string | null> {
+    const T = L.main.office.password
+    const ask: OfficeAsk = {
+      id: this.nextAsk++,
+      type: wrong ? 'warning' : 'question',
+      title: T.title,
+      message: fmt(wrong ? T.wrong : T.message, { name }),
+      buttons: [T.open, L.common.cancel],
+      defaultId: 0,
+      cancelId: 1,
+      password: T.label
+    }
+    if (win.window.isDestroyed()) return Promise.resolve(null)
+    return new Promise((done) => {
+      this.asks.set(ask.id, { win, ask, done: (response, password) => done(response === 0 && password ? password : null) })
       if (win.askReady) win.window.webContents.send('office:ask', ask)
       else win.waitingAsks.push(ask)
       if (win.window.isMinimized()) win.window.restore()
@@ -384,7 +414,9 @@ export class OfficeWindows {
     }
     const kind = officeKindOf(path)
     if (!kind) return false
-    return this.load(kind, basename(path), path, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path }, { priority: 7 }))
+    return this.load(kind, basename(path), path, (password) =>
+      this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', password ? { path, password } : { path }, { priority: 7 })
+    )
   }
 
   /** La ventana de una app, delante (sin documentos, con su pantalla de inicio). */
@@ -450,7 +482,7 @@ export class OfficeWindows {
     kind: Kind,
     name: string,
     path: string | null,
-    ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>,
+    ask: (password?: string) => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>,
     recovered = false
   ): Promise<boolean> {
     // La ventana de la app sale enseguida, con «Abriendo…» mientras el motor
@@ -477,11 +509,24 @@ export class OfficeWindows {
     win: AppWindow,
     name: string,
     path: string | null,
-    ask: () => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>,
+    ask: (password?: string) => Promise<{ result: { doc?: unknown; kind?: unknown }; binary?: Buffer }>,
     recovered = false
   ): Promise<boolean> {
     try {
-      const { result, binary } = await ask()
+      // Cifrado: se pide la contraseña (y otra vez si no vale) hasta que se acierta o se cancela.
+      let password: string | undefined
+      let answer: Awaited<ReturnType<typeof ask>> | null = null
+      for (let tries = 0; !answer; tries++) {
+        try {
+          answer = await ask(password)
+        } catch (error) {
+          if (!(error instanceof EngineError) || (error.code !== 'protected' && error.code !== 'wrong_password') || tries >= 20) throw error
+          const given = await this.askPassword(win, name, error.code === 'wrong_password')
+          if (!given) return false
+          password = given
+        }
+      }
+      const { result, binary } = answer
       if (typeof result.doc !== 'string' || !DOC_ID.test(result.doc) || result.kind !== win.kind || !binary?.length) {
         throw new Error('respuesta no válida del motor')
       }
@@ -518,7 +563,8 @@ export class OfficeWindows {
           listed: new Set(index.files.map((f) => f.toLowerCase())),
           families: new Set(index.families.map((f) => f.toLowerCase()))
         },
-        fontsDismissed: false
+        fontsDismissed: false,
+        locked: Boolean(password)
       }
       win.docs.set(open.doc, open)
       win.order.push(open.doc)
@@ -633,7 +679,8 @@ export class OfficeWindows {
                 ext: (extname(open.name) || DEFAULT_SUFFIX[open.kind]).slice(1).toLowerCase(),
                 modified: open.modified,
                 hasFile: open.path !== null,
-                missingFonts: open.fontsDismissed ? [] : this.missingFonts(open)
+                missingFonts: open.fontsDismissed ? [] : this.missingFonts(open),
+                locked: open.locked
               }
             ]
           : []
@@ -861,7 +908,8 @@ export class OfficeWindows {
       if (!entry || entry.win !== win) return
       this.asks.delete(entry.ask.id)
       const valid = typeof response === 'number' && Number.isInteger(response) && response >= 0 && response < entry.ask.buttons.length
-      entry.done(valid ? response : entry.ask.cancelId)
+      const password = (raw as { password?: unknown }).password
+      entry.done(valid ? response : entry.ask.cancelId, entry.ask.password && validPassword(password) ? password : undefined)
     })
     ipcMain.handle('office:tabs', (event) => {
       const win = this.uiSender(event)
@@ -917,6 +965,28 @@ export class OfficeWindows {
       if (!win || typeof raw !== 'string') return false
       this.options.scripts.remove(raw)
       return true
+    })
+    // La contraseña del documento: el motor la guarda en memoria y cifra al guardar; si tiene archivo, se guarda ya.
+    ipcMain.handle('office:setPassword', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { doc, password } = (typeof raw === 'object' && raw !== null ? raw : {}) as { doc?: unknown; password?: unknown }
+      const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
+      if (!win || !open || (password !== null && !validPassword(password))) return { ok: false, saved: false }
+      try {
+        await this.engine.request('office.setPassword', password ? { doc: open.doc, password } : { doc: open.doc }, { priority: 7 })
+        open.locked = Boolean(password)
+        let saved = false
+        const ext = open.path ? extname(open.path).toLowerCase() : ''
+        if (open.path && ['.docx', '.xlsx', '.pptx'].includes(ext)) {
+          await this.engine.request('office.save', { doc: open.doc, path: open.path }, { priority: 7 })
+          saved = true
+        }
+        this.sendTabs(win)
+        return { ok: true, saved }
+      } catch (error) {
+        log.warn(`oficina: no se pudo cambiar la contraseña (${error instanceof EngineError ? error.code : '?'})`)
+        return { ok: false, saved: false }
+      }
     })
     ipcMain.handle('office:showInFolder', (event, raw: unknown) => {
       const win = this.uiSender(event)

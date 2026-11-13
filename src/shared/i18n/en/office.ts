@@ -410,6 +410,8 @@ export const office: typeof es = {
     about: 'About',
     settings: 'Settings…',
     showInFolder: 'Show in folder',
+    password: 'Password…',
+    properties: 'Properties…',
     shortcuts: 'Keyboard shortcuts',
     feedback: 'Send feedback',
     sponsor: 'Buy me a coffee'
@@ -946,6 +948,28 @@ export const office: typeof es = {
       fix: 'Fix spelling',
       translate: 'Translate into Spanish'
     }
+  },
+  password: {
+    title: 'Protect with a password',
+    intro: 'It will be needed to open the document, here and in Word, Excel or PowerPoint. If you forget it, there is no way to recover it.',
+    introLocked: 'The document already has a password: type another one to change it, or remove it.',
+    password: 'Password',
+    repeat: 'Repeat the password',
+    remove: 'Remove password',
+    mismatch: 'The two passwords don’t match.',
+    saved: 'Saved with a password.',
+    onSave: 'It will be password-protected when you save it.',
+    removed: 'It will be saved without a password.',
+    removedSaved: 'Saved without a password.',
+    failed: 'The password couldn’t be changed.'
+  },
+  properties: {
+    title: 'Document properties',
+    docTitle: 'Title',
+    subject: 'Subject',
+    author: 'Author',
+    keywords: 'Keywords',
+    description: 'Description'
   },
   colors: 'Colors',
   sheetTabs: 'Workbook sheets',

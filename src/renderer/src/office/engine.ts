@@ -1437,6 +1437,38 @@ export class EditorSession {
     return command in this.features() || command in this.commands() || command in this.review() || command in this.common()
   }
 
+  /** Las propiedades del documento (título, asunto, autor, palabras clave, descripción). */
+  coreProps(): { title: string; subject: string; creator: string; keywords: string; description: string } {
+    const out = { title: '', subject: '', creator: '', keywords: '', description: '' }
+    try {
+      const props = this.api?.asc_getCoreProps?.()
+      if (!props) return out
+      const text = (v: unknown): string => (typeof v === 'string' ? v : '')
+      out.title = text(props.asc_getTitle?.())
+      out.subject = text(props.asc_getSubject?.())
+      out.creator = text(props.asc_getCreator?.())
+      out.keywords = text(props.asc_getKeywords?.())
+      out.description = text(props.asc_getDescription?.())
+    } catch {
+      /* sin propiedades */
+    }
+    return out
+  }
+
+  /** Cambia las propiedades del documento (se guardan con él). */
+  setCoreProps(values: Record<string, string>): void {
+    const api = this.api
+    if (!api?.asc_getCoreProps) return
+    const props = api.asc_getCoreProps()
+    const clip = (key: string, max: number): string => String(values[key] ?? '').slice(0, max)
+    props.asc_putTitle?.(clip('title', 255))
+    props.asc_putSubject?.(clip('subject', 255))
+    props.asc_putCreator?.(clip('creator', 255))
+    props.asc_putKeywords?.(clip('keywords', 255))
+    props.asc_putDescription?.(clip('description', 2000))
+    api.asc_setCoreProps(props)
+  }
+
   /** Hace una orden; devuelve si se pudo. El teclado vuelve después al documento. */
   run(command: string, value?: string): boolean {
     if (!this.api) return false

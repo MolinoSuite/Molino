@@ -741,7 +741,7 @@ CATALOG: dict[str, str] = {
     # ---------------------------------- Documentos, Hojas y Presentaciones
     "Documentos, Hojas y Presentaciones no están instalados.": "Docs, Sheets and Slides aren’t installed.",
     "Las fuentes del equipo aún no están preparadas. Inténtalo dentro de un momento.": "This computer’s fonts aren’t ready yet. Try again in a moment.",
-    "Este documento está protegido con contraseña y Molino aún no puede abrirlo.": "This document is password-protected and Molino can’t open it yet.",
+    "Este documento está protegido con contraseña.": "This document is password-protected.",
     "No se pudo convertir el documento.": "Couldn’t convert the document.",
     "La conversión tarda demasiado y se ha detenido.": "The conversion is taking too long and was stopped.",
     "Abriendo el documento…": "Opening the document…",
