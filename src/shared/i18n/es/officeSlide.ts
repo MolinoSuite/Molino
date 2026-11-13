@@ -3,7 +3,6 @@ export const officeSlide = {
   /** Los nombres de los grupos de herramientas (se ven en «Más»). */
   groups: {
     media: 'Multimedia',
-    presenter: 'Moderador',
     spacing: 'Sangría y espaciado',
     textBox: 'Texto en la forma',
     crop: 'Recortar',
@@ -23,7 +22,6 @@ export const officeSlide = {
   tools: {
     video: 'Vídeo',
     audio: 'Audio',
-    presenterView: 'Vista del moderador',
     textDirection: 'Dirección del texto',
     cropFill: 'Rellenar',
     cropFit: 'Ajustar',

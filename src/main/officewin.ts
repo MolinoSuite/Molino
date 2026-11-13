@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, rmSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { crc32, deflateSync } from 'node:zlib'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
-import { app, BrowserWindow, clipboard, dialog, ipcMain, screen, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session, type WebContents } from 'electron'
+import { app, BrowserWindow, clipboard, dialog, ipcMain, session as sessions, shell, type IpcMainEvent, type IpcMainInvokeEvent, type Session, type WebContents } from 'electron'
 import { EngineError, type EngineClient } from './engine'
 import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
@@ -67,7 +67,7 @@ const DEFAULT_SUFFIX: Record<Kind, string> = { word: '.docx', cell: '.xlsx', sli
  * diapositiva hasta que se reproduce): un PNG sencillo, hecho aquí, con el
  * símbolo de reproducir (vídeo) o de un altavoz (audio).
  */
-function mediaPoster(kind: 'video' | 'audio'): Buffer {
+function mediaPoster(kind: 'video' | 'audio', media: string): Buffer {
   const video = kind === 'video'
   const width = video ? 320 : 96
   const height = video ? 180 : 96
@@ -106,7 +106,8 @@ function mediaPoster(kind: 'video' | 'audio'): Buffer {
   header.writeUInt32BE(height, 4)
   header[8] = 8
   header[9] = 2
-  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+  const note = chunk('tEXt', Buffer.from(`molino-media\u0000${media}`, 'latin1'))
+  return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), note, chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
 }
 
 /** Una contraseña de documento: texto de 1 a 255 caracteres, sin caracteres de control. */
@@ -146,8 +147,6 @@ const PRINT_DIR = join(app.getPath('temp'), 'Molino-imprimir')
 /** Lo que Molino pide al editor vale este tiempo (si no llega a guardar, no se queda colgado para la próxima vez). */
 const INTENT_MS = 60_000
 const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp|mp4|m4v|mov|webm|mp3|wav|m4a|ogg)$/i
-/** La página de la vista del moderador que trae el editor de presentaciones. */
-const REPORTER_URL = /^molino:\/\/office\/web-apps\/apps\/presentationeditor\/main\/index\.reporter\.html(\?|$)/
 /** Vídeo y audio de Presentaciones: los formatos que se pueden insertar y su tamaño máximo. */
 const VIDEO_SUFFIXES = ['.mp4', '.m4v', '.mov', '.webm']
 const AUDIO_SUFFIXES = ['.mp3', '.wav', '.m4a', '.ogg']
@@ -675,36 +674,6 @@ export class OfficeWindows {
       }
     })
     window.removeMenu()
-    // La vista del moderador (Presentaciones, bridge.js): solo su página, en otra ventana
-    // y, si hay otra pantalla, en ella (la presentación sigue en esta).
-    if (kind === 'slide') {
-      let otherScreen = false
-      window.webContents.setWindowOpenHandler(({ url }) => {
-        if (!REPORTER_URL.test(url)) return { action: 'deny' }
-        const here = screen.getDisplayMatching(window.getBounds())
-        const other = screen.getAllDisplays().find((d) => d.id !== here.id)
-        otherScreen = Boolean(other)
-        const area = (other ?? here).workArea
-        return {
-          action: 'allow',
-          overrideBrowserWindowOptions: {
-            x: area.x + 40,
-            y: area.y + 40,
-            width: Math.min(1280, area.width - 80),
-            height: Math.min(820, area.height - 80),
-            title: L.main.office.presenter,
-            icon: appIcon('slide'),
-            autoHideMenuBar: true,
-            backgroundColor: '#1c1d20'
-          }
-        }
-      })
-      window.webContents.on('did-create-window', (child) => {
-        child.removeMenu()
-        child.on('page-title-updated', (event) => event.preventDefault())
-        if (otherScreen) child.maximize()
-      })
-    }
     // Cada app es un programa aparte en la barra de tareas: su grupo, su icono y,
     // si se ancla, se vuelve a abrir esa app (officeapps.ts).
     if (process.platform === 'win32') window.setAppDetails(windowDetails(kind))
@@ -1319,10 +1288,15 @@ export class OfficeWindows {
         }
         const data = await readFile(file)
         const media = await this.engine.request<{ name?: unknown }>('office.addMedia', { doc: found.open.doc, ext }, { binary: data, priority: 7 })
-        const cover = await this.engine.request<{ name?: unknown }>('office.addMedia', { doc: found.open.doc, ext: '.png' }, { binary: mediaPoster(kind), priority: 7 })
         const name = typeof media.result.name === 'string' && MEDIA_NAME.test(media.result.name) ? media.result.name : ''
+        if (!name) return { name: '' }
+        // La portada lleva el nombre del medio: así el motor lo mete en el .pptx al guardar (office.embed_media).
+        const cover = await this.engine.request<{ name?: unknown }>('office.addMedia', { doc: found.open.doc, ext: '.png' }, { binary: mediaPoster(kind, name), priority: 7 })
         const poster = typeof cover.result.name === 'string' && MEDIA_NAME.test(cover.result.name) ? cover.result.name : ''
-        return name && poster ? { name, poster } : { name: '' }
+        // Su ruta en la carpeta de trabajo del motor (x2t lo copia de ahí al guardar); solo si es la de ese medio.
+        const path = (media.result as { path?: unknown }).path
+        const where = typeof path === 'string' && path.length < 1000 && basename(path) === name ? path : ''
+        return name && poster && where ? { name, poster, path: where } : { name: '' }
       } catch (error) {
         log.warn(`oficina: no se pudo insertar el medio (${error instanceof EngineError ? error.code : '?'})`)
         if (error instanceof EngineError) this.notify(found.win, 'error', error.message)

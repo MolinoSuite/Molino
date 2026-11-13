@@ -1,7 +1,7 @@
 {
   "name": "molino-pdf",
   "productName": "Molino PDF",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "suiteVersion": "1.0.0",
   "description": "Molino PDF: visor y editor de PDF todo en uno (formularios, firma, edicion)",
   "private": true,

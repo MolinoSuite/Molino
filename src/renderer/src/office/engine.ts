@@ -82,7 +82,7 @@ export interface EditorState {
   /** Control de cambios encendido (solo Documentos). */
   track: boolean
   /** Lo seleccionado que tiene su pestaña de contexto (tabla, imagen, forma, gráfico). */
-  objects: ('table' | 'image' | 'shape' | 'chart')[]
+  objects: ('table' | 'image' | 'shape' | 'chart' | 'header')[]
   // Formato del texto (Documentos y Presentaciones)
   superscript: boolean
   subscript: boolean
@@ -1345,8 +1345,7 @@ export class EditorSession {
         const [cols, rows] = String(v || '2x1').split('x').map(Number)
         if (api.CheckBeforeSplitCells() && cols > 0 && rows > 0) api.SplitCell(Math.min(cols, 20), Math.min(rows, 20))
       },
-      // Presentar desde el principio, desde aquí o con la vista del moderador (otra ventana, bridge.js).
-      present: (from) => ew.Common.NotificationCenter.trigger('preview:start', from === 'here' ? api.getCurrentPage() : 0, from === 'presenter', false, from === 'here'),
+      present: (from) => ew.Common.NotificationCenter.trigger('preview:start', from === 'here' ? api.getCurrentPage() : 0, false, false, from === 'here'),
       fit: () => api.zoomFitToPage()
     }
   }
@@ -2178,7 +2177,13 @@ export class EditorSession {
     try {
       this.ew.Common.NotificationCenter.trigger('edit:complete')
     } catch {
+      /* el editor aún no tiene su interfaz */
+    }
+    // El teclado, al marco del editor: si no, se queda en el botón pulsado (de un panel, por ejemplo).
+    try {
       this.ew.focus()
+    } catch {
+      /* marco ya cerrado */
     }
   }
 

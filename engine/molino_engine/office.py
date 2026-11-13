@@ -504,3 +504,108 @@ def clean_pdf(path: Path) -> int:
     finally:
         if not doc.is_closed:
             doc.close()
+
+
+# --------------------------------------------------------------- video y audio
+
+# Al guardar un .pptx con video o audio, x2t escribe sus referencias como
+# «maskFile.mp4» sin el archivo (la app de escritorio de ONLYOFFICE lo pone
+# despues). Molino lo arregla aqui: la portada de cada medio lleva su nombre
+# (un fragmento tEXt «molino-media» del PNG, src/main/officewin.ts) y con eso se
+# mete el archivo en ppt/media y se corrigen sus relaciones.
+
+AV_TYPES = {
+    ".mp4": "video/mp4",
+    ".m4v": "video/mp4",
+    ".mov": "video/quicktime",
+    ".webm": "video/webm",
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".m4a": "audio/mp4",
+    ".ogg": "audio/ogg",
+}
+_AV_NAME = re.compile(r"^media-[0-9a-f]{12}\.(mp4|m4v|mov|webm|mp3|wav|m4a|ogg)$")
+_PIC = re.compile(r"<p:pic>.*?</p:pic>", re.DOTALL)
+_MEDIA_LINK = re.compile(r'<a:(?:videoFile|audioFile) r:link="(rId\d+)"')
+_MEDIA_EMBED = re.compile(r'<p14:media [^>]*r:embed="(rId\d+)"')
+_BLIP = re.compile(r'<a:blip r:embed="(rId\d+)"')
+
+
+def _png_media_name(data: bytes) -> str | None:
+    """El nombre del medio que lleva una portada de Molino (tEXt «molino-media»), o None."""
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return None
+    at = 8
+    while at + 8 <= len(data):
+        length = int.from_bytes(data[at : at + 4], "big")
+        kind = data[at + 4 : at + 8]
+        body = data[at + 8 : at + 8 + length]
+        if kind == b"tEXt" and body.startswith(b"molino-media\x00"):
+            name = body[len(b"molino-media\x00") :].decode("latin-1", "replace")
+            return name if _AV_NAME.match(name) else None
+        if kind == b"IEND":
+            break
+        at += 12 + length
+    return None
+
+
+def embed_media(pptx: Path, media_dir: Path) -> int:
+    """Mete en el .pptx los videos y audios de Molino que x2t dejo como «maskFile». Devuelve cuantos."""
+    with zipfile.ZipFile(pptx) as z:
+        names = z.namelist()
+        if not any("maskFile." in z.read(n).decode("utf-8", "replace") for n in names if n.endswith(".rels") and n.startswith("ppt/slides/_rels/")):
+            return 0
+        parts = {n: z.read(n) for n in names}
+    added: dict[str, bytes] = {}
+    fixed = 0
+    for slide in [n for n in names if re.match(r"^ppt/slides/slide\d+\.xml$", n)]:
+        rels_name = f"ppt/slides/_rels/{slide.rsplit('/', 1)[1]}.rels"
+        if rels_name not in parts:
+            continue
+        xml = parts[slide].decode("utf-8")
+        rels = parts[rels_name].decode("utf-8")
+        targets = dict(re.findall(r'<Relationship Id="(rId\d+)"[^>]*Target="([^"]*)"', rels))
+        for pic in _PIC.findall(xml):
+            links = _MEDIA_LINK.findall(pic) + _MEDIA_EMBED.findall(pic)
+            blip = _BLIP.search(pic)
+            if not links or not blip or blip.group(1) not in targets:
+                continue
+            image = "ppt/" + targets[blip.group(1)].replace("../", "")
+            name = _png_media_name(parts.get(image, b""))
+            if not name or not (media_dir / name).is_file():
+                # Un medio que venia en el archivo (al abrirlo, x2t lo saca con otro nombre): el
+                # unico de esa clase que quede sin usar.
+                wanted = Path(targets.get(links[0], "")).suffix.lower()
+                spare = [p.name for p in sorted(media_dir.glob(f"*{wanted}")) if wanted in AV_TYPES and f"ppt/media/{p.name}" not in added]
+                name = spare[0] if len(spare) == 1 and _SAFE_MEDIA.match(spare[0]) else None
+            source = media_dir / name if name else None
+            if not name or source is None or not source.is_file() or source.is_symlink():
+                continue
+            added[f"ppt/media/{name}"] = source.read_bytes()
+            for rid in links:
+                # Una relacion interna al archivo del medio (como las que escribe PowerPoint).
+                rels = re.sub(
+                    rf'(<Relationship Id="{rid}"[^>]*?)Target="[^"]*"( TargetMode="External")?',
+                    lambda m: f'{m.group(1)}Target="../media/{name}"',
+                    rels,
+                )
+            fixed += 1
+        parts[rels_name] = rels.encode("utf-8")
+    if not fixed:
+        return 0
+    types = parts["[Content_Types].xml"].decode("utf-8")
+    for ext in {Path(n).suffix.lower() for n in added}:
+        if f'Extension="{ext[1:]}"' not in types:
+            types = types.replace("<Default ", f'<Default Extension="{ext[1:]}" ContentType="{AV_TYPES[ext]}"/><Default ', 1)
+    parts["[Content_Types].xml"] = types.encode("utf-8")
+    parts.update(added)
+    # Sin los «maskFile» que ya no se usan.
+    temp = pptx.with_suffix(".tmp")
+    with zipfile.ZipFile(temp, "w", zipfile.ZIP_DEFLATED) as out:
+        for name, data in parts.items():
+            if "/maskFile." in name:
+                continue
+            compress = zipfile.ZIP_STORED if Path(name).suffix.lower() in AV_TYPES else zipfile.ZIP_DEFLATED
+            out.writestr(zipfile.ZipInfo(name, date_time=(2026, 1, 1, 0, 0, 0)), data, compress_type=compress)
+    temp.replace(pptx)
+    return fixed

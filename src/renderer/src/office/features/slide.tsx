@@ -19,7 +19,6 @@ import {
   ListIndentDecrease,
   ListIndentIncrease,
   Magnet,
-  MonitorPlay,
   Music,
   Maximize,
   Minimize2,
@@ -660,14 +659,7 @@ export const slideFeature: Feature = {
     design: { at: 1, groups: [[COLOR_SCHEMES]], names: [S.groups.colors] },
     // Las animaciones, antes de la galería de siempre (que cambia la de lo seleccionado).
     transitions: { at: 2, groups: [ANIMATIONS], names: [S.groups.animations] },
-    present: {
-      at: 1,
-      groups: [
-        [B('presenterView', 'present', { label: ST.presenterView, value: 'presenter', icon: <MonitorPlay size={ICON} />, caption: true })],
-        [B('rehearse', 'panel', { label: ST.rehearse, value: 'rehearse', icon: <Timer size={ICON} />, caption: true })]
-      ],
-      names: [S.groups.presenter, S.groups.rehearse]
-    },
+    present: { groups: [[B('rehearse', 'panel', { label: ST.rehearse, value: 'rehearse', icon: <Timer size={ICON} />, caption: true })]], names: [S.groups.rehearse] },
     shape: { groups: [TEXT_BOX], names: [S.groups.textBox] },
     image: { at: 0, groups: [IMAGE_CROP, IMAGE_SIZE, IMAGE_PICTURE], names: [S.groups.crop, S.groups.size, S.groups.picture] }
   },

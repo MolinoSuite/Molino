@@ -60,10 +60,14 @@
       }
     })
   }
-  // Las portadas de los vídeos y audios elegidos (nombre del medio → nombre de su imagen).
+  // Las portadas de los vídeos y audios elegidos (nombre del medio → su imagen y su ruta en el motor).
   const posters = new Map()
-  // La ventana de la vista del moderador, si está abierta.
-  let reporter = null
+  // Al editor: la portada (por su nombre, como las imágenes) y el medio por su ruta (x2t lo copia al guardar).
+  const addMedia = (name, done) => {
+    const media = String(name || '')
+    const found = MEDIA_NAME.test(media) ? posters.get(media) : null
+    if (typeof done === 'function') done(found ? found.poster : '', found ? 'media/' + media : '')
+  }
   const log = (...parts) => host.log(`[${where}] ${parts.join(' ')}`)
   w.addEventListener('error', (e) => log('error:', e.message, e.lineno || ''))
   w.addEventListener('unhandledrejection', (e) => log('promesa:', String(e.reason).slice(0, 200)))
@@ -170,7 +174,7 @@
   if (molinoUi) {
     const css = w.document.createElement('style')
     // En Hojas se queda la barra de fórmulas del editor (#cell-editing-box), unida a su editor de celdas.
-    const hidden = '#app-title,#toolbar,#left-menu,#right-menu,#statusbar,#left-panel-history,#file-menu-panel,#header-logo{display:none!important}'
+    const hidden = '#app-title,#toolbar,#left-menu,#right-menu,#statusbar,#left-panel-history,#file-menu-panel,#header-logo,#chart-element-container{display:none!important}'
     css.textContent = hidden + molinoSkin()
     ;(w.document.head || w.document.documentElement).appendChild(css)
     // Al cambiar el color de la app (Ajustes → Apariencia): engine.ts lo pide y después reaplica el tema.
@@ -409,7 +413,7 @@
         ? host.pickImage(info.doc)
         : media && typeof host.pickMedia === 'function'
           ? host.pickMedia(info.doc, media).then((r) => {
-              if (r && r.name && r.poster) posters.set(r.name, r.poster)
+              if (r && r.name && r.poster) posters.set(r.name, { poster: r.poster, path: String(r.path || '') })
               return r
             })
           : Promise.resolve({ name: '' })
@@ -465,53 +469,14 @@
     onFileLockedClose: () => undefined,
     nativeClipboardWrite: () => undefined,
     // El medio elegido (su nombre en el documento) con su portada: el editor los inserta juntos.
-    AddVideo: (name, done) => {
-      const media = String(name || '')
-      if (typeof done === 'function') done(MEDIA_NAME.test(media) ? posters.get(media) || '' : '', MEDIA_NAME.test(media) ? media : '')
-    },
-    AddAudio: (name, done) => {
-      const media = String(name || '')
-      if (typeof done === 'function') done(MEDIA_NAME.test(media) ? posters.get(media) || '' : '', MEDIA_NAME.test(media) ? media : '')
-    },
+    AddVideo: (name, done) => addMedia(name, done),
+    AddAudio: (name, done) => addMedia(name, done),
     MediaStart: () => undefined,
-    // Vista del moderador: la página del moderador que trae el editor, en otra ventana
-    // (el proceso principal la pone en la otra pantalla, si la hay). Habla con el editor
-    // por mensajes: la página se los manda a sí misma y este los escucha.
-    startReporter: (href) => {
-      try {
-        const url = new URL(String(href || w.location.href))
-        url.pathname = url.pathname.replace(/index\.html$/, 'index.reporter.html')
-        if (!/\/apps\/presentationeditor\/main\/index\.reporter\.html$/.test(url.pathname)) return
-        reporter = w.open(url.toString(), 'molinoReporter')
-        if (!reporter) return
-        reporter.addEventListener('message', (event) => {
-          if (event.source !== reporter) return
-          try {
-            if (w.editor && typeof w.editor.DemonstrationReporterMessages === 'function') w.editor.DemonstrationReporterMessages(event)
-          } catch (error) {
-            log('moderador:', String(error && error.message).slice(0, 120))
-          }
-        })
-        reporter.addEventListener('unload', () => {
-          setTimeout(() => {
-            if (reporter && reporter.closed) reporter = null
-          }, 500)
-        })
-      } catch {
-        reporter = null
-      }
-    },
-    endReporter: () => {
-      try {
-        if (reporter && !reporter.closed) reporter.close()
-      } catch {
-        /* ya cerrada */
-      }
-      reporter = null
-    },
-    sendToReporter: (message) => {
-      if (reporter && !reporter.closed) reporter.postMessage(message, '*')
-    },
+    // Vista del moderador en otra ventana: aún no (su página tiene que cargar el documento
+    // por su cuenta, como en la app de escritorio). En su lugar, el panel «Ensayar».
+    startReporter: () => undefined,
+    endReporter: () => undefined,
+    sendToReporter: () => undefined,
     sendFromReporter: () => undefined,
     PluginUninstall: () => false,
     IsCachedPdfCloudPrintFileInfo: () => false,

@@ -441,9 +441,11 @@ def office_add_media(ctx: Ctx, p: AddMediaParams) -> dict[str, Any]:
         if not data or len(data) > office.MAX_AV or not _is_av(p.ext, data):
             raise EngineError("invalid_file", _("Ese vídeo o audio no se puede usar."))
         name = f"media-{secrets.token_hex(6)}{p.ext}"
-        with open(item.doc / "media" / name, "xb") as out:
+        target = item.doc / "media" / name
+        with open(target, "xb") as out:
             out.write(data)
-        return {"name": name}
+        # El editor guarda la ruta del medio y x2t lo copia de ahi al .pptx (como en la app de escritorio).
+        return {"name": name, "path": str(target)}
     if not data or len(data) > office.MAX_MEDIA or not data.startswith(_IMAGES[p.ext]):
         raise EngineError("invalid_file", _("Esa imagen no se puede usar."))
     if p.ext == ".webp" and data[8:12] != b"WEBP":
@@ -552,6 +554,12 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
     if item.password and suffix in _ENCRYPTABLE and not p.export:
         extra = {**(extra or {}), "m_sSavePassword": item.password}
     out = _export(ctx, piece, item, code, suffix, _options(p.options), extra)
+    if suffix in (".pptx", ".ppsx") and not item.password:
+        # Los videos y audios de Molino, dentro del archivo (x2t los deja como «maskFile»).
+        try:
+            office.embed_media(out, item.doc / "media")
+        except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
+            log.warning("no se pudieron meter los medios en la presentacion (%s)", type(error).__name__)
     try:
         size, _mtime = ctx.engine.host.install(out, dest)
     finally:

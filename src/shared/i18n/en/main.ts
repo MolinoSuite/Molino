@@ -93,7 +93,6 @@ export const main: typeof source = {
     lampOff: 'The scanner lamp is off.'
   },
   office: {
-    presenter: 'Presenter view',
     media: {
       pickVideo: 'Insert a video',
       pickAudio: 'Insert an audio file',
