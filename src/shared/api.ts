@@ -61,6 +61,31 @@ export interface SaveOutcome {
   historyKept?: boolean
 }
 
+/** Insertar páginas de otro archivo (files.insertPages). */
+export type InsertOutcome =
+  | { ok: true; name: string; result: MutationResult }
+  | {
+      ok: false
+      name: string
+      /** Contraseña que falta o no es la buena, o páginas que el archivo no tiene (``detail.pages``: las que tiene). */
+      error: EngineErrorInfo
+      /** Para reintentar con el mismo archivo sin volver a elegirlo. */
+      token: string
+    }
+
+/** Páginas de un documento en blanco nuevo: tamaño en puntos y cuántas. */
+export interface BlankOptions {
+  width: number
+  height: number
+  count: number
+}
+
+/** Imágenes a PDF: tamaño de página (automático, A4, carta o el de cada imagen) y margen en puntos. */
+export interface ImagesOptions {
+  mode: 'auto' | 'a4' | 'letter' | 'image'
+  margin: number
+}
+
 export interface PickedFile {
   name: string
   data: Uint8Array
@@ -162,10 +187,18 @@ export interface MolinoApi {
     pickImage(): Promise<Envelope<PickedFile | null>>
     /** Abre un documento recuperado tras un cierre inesperado (ver ``recovery.list``). */
     recover(id: string, password?: string): Promise<Envelope<OpenOutcome>>
-    newBlank(): Promise<Envelope<OpenOutcome>>
-    merge(): Promise<Envelope<OpenOutcome | null>>
-    fromImages(): Promise<Envelope<OpenOutcome | null>>
-    insertPages(doc: string, before: string | null): Promise<Envelope<MutationResult | null>>
+    newBlank(options?: BlankOptions): Promise<Envelope<OpenOutcome>>
+    /** Sin argumentos elige los archivos; con ``retry``, reintenta con la contraseña del archivo que la pedía. */
+    merge(retry?: { token: string; password: string }): Promise<Envelope<OpenOutcome | null>>
+    fromImages(options?: ImagesOptions): Promise<Envelope<OpenOutcome | null>>
+    /** ``pick``: páginas del otro archivo (desde 0), en ese orden. Con ``token`` se reintenta con el archivo ya elegido. */
+    insertPages(
+      doc: string,
+      before: string | null,
+      options?: { pick?: number[]; token?: string; password?: string }
+    ): Promise<Envelope<InsertOutcome | null>>
+    /** Guarda los datos del formulario en un archivo .json o .csv que elige el usuario. */
+    exportFormData(doc: string, format: 'json' | 'csv'): Promise<Envelope<ExportOutcome>>
     extractPages(doc: string, pages: string[]): Promise<Envelope<ExportOutcome>>
     splitPages(doc: string, options: Record<string, unknown>, callId?: number): Promise<Envelope<ExportOutcome>>
     exportAs(

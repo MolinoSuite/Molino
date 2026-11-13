@@ -10,7 +10,12 @@ export const form = {
     clear: 'Vaciar',
     clearTip: 'Borrar todo lo rellenado',
     clearTitle: 'Vaciar el formulario',
-    clearMessage: 'Se borrará lo que hayas escrito en todos los campos. Puedes deshacerlo después.'
+    clearMessage: 'Se borrará lo que hayas escrito en todos los campos. Puedes deshacerlo después.',
+    export: 'Exportar datos',
+    exportTip: 'Guardar lo rellenado en un archivo aparte',
+    exportJson: 'Como JSON (.json)',
+    exportCsv: 'Como hoja de cálculo (.csv)',
+    exported: 'Datos del formulario exportados'
   },
   /** Herramientas para crear campos (botón y su descripción). */
   create: {

@@ -14,8 +14,25 @@ export const pages: typeof source = {
   deleteTip: 'Delete the selected pages (Del)',
   insert: 'Insert',
   insertTip: 'Add pages after the selection',
-  insertBlank: 'Blank page',
+  insertBlank: 'Blank pages…',
   insertFile: 'Pages from another file…',
+  insertBlankDialog: {
+    title: 'Insert blank pages',
+    run: 'Insert'
+  },
+  insertFileDialog: {
+    title: 'Insert pages from another file',
+    run: 'Choose file and insert',
+    retry: 'Insert',
+    other: 'Choose another file…',
+    pagesLabel: 'Pages of the other file',
+    all: 'All',
+    some: 'These:',
+    placeholder: 'For example, 1-3, 5',
+    badList: 'Type page numbers separated by commas: 1-3, 5',
+    hasPages: { one: 'It has {n} page.', other: 'It has {n} pages.' },
+    password: 'File password'
+  },
   split: 'Split',
   splitTip: 'Split the document into several files',
   selectNone: 'Clear selection',

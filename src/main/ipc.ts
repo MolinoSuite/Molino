@@ -1,16 +1,16 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
+import { readFile, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron'
 import { z } from 'zod'
-import type { EngineStatus, ExportOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
+import type { EngineStatus, ExportOutcome, InsertOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
 import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
 import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
 import type { OfficeApp } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
 import { EngineClient, EngineError } from './engine'
-import { fmt, L, lang } from './i18n'
+import { fmt, L, lang, locale } from './i18n'
 import { log } from './log'
 import { openOfficeLegal, type OfficePiece } from './office'
 import { openDefaultApps } from './officeapps'
@@ -146,6 +146,43 @@ export function isOpenable(path: string): boolean {
   return OPENABLE.has(extname(path).toLowerCase())
 }
 
+/**
+ * El archivo de origen (al insertar o combinar) pide una contraseña: la de
+ * apertura, o la de propietario si su autor no deja reutilizar sus páginas.
+ */
+function sourceLocked(info: EngineErrorInfo): boolean {
+  return (
+    info.code === 'needs_password' ||
+    info.code === 'wrong_password' ||
+    (info.code === 'permission_denied' && info.detail?.action === 'extract')
+  )
+}
+
+/** Un número entero de 0 a ``below`` - 1 que llega en el detalle de un error del motor (detail.index, detail.pages). */
+function intBelow(value: unknown, below: number): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value < below ? value : null
+}
+
+/**
+ * Datos de un formulario como CSV de dos filas (nombres y valores), para una
+ * hoja de cálculo. Separado por punto y coma si en esta región la coma es la
+ * de los decimales (como hace Excel), y con BOM para que se lea como UTF-8.
+ */
+function formCsv(data: Record<string, unknown>): string {
+  const decimal = new Intl.NumberFormat(locale).formatToParts(1.5).find((part) => part.type === 'decimal')?.value
+  const separator = decimal === ',' ? ';' : ','
+  const cell = (value: unknown): string => {
+    let text =
+      typeof value === 'boolean' ? (value ? L.common.yes : L.common.no) : Array.isArray(value) ? value.map(String).join('; ') : String(value ?? '')
+    // Un valor que empieza por = + - @ (o un tabulador) se ejecutaría como
+    // fórmula al abrir el CSV en una hoja de cálculo: se neutraliza (inyección CSV, A05:2025).
+    if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`
+    return /["\r\n]/.test(text) || text.includes(separator) ? `"${text.replace(/"/g, '""')}"` : text
+  }
+  const names = Object.keys(data)
+  return `\uFEFF${names.map(cell).join(separator)}\r\n${names.map((name) => cell(data[name])).join(separator)}\r\n`
+}
+
 export class Bridge {
   private window: BrowserWindow | null = null
   /** Ruta en disco de cada documento abierto (null si aún no se ha guardado). */
@@ -154,6 +191,10 @@ export class Bridge {
   private readonly pendingOpens = new Map<string, string>()
   /** Archivos .pfx elegidos por el usuario para firmar. */
   private readonly pfxFiles = new Map<string, string>()
+  /** Archivo elegido para insertar sus páginas que espera contraseña o una lista de páginas válida. */
+  private pendingInsert: { token: string; path: string } | null = null
+  /** Archivos que se combinan y esperan la contraseña de uno de ellos (``asking``). */
+  private pendingMerge: { token: string; paths: string[]; passwords: Map<string, string>; asking: string } | null = null
   /** Identificador de llamada de la interfaz → identificador interno del motor. */
   private readonly calls = new Map<number, number>()
   /** Impresiones en preparación que la interfaz puede cancelar, por identificador de llamada. */
@@ -629,35 +670,79 @@ export class Bridge {
       }
     })
 
-    this.handle('files:newBlank', z.undefined(), async () => {
-      const { result } = await this.engine.request<DocDescriptor>('doc.create', {}, { priority: 9 })
-      return adopt(result)
-    })
-
-    this.handle('files:merge', z.undefined(), async () => {
-      const chosen = await dialog.showOpenDialog(this.requireWindow(), {
-        title: L.main.dialogs.pickMerge,
-        properties: ['openFile', 'multiSelections'],
-        filters: openFilters()
-      })
-      if (chosen.canceled || chosen.filePaths.length === 0) return null
-      if (chosen.filePaths.length < 2) {
-        throw new EngineError({ code: 'invalid_params', message: L.main.errors.mergeTwo })
+    // Tamaño de página en puntos y número de páginas, con los límites del motor
+    // (engine/molino_engine/ops/pages.py: MIN_SIDE, MAX_SIDE, MAX_NEW_PAGES).
+    const Side = z.number().min(3).max(14_400)
+    this.handle(
+      'files:newBlank',
+      z.object({ width: Side, height: Side, count: z.number().int().min(1).max(500) }).strict().optional(),
+      async (options) => {
+        const { result } = await this.engine.request<DocDescriptor>('doc.create', options ?? {}, { priority: 9 })
+        return adopt(result)
       }
-      const { result } = await this.engine.request<DocDescriptor>('doc.merge', { paths: chosen.filePaths }, { priority: 9 })
-      return adopt(result)
-    })
+    )
 
-    this.handle('files:fromImages', z.undefined(), async () => {
-      const chosen = await dialog.showOpenDialog(this.requireWindow(), {
-        title: L.main.dialogs.pickImages,
-        properties: ['openFile', 'multiSelections'],
-        filters: [{ name: L.main.filters.images, extensions: IMAGE_EXTENSIONS }]
-      })
-      if (chosen.canceled || chosen.filePaths.length === 0) return null
-      const { result } = await this.engine.request<DocDescriptor>('doc.fromImages', { paths: chosen.filePaths }, { priority: 9 })
-      return adopt(result)
-    })
+    // Sin opciones se eligen los archivos; con ellas se reintenta la combinación
+    // elegida antes, con la contraseña del archivo que la pedía.
+    this.handle(
+      'files:merge',
+      z.object({ token: Token, password: z.string().max(1024) }).strict().optional(),
+      async (retry): Promise<OpenOutcome | null> => {
+        let paths: string[]
+        let passwords: Map<string, string>
+        if (retry) {
+          const pending = this.pendingMerge
+          if (!pending || pending.token !== retry.token) {
+            throw new EngineError({ code: 'not_found', message: L.main.errors.pickFileAgain })
+          }
+          pending.passwords.set(pending.asking, retry.password)
+          ;({ paths, passwords } = pending)
+        } else {
+          const chosen = await dialog.showOpenDialog(this.requireWindow(), {
+            title: L.main.dialogs.pickMerge,
+            properties: ['openFile', 'multiSelections'],
+            filters: openFilters()
+          })
+          if (chosen.canceled || chosen.filePaths.length === 0) return null
+          if (chosen.filePaths.length < 2) {
+            throw new EngineError({ code: 'invalid_params', message: L.main.errors.mergeTwo })
+          }
+          paths = chosen.filePaths
+          passwords = new Map()
+        }
+        this.pendingMerge = null
+        try {
+          const params = passwords.size > 0 ? { paths, passwords: Object.fromEntries(passwords) } : { paths }
+          const { result } = await this.engine.request<DocDescriptor>('doc.merge', params, { priority: 9 })
+          return adopt(result)
+        } catch (error) {
+          if (!(error instanceof EngineError)) throw error
+          const info = error.toInfo()
+          const index = intBelow(info.detail?.index, paths.length)
+          if (!sourceLocked(info) || index === null) throw error
+          // La interfaz pide la contraseña de ese archivo; solo recibe su nombre,
+          // no la ruta (el detalle del error del motor la lleva).
+          const id = token()
+          this.pendingMerge = { token: id, paths, passwords, asking: paths[index] }
+          return { ok: false, name: basename(paths[index]), error: { code: info.code, message: info.message }, token: id }
+        }
+      }
+    )
+
+    this.handle(
+      'files:fromImages',
+      z.object({ mode: z.enum(['auto', 'a4', 'letter', 'image']), margin: z.number().min(0).max(200) }).strict().optional(),
+      async (options) => {
+        const chosen = await dialog.showOpenDialog(this.requireWindow(), {
+          title: L.main.dialogs.pickImages,
+          properties: ['openFile', 'multiSelections'],
+          filters: [{ name: L.main.filters.images, extensions: IMAGE_EXTENSIONS }]
+        })
+        if (chosen.canceled || chosen.filePaths.length === 0) return null
+        const { result } = await this.engine.request<DocDescriptor>('doc.fromImages', { ...options, paths: chosen.filePaths }, { priority: 9 })
+        return adopt(result)
+      }
+    )
 
     // ---- digitalizar: fotos o escáner → PDF (engine/molino_engine/ops/scan.py)
     this.handle('scan:devices', z.undefined(), () => listScanners())
@@ -731,20 +816,78 @@ export class Bridge {
     )
 
     // ---- páginas con archivos
-    this.handle('files:insertPages', z.object({ doc: DocId, before: PageId.nullable() }), async ({ doc, before }) => {
-      this.docPath(doc)
-      const chosen = await dialog.showOpenDialog(this.requireWindow(), {
-        title: L.main.dialogs.insertPages,
-        properties: ['openFile'],
-        filters: openFilters()
+    // Páginas de otro archivo: todas o las de ``pick`` (posiciones desde 0, en
+    // ese orden). Si el archivo pide contraseña o no tiene esas páginas, se
+    // devuelve un identificador para reintentar sin volver a elegirlo.
+    this.handle(
+      'files:insertPages',
+      z
+        .object({
+          doc: DocId,
+          before: PageId.nullable(),
+          pick: z.array(z.number().int().min(0).max(99_999)).min(1).max(100_000).optional(),
+          token: Token.optional(),
+          password: z.string().max(1024).optional()
+        })
+        .strict(),
+      async ({ doc, before, pick, token: retry, password }): Promise<InsertOutcome | null> => {
+        this.docPath(doc)
+        let path: string
+        if (retry) {
+          if (this.pendingInsert?.token !== retry) throw new EngineError({ code: 'not_found', message: L.main.errors.pickFileAgain })
+          path = this.pendingInsert.path
+        } else {
+          const chosen = await dialog.showOpenDialog(this.requireWindow(), {
+            title: L.main.dialogs.insertPages,
+            properties: ['openFile'],
+            filters: openFilters()
+          })
+          if (chosen.canceled || chosen.filePaths.length === 0) return null
+          path = chosen.filePaths[0]
+        }
+        this.pendingInsert = null
+        const name = basename(path)
+        const params: Record<string, unknown> = { doc, path, before }
+        if (pick) params.pick = pick
+        if (password !== undefined) params.password = password
+        try {
+          const { result } = await this.engine.request<MutationResult>('pages.insertFile', params, { priority: 9 })
+          return { ok: true, name, result }
+        } catch (error) {
+          if (!(error instanceof EngineError)) throw error
+          const info = error.toInfo()
+          // «El archivo no tiene alguna de las páginas indicadas»: se dice cuántas tiene.
+          const pages = info.code === 'invalid_params' && pick ? intBelow(info.detail?.pages, 100_001) : null
+          if (!sourceLocked(info) && pages === null) throw error
+          const id = token()
+          this.pendingInsert = { token: id, path }
+          return { ok: false, name, token: id, error: { code: info.code, message: info.message, ...(pages !== null ? { detail: { pages } } : {}) } }
+        }
+      }
+    )
+
+    // ---- datos de un formulario a JSON (los lee «molino rellenar») o a CSV (hoja de cálculo)
+    this.handle('files:exportFormData', z.object({ doc: DocId, format: z.enum(['json', 'csv']) }).strict(), async ({ doc, format }) => {
+      const current = this.docPath(doc)
+      const { result } = await this.engine.request<{ data: Record<string, unknown> }>('form.exportData', { doc }, { priority: 9 })
+      if (Object.keys(result.data).length === 0) {
+        throw new EngineError({ code: 'invalid_params', message: L.main.errors.noFormData })
+      }
+      const name = (current ? basename(current) : await this.docName(doc)).replace(/\.pdf$/i, '')
+      const chosen = await dialog.showSaveDialog(this.requireWindow(), {
+        title: L.main.dialogs.exportFormData,
+        defaultPath: join(current ? dirname(current) : app.getPath('documents'), `${fmt(L.main.fileNames.formData, { name })}.${format}`),
+        filters: [{ name: format === 'json' ? 'JSON' : 'CSV', extensions: [format] }]
       })
-      if (chosen.canceled || chosen.filePaths.length === 0) return null
-      const { result } = await this.engine.request<MutationResult>(
-        'pages.insertFile',
-        { doc, path: chosen.filePaths[0], before },
-        { priority: 9 }
-      )
-      return result
+      if (chosen.canceled || !chosen.filePath) return { done: false } satisfies ExportOutcome
+      const path = chosen.filePath.toLowerCase().endsWith(`.${format}`) ? chosen.filePath : `${chosen.filePath}.${format}`
+      // El diálogo del sistema ya ha preguntado si se reemplaza un archivo existente.
+      try {
+        await writeFile(path, format === 'json' ? `${JSON.stringify(result.data, null, 2)}\n` : formCsv(result.data), 'utf8')
+      } catch {
+        throw new EngineError({ code: 'io_error', message: L.main.errors.writeFailed })
+      }
+      return { done: true, files: [path], detail: { fields: Object.keys(result.data).length } } satisfies ExportOutcome
     })
 
     this.handle('files:extractPages', z.object({ doc: DocId, pages: z.array(PageId).min(1).max(100000) }), async ({ doc, pages }) => {

@@ -14,6 +14,37 @@ export const dialogs: typeof source = {
     action: 'Unlock',
     wrong: 'That isn’t the owner password.'
   },
+  create: {
+    blank: {
+      title: 'Blank document',
+      run: 'Create'
+    },
+    images: {
+      title: 'Images to PDF',
+      run: 'Choose images…',
+      paper: 'Page size',
+      modes: {
+        auto: 'Automatic',
+        image: 'Each image’s own size',
+        a4: 'A4',
+        letter: 'Letter'
+      },
+      hints: {
+        auto: 'Each page is the size of its image; large photos are fitted to A4.',
+        image: 'Each page is exactly the size of its image.',
+        a4: 'Every page in A4, landscape if the image is. The image is fitted without distortion.',
+        letter: 'Every page in Letter size, landscape if the image is. The image is fitted without distortion.'
+      },
+      margin: 'Margin around the image'
+    },
+    mergePassword: {
+      title: 'Protected file',
+      message: '“{name}” needs a password to be combined.',
+      restricted: 'The author of “{name}” doesn’t allow its pages to be reused. Type its owner password to combine it.',
+      label: 'Password',
+      run: 'Combine'
+    }
+  },
   settings: {
     title: 'Settings',
     done: 'Done',

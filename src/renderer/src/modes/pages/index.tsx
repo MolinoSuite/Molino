@@ -1,15 +1,17 @@
-import { Check, Copy, FileOutput, FilePlus, FileUp, Plus, RotateCcw, RotateCw, Split, Trash } from 'lucide-react'
+import { Check, CircleAlert, Copy, FileOutput, FilePlus, FileUp, Plus, RotateCcw, RotateCw, Split, Trash } from 'lucide-react'
 import { type DragEvent, memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { MutationResult, PageInfo } from '@shared/types'
+import type { EngineErrorInfo, MutationResult, PageInfo } from '@shared/types'
 import { type CustomDialogProps, registerDialog } from '@/components/Dialogs'
 import { useThumb } from '@/lib/thumb'
 import { Dialog, Field, MenuButton, Segmented } from '@/components/ui'
 import { L, fmt, plural } from '@/i18n'
-import { trackProgress, unwrap } from '@/lib/api'
+import { errorMessage, trackProgress, unwrap } from '@/lib/api'
+import { parsePageList } from '@/lib/pageRange'
 import { cn } from '@/lib/util'
 import { viewerOf } from '@/lib/viewerControl'
 import { mutate, setMode, toastError } from '@/state/actions'
 import { type DocView, useApp } from '@/state/app'
+import { type BlankPages, BlankPagesFields, blankSize } from '../common/BlankPages'
 import { NumberField } from '../common/controls'
 
 const CELL_WIDTH = 132
@@ -147,24 +149,13 @@ export function PagesStage({ doc }: { doc: DocView }) {
     [doc.id]
   )
 
-  const insertBlank = async (): Promise<void> => {
+  // Insertar (páginas en blanco o de otro archivo) tras la selección: el diálogo
+  // recibe dónde y avisa de las páginas creadas para seleccionarlas.
+  const insert = (dialog: 'insertBlank' | 'insertFile'): void => {
     const last = ordered(selected).at(-1)
     const position = last ? ids.indexOf(last) + 1 : ids.length
-    const result = await mutate<MutationResult & { created?: string[] }>(doc.id, 'pages.insertBlank', { before: ids[position] ?? null })
-    if (result?.created?.length) setSelected(result.created)
-  }
-
-  const insertFile = async (): Promise<void> => {
-    const last = ordered(selected).at(-1)
-    const position = last ? ids.indexOf(last) + 1 : ids.length
-    try {
-      const result = unwrap(await window.molino.files.insertPages(doc.id, ids[position] ?? null)) as (MutationResult & { created?: string[] }) | null
-      if (!result) return
-      useApp.getState().applyResult(doc.id, result)
-      if (result.created?.length) setSelected(result.created)
-    } catch (error) {
-      toastError(error)
-    }
+    const data: InsertData = { before: ids[position] ?? null, onCreated: (created) => created.length > 0 && setSelected(created) }
+    useApp.getState().openDialog({ type: 'custom', id: dialog, doc: doc.id, data: { ...data } })
   }
 
   const duplicate = async (): Promise<void> => {
@@ -251,8 +242,8 @@ export function PagesStage({ doc }: { doc: DocView }) {
           className="tool"
           tip={L.pages.insertTip}
           entries={[
-            { label: L.pages.insertBlank, icon: <FilePlus size={16} />, onSelect: () => void insertBlank() },
-            { label: L.pages.insertFile, icon: <FileUp size={16} />, onSelect: () => void insertFile() }
+            { label: L.pages.insertBlank, icon: <FilePlus size={16} />, onSelect: () => insert('insertBlank') },
+            { label: L.pages.insertFile, icon: <FileUp size={16} />, onSelect: () => insert('insertFile') }
           ]}
         >
           <Plus size={16} />
@@ -400,4 +391,178 @@ function SplitDialog({ doc: docId }: CustomDialogProps) {
   )
 }
 
+/** Lo que reciben los diálogos de insertar: antes de qué página (null: al final) y qué hacer con las nuevas. */
+interface InsertData {
+  before: string | null
+  onCreated: (created: string[]) => void
+}
+
+function insertData(data: Record<string, unknown> | undefined): InsertData {
+  return {
+    before: typeof data?.before === 'string' ? data.before : null,
+    onCreated: typeof data?.onCreated === 'function' ? (data.onCreated as InsertData['onCreated']) : () => undefined
+  }
+}
+
+function InsertBlankDialog({ doc: docId, data }: CustomDialogProps) {
+  const close = useApp((s) => s.closeDialog)
+  const doc = useApp((s) => (docId ? s.docs[docId] : undefined))
+  const [value, setValue] = useState<BlankPages>({ paper: 'same', landscape: false, count: 1 })
+  if (!doc) return null
+  const T = L.pages.insertBlankDialog
+  const run = async (): Promise<void> => {
+    close()
+    const { before, onCreated } = insertData(data)
+    const result = await mutate<MutationResult & { created?: string[] }>(doc.id, 'pages.insertBlank', { before, count: value.count, ...blankSize(value) })
+    if (result?.created) onCreated(result.created)
+  }
+  return (
+    <Dialog
+      title={T.title}
+      onClose={close}
+      footer={
+        <>
+          <button className="btn" onClick={close}>
+            {L.common.cancel}
+          </button>
+          <button className="btn primary" data-autofocus onClick={() => void run()}>
+            {T.run}
+          </button>
+        </>
+      }
+    >
+      <BlankPagesFields value={value} onChange={setValue} allowSame />
+    </Dialog>
+  )
+}
+
+/**
+ * Insertar páginas de otro archivo: todas o algunas, y con su contraseña si la
+ * pide. El archivo se elige al pulsar el botón; si falta la contraseña o no
+ * tiene esas páginas, el diálogo sigue abierto y se reintenta con el mismo.
+ */
+function InsertFileDialog({ doc: docId, data }: CustomDialogProps) {
+  const close = useApp((s) => s.closeDialog)
+  const doc = useApp((s) => (docId ? s.docs[docId] : undefined))
+  const [mode, setModeValue] = useState<'all' | 'some'>('all')
+  const [text, setText] = useState('')
+  const [file, setFile] = useState<{ token: string; name: string; error: EngineErrorInfo } | null>(null)
+  // El archivo elegido ha pedido contraseña (se sigue enviando aunque el error siguiente sea otro).
+  const [locked, setLocked] = useState(false)
+  const [password, setPassword] = useState('')
+  const [failure, setFailure] = useState('')
+  const [working, setWorking] = useState(false)
+  if (!doc) return null
+  const T = L.pages.insertFileDialog
+  const pick = mode === 'some' ? parsePageList(text, null) : undefined
+  const count = typeof file?.error.detail?.pages === 'number' ? file.error.detail.pages : null
+  const ready = pick !== null && (!locked || password.length > 0)
+
+  const run = async (again: boolean): Promise<void> => {
+    if (pick === null || working) return
+    const retry = again && file ? { token: file.token, ...(password ? { password } : {}) } : {}
+    setWorking(true)
+    setFailure('')
+    try {
+      const { before, onCreated } = insertData(data)
+      const outcome = unwrap(await window.molino.files.insertPages(doc.id, before, { ...(pick ? { pick } : {}), ...retry }))
+      if (!outcome) return
+      if (outcome.ok) {
+        close()
+        useApp.getState().applyResult(doc.id, outcome.result)
+        const created = (outcome.result as MutationResult & { created?: string[] }).created
+        if (created) onCreated(created)
+        return
+      }
+      const asks = outcome.error.code !== 'invalid_params'
+      if (!again) setPassword('')
+      setLocked((current) => (again ? current || asks : asks))
+      if (outcome.error.code === 'wrong_password') setPassword('')
+      setFile({ token: outcome.token, name: outcome.name, error: outcome.error })
+    } catch (error) {
+      // Ese archivo no sirve (no es un PDF, está dañado…): se puede elegir otro.
+      setFile(null)
+      setLocked(false)
+      setPassword('')
+      setFailure(errorMessage(error))
+    } finally {
+      setWorking(false)
+    }
+  }
+
+  return (
+    <Dialog
+      title={T.title}
+      onClose={close}
+      footer={
+        <>
+          {file && (
+            <button className="btn ghost" disabled={working} onClick={() => void run(false)}>
+              {T.other}
+            </button>
+          )}
+          <div className="spacer" />
+          <button className="btn" onClick={close}>
+            {L.common.cancel}
+          </button>
+          <button className="btn primary" disabled={!ready || working} onClick={() => void run(file !== null)}>
+            {file ? T.retry : T.run}
+          </button>
+        </>
+      }
+    >
+      <Field label={T.pagesLabel}>
+        <div className="row">
+          <Segmented
+            value={mode}
+            options={[
+              { value: 'all', label: T.all },
+              { value: 'some', label: T.some }
+            ]}
+            onChange={setModeValue}
+          />
+          <input
+            className="input sm grow"
+            aria-label={T.pagesLabel}
+            placeholder={T.placeholder}
+            maxLength={200}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value)
+              setModeValue('some')
+            }}
+          />
+        </div>
+        {mode === 'some' && text.trim() !== '' && pick === null && <span className="error-text">{T.badList}</span>}
+      </Field>
+      {file && (
+        <div className="notice warn">
+          <CircleAlert size={15} />
+          <span>
+            <b>{file.name}</b>: {file.error.message}
+            {count !== null && ` ${plural(T.hasPages, count)}`}
+          </span>
+        </div>
+      )}
+      {locked && (
+        <Field label={T.password}>
+          <input
+            className="input"
+            type="password"
+            autoComplete="off"
+            maxLength={1024}
+            value={password}
+            autoFocus
+            onChange={(event) => setPassword(event.target.value)}
+            onKeyDown={(event) => event.key === 'Enter' && ready && void run(true)}
+          />
+        </Field>
+      )}
+      {failure && <span className="error-text">{failure}</span>}
+    </Dialog>
+  )
+}
+
 registerDialog('split', SplitDialog)
+registerDialog('insertBlank', InsertBlankDialog)
+registerDialog('insertFile', InsertFileDialog)

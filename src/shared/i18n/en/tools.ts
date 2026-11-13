@@ -188,6 +188,7 @@ export const tools: typeof source = {
     card: 'Text or an image over every page.',
     defaultText: 'CONFIDENTIAL',
     run: 'Add to all pages',
+    runSome: { one: 'Add to {n} page', other: 'Add to {n} pages' },
     busy: 'Adding watermark',
     text: 'Text',
     image: 'Image',
@@ -199,7 +200,19 @@ export const tools: typeof source = {
     size: 'Size (page width)',
     diagonal: 'Diagonal',
     tile: 'Repeat across the page',
-    background: 'Behind the content'
+    background: 'Behind the content',
+    position: 'Position',
+    positions: {
+      center: 'Center',
+      'top-left': 'Top left',
+      top: 'Top center',
+      'top-right': 'Top right',
+      left: 'Middle left',
+      right: 'Middle right',
+      'bottom-left': 'Bottom left',
+      bottom: 'Bottom center',
+      'bottom-right': 'Bottom right'
+    }
   },
   headerFooter: {
     title: 'Header and footer',
@@ -213,7 +226,11 @@ export const tools: typeof source = {
     left: 'Left',
     center: 'Center',
     right: 'Right',
-    fontSize: 'Font size'
+    fontSize: 'Font size',
+    start: 'Start at',
+    dateFormat: 'Date',
+    dateShort: 'Short: 01/31/2026',
+    dateLong: 'Long: January 31, 2026'
   },
   pageNumbers: {
     title: 'Page numbers',

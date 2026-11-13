@@ -22,7 +22,10 @@ export const main = {
     tooManyPhotos: 'Elige como mucho 100 fotos cada vez; puedes añadir más después.',
     compressedSameName: 'Guarda la copia comprimida con otro nombre para conservar el original.',
     pickPfxAgain: 'Vuelve a elegir el archivo de certificado.',
-    printNotAllowed: 'El autor de este PDF no permite imprimirlo.'
+    printNotAllowed: 'El autor de este PDF no permite imprimirlo.',
+    pickFileAgain: 'Vuelve a elegir el archivo.',
+    noFormData: 'Este documento no tiene campos de formulario que exportar.',
+    writeFailed: 'No se pudo guardar el archivo.'
   },
   /** Títulos de los diálogos de Windows para abrir y guardar (ipc.ts). */
   dialogs: {
@@ -38,7 +41,8 @@ export const main = {
     saveCompressed: 'Guardar copia comprimida',
     exportText: 'Exportar a texto',
     exportWord: 'Exportar a Word',
-    pickPfx: 'Elegir archivo de certificado'
+    pickPfx: 'Elegir archivo de certificado',
+    exportFormData: 'Exportar los datos del formulario'
   },
   /** Nombres de los filtros de archivos de esos diálogos. */
   filters: {
@@ -51,7 +55,8 @@ export const main = {
   /** Nombres que se proponen al guardar. */
   fileNames: {
     extract: '{name}-extracto.pdf',
-    compressedSuffix: '-comprimido'
+    compressedSuffix: '-comprimido',
+    formData: '{name}-datos'
   },
   /** Pregunta antes de abrir un enlace de un PDF. */
   link: {

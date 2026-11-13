@@ -41,7 +41,8 @@ export const shell = {
       reorderPages: 'Ordenar las páginas',
       duplicatePages: 'Duplicar páginas',
       fillForm: 'Rellenar el formulario',
-      designForm: 'Diseñar el formulario'
+      designForm: 'Diseñar el formulario',
+      exportFormData: 'Exportar los datos del formulario'
     },
     keywords: {
       open: 'abrir archivo documento pdf cargar',
@@ -70,6 +71,7 @@ export const shell = {
       whiteout: 'tapar blanco borrar ocultar corrector tipex',
       content: 'editar cambiar texto existente modificar corregir',
       field: 'campo formulario rellenable crear',
+      formData: 'exportar datos formulario json csv hoja de calculo',
       signature: 'firma manuscrita firmar rubrica',
       fillText: 'texto escribir rellenar',
       check: 'marca visto tick casilla',
@@ -121,7 +123,7 @@ export const shell = {
     menuTip: 'Menú',
     create: {
       open: 'Abrir…',
-      blank: 'Documento en blanco',
+      blank: 'Documento en blanco…',
       merge: 'Combinar archivos…',
       images: 'Imágenes a PDF…',
       scan: 'Digitalizar documento…'

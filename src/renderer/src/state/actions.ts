@@ -1,4 +1,4 @@
-import type { OpenOutcome } from '@shared/api'
+import type { BlankOptions, ImagesOptions, OpenOutcome } from '@shared/api'
 import { printDoc } from './print'
 import type { DocDescriptor, FontFamily, MutationResult } from '@shared/types'
 import { L, fmt } from '@/i18n'
@@ -167,9 +167,28 @@ async function openCreated(run: () => Promise<OpenOutcome | null>): Promise<void
   }
 }
 
-export const newBlank = (): Promise<void> => openCreated(async () => unwrap(await window.molino.files.newBlank()))
-export const mergeFiles = (): Promise<void> => openCreated(async () => unwrap(await window.molino.files.merge()))
-export const imagesToPdf = (): Promise<void> => openCreated(async () => unwrap(await window.molino.files.fromImages()))
+/** Documento en blanco: primero se elige el tamaño y cuántas páginas (components/CreateDialogs.tsx). */
+export const newBlank = async (): Promise<void> => app().openDialog({ type: 'custom', id: 'newBlank' })
+export const createBlank = (options: BlankOptions): Promise<void> =>
+  openCreated(async () => unwrap(await window.molino.files.newBlank(options)))
+
+/** Si uno de los archivos que se combinan pide contraseña, se pregunta y se vuelve a intentar. */
+function askMergePassword(outcome: OpenOutcome | null): OpenOutcome | null {
+  if (outcome && !outcome.ok && outcome.token) {
+    const { token, name, error } = outcome
+    app().openDialog({ type: 'custom', id: 'mergePassword', data: { token, name, code: error.code, message: error.message } })
+    return null
+  }
+  return outcome
+}
+export const mergeFiles = (): Promise<void> => openCreated(async () => askMergePassword(unwrap(await window.molino.files.merge())))
+export const retryMerge = (token: string, password: string): Promise<void> =>
+  openCreated(async () => askMergePassword(unwrap(await window.molino.files.merge({ token, password }))))
+
+/** Imágenes a PDF: primero el tamaño de página y el margen, después se eligen las imágenes. */
+export const imagesToPdf = async (): Promise<void> => app().openDialog({ type: 'custom', id: 'imagesToPdf' })
+export const createFromImages = (options: ImagesOptions): Promise<void> =>
+  openCreated(async () => unwrap(await window.molino.files.fromImages(options)))
 
 // -------------------------------------------------------------------- guardar
 

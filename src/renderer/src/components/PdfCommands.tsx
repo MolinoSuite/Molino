@@ -87,6 +87,7 @@ function commands(doc: DocView | undefined, aiOn: boolean): PdfCommand[] {
 
     add('fill', C.labels.fillForm, G.form, K.field, go('form'))
     add('design', C.labels.designForm, G.form, K.field, go('form', 'design'))
+    add('formData', C.labels.exportFormData, G.form, K.formData, go('form'))
     const F = L.form.create
     add('f-text', F.text.label, G.form, K.field, go('form', 'f-text'))
     add('f-check', F.checkbox.label, G.form, K.field, go('form', 'f-check'))
