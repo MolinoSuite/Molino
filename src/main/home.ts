@@ -30,7 +30,7 @@ export interface HomeOptions {
   openFiles(paths: string[]): Promise<void>
   dark(): boolean
   /** Molino PDF instalado aparte (pdfapart.ts). */
-  pdfApart: { installed(): boolean; remove(): Promise<'removed' | 'settings'> }
+  pdfApart: { installed(): boolean; imported(): boolean; remove(): Promise<'removed' | 'settings'> }
 }
 
 export class HomeWindow {
@@ -136,7 +136,10 @@ export class HomeWindow {
   private registerIpc(): void {
     const apps = new Set<HomeApp>(['pdf', ...OFFICE_KINDS])
     ipcMain.handle('home:apps', async (event) => (this.trusted(event) ? this.options.apps() : null))
-    ipcMain.handle('home:pdfApart', (event) => Boolean(this.trusted(event)) && this.options.pdfApart.installed())
+    ipcMain.handle('home:pdfApart', (event) => {
+      if (!this.trusted(event) || !this.options.pdfApart.installed()) return null
+      return this.options.pdfApart.imported() ? 'imported' : 'separate'
+    })
     let removing = false
     ipcMain.handle('home:removePdfApart', async (event) => {
       if (!this.trusted(event) || removing) return null

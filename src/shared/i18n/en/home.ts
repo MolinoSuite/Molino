@@ -5,6 +5,7 @@ export const home: typeof es = {
   pdfApart: {
     title: 'Molino PDF is already inside Molino Suite',
     text: 'You had the Molino PDF app installed separately. Molino Suite already includes it and has brought your settings, recent files, signatures and AI. Uninstall the other one so you don’t have two “Molino PDF” entries in the Start menu.',
+    textSeparate: 'You had the Molino PDF app installed separately. Molino Suite already includes it: uninstall the other one so you don’t have two “Molino PDF” entries in the Start menu.',
     remove: 'Uninstall the other one',
     removing: 'Uninstalling…',
     later: 'Not now',

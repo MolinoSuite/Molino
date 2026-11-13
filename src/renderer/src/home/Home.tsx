@@ -48,7 +48,7 @@ export function Home() {
   }, [notice])
 
   // Molino PDF instalado aparte (Molino Suite ya lo incluye): aviso importante, con un botón para quitarlo.
-  const [pdfApart, setPdfApart] = useState(false)
+  const [pdfApart, setPdfApart] = useState<'imported' | 'separate' | null>(null)
   const [pdfLater, setPdfLater] = useState(false)
   const [removing, setRemoving] = useState(false)
   const removePdf = async (): Promise<void> => {
@@ -56,7 +56,7 @@ export function Home() {
     const result = await window.molinoHome.removePdfApart().catch(() => null)
     setRemoving(false)
     if (result === 'removed') {
-      setPdfApart(false)
+      setPdfApart(null)
       setNotice(H.pdfApart.removed)
     } else if (result === 'settings') setNotice(H.pdfApart.settings)
   }
@@ -117,7 +117,7 @@ export function Home() {
                 <CircleAlert size={20} />
                 <div>
                   <strong>{H.pdfApart.title}</strong>
-                  <p>{H.pdfApart.text}</p>
+                  <p>{pdfApart === 'imported' ? H.pdfApart.text : H.pdfApart.textSeparate}</p>
                   <div className="home-important-actions">
                     <button className="btn primary" disabled={removing} onClick={() => void removePdf()}>
                       {removing ? H.pdfApart.removing : H.pdfApart.remove}

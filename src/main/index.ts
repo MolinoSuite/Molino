@@ -309,6 +309,8 @@ void app.whenReady().then(async () => {
     // Molino PDF instalado aparte: antes de quitarlo, la IA que tuviera se trae (si falta).
     pdfApart: {
       installed: separatePdfInstalled,
+      // La suite trajo los datos de ese Molino PDF al abrirse por primera vez (migrate.ts).
+      imported: () => existsSync(join(app.getPath('userData'), 'desde-molino-pdf.json')),
       remove: async () => {
         await bridge?.adoptLegacyAi()
         return removeSeparatePdf()
