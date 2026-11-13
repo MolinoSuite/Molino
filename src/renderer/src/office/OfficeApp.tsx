@@ -688,6 +688,19 @@ function ToolBar({ mode, state, run }: { mode: Mode; state: EditorState | null; 
     }
   }, [more])
 
+  // Por si las medidas se quedan cortas (un panel que aparece a la vez, letras que
+  // tardan en cargar): si la barra se sale, un grupo más pasa a «Más».
+  useLayoutEffect(() => {
+    const element = bar.current
+    const pill = element?.querySelector<HTMLElement>(':scope > .office-pill')
+    if (!element || !pill || shown <= 1) return
+    // Solo los grupos y «Más»: las etiquetas emergentes (invisibles) también desbordan y no cuentan.
+    const limit = Math.min(pill.getBoundingClientRect().right - parseFloat(getComputedStyle(pill).paddingRight), element.getBoundingClientRect().right)
+    const parts = pill.querySelectorAll<HTMLElement>(':scope > .office-group, :scope > .office-more')
+    const right = Math.max(...[...parts].map((part) => part.getBoundingClientRect().right))
+    if (right > limit + 1) setShown(shown - 1)
+  })
+
   const hidden = mode.groups.slice(shown)
   // Una herramienta de «Más» cierra «Más» (sus menús y colores, al elegir).
   const runFromMore = (command: string, value?: string): boolean | undefined => {
