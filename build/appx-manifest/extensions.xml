@@ -7,3 +7,10 @@
               <desktop:ExecutionAlias Alias="molino-pdf.exe" />
             </uap3:AppExecutionAlias>
           </uap3:Extension>
+          <!-- "molino ..." desde la linea de ordenes (docs/linea-de-ordenes.md): el motor en
+               modo consola hace de lanzador (engine/molino_engine/cli.py). -->
+          <uap3:Extension Category="windows.appExecutionAlias" Executable="app\resources\engine\molino-engine.exe" EntryPoint="Windows.FullTrustApplication">
+            <uap3:AppExecutionAlias>
+              <desktop:ExecutionAlias Alias="molino.exe" />
+            </uap3:AppExecutionAlias>
+          </uap3:Extension>

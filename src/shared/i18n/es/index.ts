@@ -19,6 +19,7 @@ import { ai } from './ai'
 import { main } from './main'
 import { office } from './office'
 import { home } from './home'
+import { cli } from './cli'
 
 export const es = {
   common,
@@ -40,5 +41,6 @@ export const es = {
   main,
   ai,
   office,
-  home
+  home,
+  cli
 }

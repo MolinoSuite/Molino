@@ -42,6 +42,8 @@ async function shareExtraFonts(): Promise<void> {
   if (shared) bridge?.sendFontsChanged()
 }
 import { createWindow } from './window'
+import { cliArguments, runCli } from './cli'
+import { engineLaunchFor } from './enginelaunch'
 
 // Molino PDF; en la Store, la app del paquete (appx.ts). Las ventanas de las
 // demás apps llevan la suya (officeapps.ts).
@@ -60,8 +62,11 @@ if (!app.commandLine.hasSwitch('user-data-dir')) {
 // Una sola instancia por carpeta de datos: los archivos que se abran desde el
 // Explorador llegan a la ventana ya abierta, y nadie más usa la carpeta de trabajo
 // (por eso es seguro limpiarla al arrancar).
-const firstInstance = app.requestSingleInstanceLock()
-if (!firstInstance) {
+// La línea de órdenes (``molino convertir…``, cli.ts) no es una ventana más: no
+// pide el candado, trabaja en su propia carpeta y no toca la de la app abierta.
+const cliArgs = cliArguments(process.argv)
+const firstInstance = cliArgs ? false : app.requestSingleInstanceLock()
+if (!cliArgs && !firstInstance) {
   app.quit()
 }
 
@@ -124,28 +129,7 @@ function prepareWorkDir(): string {
 }
 
 function engineLaunch(): EngineLaunch {
-  if (app.isPackaged) {
-    const dir = join(process.resourcesPath, 'engine')
-    return {
-      command: join(dir, 'molino-engine.exe'),
-      args: [
-        '--workdir', workDir, '--resources', join(process.resourcesPath, 'assets'), '--models', modelsRoot, '--office', officeRoot,
-        ...(officeBundled ? ['--office-bundled', officeBundled] : [])
-      ],
-      cwd: dir
-    }
-  }
-  const root = app.getAppPath()
-  return {
-    command: join(root, 'engine', '.venv', 'Scripts', 'python.exe'),
-    // -E y -s: el intérprete ignora las variables PYTHON* y los paquetes del
-    // perfil del usuario, de modo que el entorno no puede inyectarle código.
-    args: [
-      '-E', '-s', '-m', 'molino_engine', '--workdir', workDir, '--resources', join(root, 'resources'), '--models', modelsRoot, '--office', officeRoot,
-      ...(officeBundled ? ['--office-bundled', officeBundled] : [])
-    ],
-    cwd: join(root, 'engine')
-  }
+  return engineLaunchFor({ workDir, modelsRoot, officeRoot, officeBundled })
 }
 
 /** El nombre del usuario de Windows (para firmar comentarios si no hay otro en Ajustes). */
@@ -239,9 +223,12 @@ app.on('second-instance', (_event, argv, cwd) => {
   void route(argv, cwd)
 })
 
-app.on('window-all-closed', () => app.quit())
+app.on('window-all-closed', () => {
+  if (!cliArgs) app.quit()
+})
 
 app.on('before-quit', (event) => {
+  if (cliArgs) return
   if (quitting) return
   quitting = true
   event.preventDefault()
@@ -252,6 +239,10 @@ app.on('before-quit', (event) => {
 })
 
 void app.whenReady().then(async () => {
+  if (cliArgs) {
+    app.exit(await runCli(cliArgs))
+    return
+  }
   initLog(join(localBase(), 'logs'))
   log.info(`${productName} ${app.getVersion()} iniciado${isStoreApp() ? ' (Microsoft Store)' : ''}`)
   // Sin rutas en el registro: solo qué archivos se trajeron.

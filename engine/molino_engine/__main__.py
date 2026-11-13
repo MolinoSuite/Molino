@@ -13,6 +13,7 @@ Modos (ver broker.py):
 * ``--ai-detect``: dice si un texto lleva la marca de agua de la IA de Molino PDF.
 * ``--ai-gpu``: escribe que grafica usaria la IA (proceso aislado de usar y tirar).
 * ``--remove-sandbox``: borra el contenedor (lo usa el desinstalador).
+* sin ``--workdir``: el comando ``molino`` de la linea de ordenes (cli.py).
 """
 
 from __future__ import annotations
@@ -98,6 +99,13 @@ def _tidy_container(own_base: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     arguments = sys.argv[1:] if argv is None else list(argv)
+    if not any(a == "--workdir" or a.startswith("--workdir=") for a in arguments) and arguments[:1] not in (
+        ["--word-worker"], ["--scan-worker"], ["--ai-worker"], ["--ai-gpu"], ["--ai-detect"], ["--remove-sandbox"]
+    ):
+        # El comando molino (alias del paquete): lanzador de la linea de ordenes (cli.py).
+        from .cli import main as cli_main
+
+        return cli_main(arguments)
     if arguments[:1] == ["--word-worker"]:
         # Se atiende antes que nada: no arranca el servidor ni toca el protocolo.
         from .wordworker import main as word_worker

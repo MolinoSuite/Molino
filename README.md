@@ -82,6 +82,8 @@ Cada aspa del molino es una app. En la Microsoft Store: **Molino PDF**, si solo 
 
 Para Windows 10 y 11 de 64 bits. Linux, más adelante.
 
+**Para automatizar:** el comando `molino` convierte, une, comprime, pasa el OCR, firma con certificado, rellena formularios e imprime desde PowerShell o un `.bat`, sin abrir ventanas. Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
+
 ## Apoya Molino
 
 Molino es gratis y lo seguirá siendo. Si te resulta útil, cuéntaselo a alguien, dale una ⭐ o invítame a un café en [GitHub Sponsors](https://github.com/sponsors/CuevasTech). ¿Ideas o algo que no va bien? Cuéntalo en [Issues](https://github.com/MolinoSuite/Molino/issues) o en [info@molinosuite.org](mailto:info@molinosuite.org).

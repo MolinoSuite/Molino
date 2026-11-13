@@ -10,6 +10,12 @@ import { join } from 'node:path'
 const MAX_BYTES = 1_000_000
 let logFile: string | null = null
 
+let quiet = false
+/** La línea de órdenes: el registro solo al archivo, nunca a la consola. */
+export function quietLog(): void {
+  quiet = true
+}
+
 export function initLog(dir: string): void {
   try {
     mkdirSync(dir, { recursive: true })
@@ -38,7 +44,7 @@ function clean(text: string): string {
 
 function write(level: string, message: string): void {
   const line = `${new Date().toISOString()} ${level} ${clean(message)}\n`
-  if (process.env.NODE_ENV !== 'production') process.stderr.write(line)
+  if (process.env.NODE_ENV !== 'production' && !quiet) process.stderr.write(line)
   if (!logFile) return
   try {
     rotate()

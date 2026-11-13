@@ -57,8 +57,10 @@
             </uap:SupportedFileTypes>
           </uap:FileTypeAssociation>
         </uap:Extension>
-        <!-- «molino archivo» desde la línea de órdenes: cada archivo se abre en su app. -->
-        <uap3:Extension Category="windows.appExecutionAlias" Executable="app\Molino.exe" EntryPoint="Windows.FullTrustApplication">
+        <!-- «molino …» desde la línea de órdenes (docs/linea-de-ordenes.md): el motor en modo
+             consola hace de lanzador (engine/molino_engine/cli.py, que abre Molino.exe sin ventanas).
+             «molino archivo» sigue abriendo cada archivo en su app. -->
+        <uap3:Extension Category="windows.appExecutionAlias" Executable="app\resources\engine\molino-engine.exe" EntryPoint="Windows.FullTrustApplication">
           <uap3:AppExecutionAlias>
             <desktop:ExecutionAlias Alias="molino.exe" />
           </uap3:AppExecutionAlias>

@@ -11,7 +11,8 @@ import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
 import type { OfficeAsk, OfficeTabs } from '@shared/officeui'
 import { installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
-import { cleanFontIndex, fontAllowed, fontFingerprint, fontFolders, loadFontIndex, ownFontsDir, saveFontIndex } from './officefonts'
+import { cleanFontIndex, fontAllowed, ownFontsDir } from './officefonts'
+import { configureOffice } from './officeconfig'
 import { OfficePrint } from './officeprint'
 import type { PrintService } from './print'
 
@@ -360,32 +361,7 @@ export class OfficeWindows {
 
   private async doConfigure(): Promise<void> {
     try {
-      const dir = await this.piece.ready()
-      if (!dir) {
-        this.setup = null
-        await this.engine.request('office.configure', {}, { priority: 9 })
-        return
-      }
-      const version = pieceVersion()
-      const own = ownFontsDir(this.piece.root)
-      const fingerprint = await fontFingerprint(version, own)
-      let index = await loadFontIndex(this.piece.root, fingerprint)
-      if (!index) {
-        await this.engine.request('office.configure', { piece: version }, { priority: 9 })
-        const { result, binary } = await this.engine.request<{ allFonts?: unknown }>('office.fonts', {}, { priority: 9 })
-        index = cleanFontIndex(typeof result.allFonts === 'string' ? result.allFonts : '')
-        if (!binary?.length) throw new Error('índice de fuentes sin font_selection.bin')
-        await saveFontIndex(this.piece.root, fingerprint, index.text, binary)
-        log.info(`oficina: índice de fuentes creado (${index.files.length} archivos)`)
-      }
-      await this.engine.request('office.configure', { piece: version, fonts: fingerprint }, { priority: 9 })
-      this.setup = {
-        piece: dir,
-        allFonts: index.text,
-        listed: new Set(index.files.map((f) => f.toLowerCase())),
-        families: new Set(index.families.map((f) => f.toLowerCase())),
-        folders: [...fontFolders(own), join(dir, 'fonts')]
-      }
+      this.setup = await configureOffice(this.engine, this.piece)
     } catch (error) {
       this.setup = null
       log.warn(`oficina: no se pudo preparar (${error instanceof Error ? `${error.name}: ${error.message.slice(0, 200)}` : '?'})`)

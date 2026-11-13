@@ -66,7 +66,7 @@ const cancelled = (): EngineError => new EngineError({ code: 'cancelled', messag
 const pt = (value: number): string => `${value.toFixed(2)}pt`
 
 /** Impresora predeterminada del usuario según Windows («Nombre,winspool,Ne00:»). */
-async function defaultPrinter(): Promise<string | null> {
+export async function defaultPrinter(): Promise<string | null> {
   const device = await regQuery('HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows', 'Device')
   if (!device) return null
   const match = /^(.*),winspool,[^,]*$/i.exec(device)

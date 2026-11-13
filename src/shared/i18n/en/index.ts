@@ -19,6 +19,7 @@ import { ai } from './ai'
 import { main } from './main'
 import { office } from './office'
 import { home } from './home'
+import { cli } from './cli'
 
 export const en: Messages = {
   common,
@@ -40,5 +41,6 @@ export const en: Messages = {
   main,
   ai,
   office,
-  home
+  home,
+  cli
 }
