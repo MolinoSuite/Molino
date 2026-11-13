@@ -11,7 +11,12 @@ export const form: typeof source = {
     clear: 'Clear',
     clearTip: 'Clear everything filled in',
     clearTitle: 'Clear the form',
-    clearMessage: 'Everything you typed in all the fields will be erased. You can undo it afterward.'
+    clearMessage: 'Everything you typed in all the fields will be erased. You can undo it afterward.',
+    export: 'Export data',
+    exportTip: 'Save what was filled in to a separate file',
+    exportJson: 'As JSON (.json)',
+    exportCsv: 'As a spreadsheet (.csv)',
+    exported: 'Form data exported'
   },
   create: {
     text: { label: 'Text', tip: 'Add a text field' },

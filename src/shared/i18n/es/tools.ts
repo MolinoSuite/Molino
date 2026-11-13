@@ -178,7 +178,7 @@ export const tools = {
     normal: 'Normal',
     print: 'Impresión',
     count: {
-      one: 'Se creará una imagen por cada una de las {n} páginas.',
+      one: 'Se creará una imagen de la página.',
       other: 'Se creará una imagen por cada una de las {n} páginas.'
     }
   },
@@ -188,6 +188,7 @@ export const tools = {
     /** Texto que se propone y se escribe en el PDF. */
     defaultText: 'CONFIDENCIAL',
     run: 'Añadir a todas las páginas',
+    runSome: { one: 'Añadir a {n} página', other: 'Añadir a {n} páginas' },
     busy: 'Añadiendo marca de agua',
     text: 'Texto',
     image: 'Imagen',
@@ -199,7 +200,19 @@ export const tools = {
     size: 'Tamaño (ancho de página)',
     diagonal: 'En diagonal',
     tile: 'Repetir por toda la página',
-    background: 'Detrás del contenido'
+    background: 'Detrás del contenido',
+    position: 'Posición',
+    positions: {
+      center: 'Centro',
+      'top-left': 'Arriba, izquierda',
+      top: 'Arriba, centro',
+      'top-right': 'Arriba, derecha',
+      left: 'En medio, izquierda',
+      right: 'En medio, derecha',
+      'bottom-left': 'Abajo, izquierda',
+      bottom: 'Abajo, centro',
+      'bottom-right': 'Abajo, derecha'
+    }
   },
   headerFooter: {
     title: 'Encabezado y pie de página',
@@ -213,7 +226,12 @@ export const tools = {
     left: 'Izquierda',
     center: 'Centro',
     right: 'Derecha',
-    fontSize: 'Tamaño de letra'
+    fontSize: 'Tamaño de letra',
+    start: 'Empezar en',
+    dateFormat: 'Fecha',
+    /** Ejemplos de cómo escribe el motor {date} (engine/molino_engine/i18n.py). */
+    dateShort: 'Corta: 31/01/2026',
+    dateLong: 'Larga: 31 de enero de 2026'
   },
   pageNumbers: {
     title: 'Numerar páginas',

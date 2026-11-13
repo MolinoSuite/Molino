@@ -37,6 +37,7 @@ import type { LayerProps } from '@/viewer/ModeLayers'
 import { readSelection } from '../annotate/selection'
 import { ColorButton, NumberField, SubBar, SubLabel } from '../common/controls'
 import { DrawLayer } from '../common/DrawLayer'
+import { ALL_PAGES, type PageRange, PageRangeField, rangePages } from '../common/PageRange'
 
 const open = (id: string, doc: string): void => useApp.getState().openDialog({ type: 'custom', id, doc })
 const all = (doc: DocView): string[] => doc.pages.map((p) => p.id)
@@ -576,8 +577,11 @@ function ImagesDialog({ doc: docId }: CustomDialogProps) {
   const doc = useDoc(docId)
   const [format, setFormat] = useState<'png' | 'jpeg'>('png')
   const [dpi, setDpi] = useState(150)
+  const [range, setRange] = useState<PageRange>(ALL_PAGES)
   if (!doc) return null
+  const pages = rangePages(doc, range)
   const run = async (): Promise<void> => {
+    if (!pages) return
     close()
     const title = L.tools.images.busy
     const tracker = trackProgress((info) =>
@@ -585,7 +589,8 @@ function ImagesDialog({ doc: docId }: CustomDialogProps) {
     )
     try {
       useApp.getState().setBusy({ title, message: '', progress: null })
-      const outcome = unwrap(await window.molino.files.exportAs(doc.id, 'images', { format, dpi }, tracker.callId))
+      const options = range.mode === 'all' ? { format, dpi } : { format, dpi, pages }
+      const outcome = unwrap(await window.molino.files.exportAs(doc.id, 'images', options, tracker.callId))
       if (outcome.done) {
         // Las páginas muy grandes se exportan a menos resolución para no agotar la memoria.
         const reduced = Array.isArray(outcome.detail?.reduced) ? outcome.detail.reduced.length : 0
@@ -602,7 +607,7 @@ function ImagesDialog({ doc: docId }: CustomDialogProps) {
     }
   }
   return (
-    <Dialog title={L.tools.images.title} onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.images.run} />}>
+    <Dialog title={L.tools.images.title} onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.images.run} disabled={!pages} />}>
       <div className="row">
         <span className="grow">{L.tools.images.format}</span>
         <Segmented
@@ -626,12 +631,16 @@ function ImagesDialog({ doc: docId }: CustomDialogProps) {
           onChange={(value) => setDpi(Number(value))}
         />
       </div>
-      <p>{plural(L.tools.images.count, doc.pages.length)}</p>
+      <PageRangeField doc={doc} value={range} onChange={setRange} />
+      <p>{plural(L.tools.images.count, pages?.length ?? 0)}</p>
     </Dialog>
   )
 }
 
 const DEFAULT_STYLE: TextStyle = { font: 'Arial', bold: true, italic: false, size: 48, color: [0.6, 0.62, 0.68], align: 'center', lineHeight: 1.2 }
+
+/** Dónde puede ir la marca de agua (engine/molino_engine/ops/stamps.py, WatermarkParams). */
+const WATERMARK_POSITIONS = ['center', 'top-left', 'top', 'top-right', 'left', 'right', 'bottom-left', 'bottom', 'bottom-right'] as const
 
 function WatermarkDialog({ doc: docId }: CustomDialogProps) {
   const close = useApp((s) => s.closeDialog)
@@ -646,16 +655,22 @@ function WatermarkDialog({ doc: docId }: CustomDialogProps) {
   const [scale, setScale] = useState(60)
   const [background, setBackground] = useState(false)
   const [tile, setTile] = useState(false)
+  const [position, setPosition] = useState<(typeof WATERMARK_POSITIONS)[number]>('center')
+  const [range, setRange] = useState<PageRange>(ALL_PAGES)
   if (!doc) return null
-  const ready = kind === 'text' ? text.trim().length > 0 : image !== null
+  const pages = rangePages(doc, range)
+  const ready = (kind === 'text' ? text.trim().length > 0 : image !== null) && pages !== null
   const run = async (): Promise<void> => {
+    if (!pages) return
     close()
     const params: Record<string, unknown> = {
       doc: doc.id,
-      pages: all(doc),
+      pages,
       opacity: opacity / 100,
       angle: diagonal ? -45 : 0,
       scale: scale / 100,
+      // En mosaico la marca cubre toda la página: la posición no se aplica.
+      position: tile ? 'center' : position,
       background,
       tile
     }
@@ -671,7 +686,18 @@ function WatermarkDialog({ doc: docId }: CustomDialogProps) {
     if (result) useApp.getState().applyResult(doc.id, result.result)
   }
   return (
-    <Dialog title={L.tools.watermark.title} size="wide" onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.watermark.run} disabled={!ready} />}>
+    <Dialog
+      title={L.tools.watermark.title}
+      size="wide"
+      onClose={close}
+      footer={
+        <Footer
+          onRun={() => void run()}
+          label={range.mode === 'all' || !pages ? L.tools.watermark.run : plural(L.tools.watermark.runSome, pages.length)}
+          disabled={!ready}
+        />
+      }
+    >
       <Segmented
         value={kind}
         options={[
@@ -729,6 +755,23 @@ function WatermarkDialog({ doc: docId }: CustomDialogProps) {
           <span className="grow">{L.tools.watermark.size}</span>
           <NumberField value={scale} min={5} max={100} step={5} suffix="%" width={72} onChange={setScale} />
         </div>
+        <div className="row">
+          <span className="grow">{L.tools.watermark.position}</span>
+          <select
+            className="select sm"
+            style={{ width: 160 }}
+            aria-label={L.tools.watermark.position}
+            value={tile ? 'center' : position}
+            disabled={tile}
+            onChange={(e) => setPosition(e.target.value as (typeof WATERMARK_POSITIONS)[number])}
+          >
+            {WATERMARK_POSITIONS.map((value) => (
+              <option key={value} value={value}>
+                {L.tools.watermark.positions[value]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       <Checkbox checked={diagonal} onChange={setDiagonal}>
         {L.tools.watermark.diagonal}
@@ -739,6 +782,7 @@ function WatermarkDialog({ doc: docId }: CustomDialogProps) {
       <Checkbox checked={background} onChange={setBackground}>
         {L.tools.watermark.background}
       </Checkbox>
+      <PageRangeField doc={doc} value={range} onChange={setRange} />
     </Dialog>
   )
 }
@@ -749,14 +793,27 @@ function HeaderFooterDialog({ doc: docId }: CustomDialogProps) {
   const [header, setHeader] = useState({ left: '', center: '', right: '' })
   const [footer, setFooter] = useState({ left: '', center: '', right: '' })
   const [size, setSize] = useState(9)
+  const [start, setStart] = useState(1)
+  const [dateFormat, setDateFormat] = useState<'short' | 'long'>('short')
+  const [range, setRange] = useState<PageRange>(ALL_PAGES)
   if (!doc) return null
+  const pages = rangePages(doc, range)
   const any = [...Object.values(header), ...Object.values(footer)].some((v) => v.trim())
   const run = async (): Promise<void> => {
+    if (!pages) return
     close()
     const result = await runBusy(L.tools.headerFooter.busy, (context) =>
       call<MutationResult>(
         'tools.headerFooter',
-        { doc: doc.id, pages: all(doc), header, footer, style: { ...DEFAULT_STYLE, bold: false, size, color: [0.25, 0.27, 0.32], align: 'left' } },
+        {
+          doc: doc.id,
+          pages,
+          header,
+          footer,
+          start,
+          dateFormat,
+          style: { ...DEFAULT_STYLE, bold: false, size, color: [0.25, 0.27, 0.32], align: 'left' }
+        },
         { signal: context.signal, onProgress: context.onProgress, priority: 9 }
       )
     )
@@ -777,15 +834,29 @@ function HeaderFooterDialog({ doc: docId }: CustomDialogProps) {
     </div>
   )
   return (
-    <Dialog title={L.tools.headerFooter.title} size="wide" onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.headerFooter.run} disabled={!any} />}>
+    <Dialog title={L.tools.headerFooter.title} size="wide" onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.headerFooter.run} disabled={!any || !pages} />}>
       <Field label={L.tools.headerFooter.header}>{line(header, setHeader)}</Field>
       <Field label={L.tools.headerFooter.footer} hint={L.tools.headerFooter.hint}>
         {line(footer, setFooter)}
       </Field>
-      <div className="row">
-        <span className="grow">{L.tools.headerFooter.fontSize}</span>
-        <NumberField value={size} min={5} max={30} suffix="pt" width={72} onChange={setSize} />
+      <div className="form-grid">
+        <div className="row">
+          <span className="grow">{L.tools.headerFooter.fontSize}</span>
+          <NumberField value={size} min={5} max={30} suffix="pt" width={72} onChange={setSize} />
+        </div>
+        <div className="row">
+          <span className="grow">{L.tools.headerFooter.start}</span>
+          <NumberField value={start} min={0} max={99999} width={72} onChange={(v) => setStart(Math.round(v))} />
+        </div>
+        <div className="row">
+          <span className="grow">{L.tools.headerFooter.dateFormat}</span>
+          <select className="select sm" style={{ width: 200 }} aria-label={L.tools.headerFooter.dateFormat} value={dateFormat} onChange={(e) => setDateFormat(e.target.value as 'short' | 'long')}>
+            <option value="short">{L.tools.headerFooter.dateShort}</option>
+            <option value="long">{L.tools.headerFooter.dateLong}</option>
+          </select>
+        </div>
       </div>
+      <PageRangeField doc={doc} value={range} onChange={setRange} />
     </Dialog>
   )
 }
@@ -797,20 +868,23 @@ function PageNumbersDialog({ doc: docId }: CustomDialogProps) {
   const [position, setPosition] = useState('bottom-center')
   const [start, setStart] = useState(1)
   const [size, setSize] = useState(10)
+  const [range, setRange] = useState<PageRange>(ALL_PAGES)
   if (!doc) return null
+  const pages = rangePages(doc, range)
   const run = async (): Promise<void> => {
+    if (!pages) return
     close()
     const result = await runBusy(L.tools.pageNumbers.busy, (context) =>
       call<MutationResult>(
         'tools.pageNumbers',
-        { doc: doc.id, pages: all(doc), format, position, start, style: { ...DEFAULT_STYLE, bold: false, size, color: [0.25, 0.27, 0.32], align: 'left' } },
+        { doc: doc.id, pages, format, position, start, style: { ...DEFAULT_STYLE, bold: false, size, color: [0.25, 0.27, 0.32], align: 'left' } },
         { signal: context.signal, onProgress: context.onProgress, priority: 9 }
       )
     )
     if (result) useApp.getState().applyResult(doc.id, result.result)
   }
   return (
-    <Dialog title={L.tools.pageNumbers.title} onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.pageNumbers.run} disabled={!format.trim()} />}>
+    <Dialog title={L.tools.pageNumbers.title} onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.pageNumbers.run} disabled={!format.trim() || !pages} />}>
       <Field label={L.tools.pageNumbers.format}>
         <select className="select" value={format} onChange={(e) => setFormat(e.target.value)}>
           <option value="{page}">1, 2, 3…</option>
@@ -840,6 +914,7 @@ function PageNumbersDialog({ doc: docId }: CustomDialogProps) {
           <NumberField value={size} min={5} max={30} suffix="pt" width={72} onChange={setSize} />
         </div>
       </div>
+      <PageRangeField doc={doc} value={range} onChange={setRange} />
     </Dialog>
   )
 }
@@ -851,6 +926,7 @@ function RemoveAddedDialog({ doc: docId }: CustomDialogProps) {
   const doc = useDoc(docId)
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
   const [chosen, setChosen] = useState<string[]>([])
+  const [range, setRange] = useState<PageRange>(ALL_PAGES)
   useEffect(() => {
     if (!docId) return
     query<{ counts: Record<string, number> }>('tools.listAdded', { doc: docId })
@@ -862,12 +938,18 @@ function RemoveAddedDialog({ doc: docId }: CustomDialogProps) {
   }, [docId])
   if (!doc) return null
   const available = ADDED.filter((key) => (counts?.[key] ?? 0) > 0)
+  const pages = rangePages(doc, range)
   const run = async (): Promise<void> => {
+    if (!pages) return
     close()
-    await mutate(doc.id, 'tools.removeAdded', { kinds: chosen })
+    await mutate(doc.id, 'tools.removeAdded', range.mode === 'all' ? { kinds: chosen } : { kinds: chosen, pages })
   }
   return (
-    <Dialog title={L.tools.removeAdded.title} onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.removeAdded.run} disabled={chosen.length === 0} />}>
+    <Dialog
+      title={L.tools.removeAdded.title}
+      onClose={close}
+      footer={<Footer onRun={() => void run()} label={L.tools.removeAdded.run} disabled={chosen.length === 0 || !pages} />}
+    >
       {counts === null ? (
         <div className="row">
           <div className="spinner" />
@@ -876,11 +958,14 @@ function RemoveAddedDialog({ doc: docId }: CustomDialogProps) {
       ) : available.length === 0 ? (
         <p>{L.tools.removeAdded.nothing}</p>
       ) : (
-        available.map((key) => (
-          <Checkbox key={key} checked={chosen.includes(key)} onChange={(value) => setChosen(value ? [...chosen, key] : chosen.filter((k) => k !== key))}>
-            {L.tools.removeAdded.kinds[key]} ({counts[key]})
-          </Checkbox>
-        ))
+        <>
+          {available.map((key) => (
+            <Checkbox key={key} checked={chosen.includes(key)} onChange={(value) => setChosen(value ? [...chosen, key] : chosen.filter((k) => k !== key))}>
+              {L.tools.removeAdded.kinds[key]} ({counts[key]})
+            </Checkbox>
+          ))}
+          <PageRangeField doc={doc} value={range} onChange={setRange} />
+        </>
       )}
     </Dialog>
   )
@@ -893,6 +978,7 @@ function OcrDialog({ doc: docId }: CustomDialogProps) {
   const [languages, setLanguages] = useState<string[]>(['spa', 'eng'])
   const [skipText, setSkipText] = useState(true)
   const [straighten, setStraighten] = useState(true)
+  const [range, setRange] = useState<PageRange>(ALL_PAGES)
   useEffect(() => {
     query<{ available: boolean; languages: string[] }>('tools.ocrStatus')
       .then((result) => {
@@ -903,14 +989,16 @@ function OcrDialog({ doc: docId }: CustomDialogProps) {
   }, [])
   if (!doc) return null
   const names: Record<string, string> = L.tools.ocr.languageNames
+  const chosen = rangePages(doc, range)
   const run = async (): Promise<void> => {
+    if (!chosen) return
     close()
     const result = await runBusy(
       L.tools.ocr.busy,
       (context) =>
         call<MutationResult & { recognized?: number; skipped?: number; empty?: number; straightened?: string[] }>(
           'tools.ocr',
-          { doc: doc.id, pages: all(doc), languages, skipText, straighten },
+          { doc: doc.id, pages: chosen, languages, skipText, straighten },
           { signal: context.signal, onProgress: context.onProgress, priority: 9 }
         ),
       L.tools.ocr.analyzing
@@ -934,7 +1022,7 @@ function OcrDialog({ doc: docId }: CustomDialogProps) {
     }
   }
   return (
-    <Dialog title={L.tools.ocr.title} onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.ocr.run} disabled={!status?.available || languages.length === 0} />}>
+    <Dialog title={L.tools.ocr.title} onClose={close} footer={<Footer onRun={() => void run()} label={L.tools.ocr.run} disabled={!status?.available || languages.length === 0 || !chosen} />}>
       {status === null ? (
         <div className="row">
           <div className="spinner" />
@@ -963,6 +1051,7 @@ function OcrDialog({ doc: docId }: CustomDialogProps) {
           <Checkbox checked={straighten} onChange={setStraighten}>
             {L.tools.ocr.straighten}
           </Checkbox>
+          <PageRangeField doc={doc} value={range} onChange={setRange} />
         </>
       )}
     </Dialog>

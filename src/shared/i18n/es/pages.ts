@@ -13,8 +13,25 @@ export const pages = {
   deleteTip: 'Eliminar las páginas seleccionadas (Supr)',
   insert: 'Insertar',
   insertTip: 'Añadir páginas después de la selección',
-  insertBlank: 'Página en blanco',
+  insertBlank: 'Páginas en blanco…',
   insertFile: 'Páginas de otro archivo…',
+  insertBlankDialog: {
+    title: 'Insertar páginas en blanco',
+    run: 'Insertar'
+  },
+  insertFileDialog: {
+    title: 'Insertar páginas de otro archivo',
+    run: 'Elegir archivo e insertar',
+    retry: 'Insertar',
+    other: 'Elegir otro archivo…',
+    pagesLabel: 'Páginas del otro archivo',
+    all: 'Todas',
+    some: 'Estas:',
+    placeholder: 'Por ejemplo, 1-3, 5',
+    badList: 'Escribe números de página separados por comas: 1-3, 5',
+    hasPages: { one: 'Tiene {n} página.', other: 'Tiene {n} páginas.' },
+    password: 'Contraseña del archivo'
+  },
   split: 'Dividir',
   splitTip: 'Repartir el documento en varios archivos',
   selectNone: 'Quitar selección',

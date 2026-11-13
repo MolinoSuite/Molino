@@ -16,6 +16,38 @@ export const dialogs = {
     action: 'Desbloquear',
     wrong: 'Esa no es la contraseña de propietario.'
   },
+  /** Crear un PDF nuevo (components/CreateDialogs.tsx). */
+  create: {
+    blank: {
+      title: 'Documento en blanco',
+      run: 'Crear'
+    },
+    images: {
+      title: 'Imágenes a PDF',
+      run: 'Elegir imágenes…',
+      paper: 'Tamaño de página',
+      modes: {
+        auto: 'Automático',
+        image: 'El de cada imagen',
+        a4: 'A4',
+        letter: 'Carta'
+      },
+      hints: {
+        auto: 'Cada página mide lo mismo que su imagen; las fotos grandes se ajustan a un A4.',
+        image: 'Cada página mide exactamente lo mismo que su imagen.',
+        a4: 'Todas las páginas en A4, apaisadas si la imagen lo es. La imagen se ajusta sin deformarse.',
+        letter: 'Todas las páginas en tamaño carta, apaisadas si la imagen lo es. La imagen se ajusta sin deformarse.'
+      },
+      margin: 'Margen alrededor de la imagen'
+    },
+    mergePassword: {
+      title: 'Archivo protegido',
+      message: '«{name}» necesita una contraseña para combinarlo.',
+      restricted: 'El autor de «{name}» no permite reutilizar sus páginas. Escribe su contraseña de propietario para combinarlo.',
+      label: 'Contraseña',
+      run: 'Combinar'
+    }
+  },
   settings: {
     title: 'Ajustes',
     done: 'Listo',

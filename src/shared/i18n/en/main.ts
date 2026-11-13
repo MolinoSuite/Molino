@@ -21,7 +21,10 @@ export const main: typeof source = {
     tooManyPhotos: 'Choose up to 100 photos at a time; you can add more later.',
     compressedSameName: 'Save the compressed copy with a different name to keep the original.',
     pickPfxAgain: 'Choose the certificate file again.',
-    printNotAllowed: 'The author of this PDF doesn’t allow it to be printed.'
+    printNotAllowed: 'The author of this PDF doesn’t allow it to be printed.',
+    pickFileAgain: 'Choose the file again.',
+    noFormData: 'This document has no form fields to export.',
+    writeFailed: 'Couldn’t save the file.'
   },
   dialogs: {
     savePdf: 'Save PDF',
@@ -36,7 +39,8 @@ export const main: typeof source = {
     saveCompressed: 'Save compressed copy',
     exportText: 'Export to text',
     exportWord: 'Export to Word',
-    pickPfx: 'Choose certificate file'
+    pickPfx: 'Choose certificate file',
+    exportFormData: 'Export form data'
   },
   filters: {
     pdfAndImages: 'PDFs and images',
@@ -47,7 +51,8 @@ export const main: typeof source = {
   },
   fileNames: {
     extract: '{name}-extract.pdf',
-    compressedSuffix: '-compressed'
+    compressedSuffix: '-compressed',
+    formData: '{name}-data'
   },
   link: {
     title: 'Open link',

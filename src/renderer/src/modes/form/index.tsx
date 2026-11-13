@@ -2,7 +2,10 @@ import {
   ChevronsUpDown,
   CircleDot,
   Copy,
+  Download,
   Eraser,
+  FileBraces,
+  FileSpreadsheet,
   List,
   MousePointer2,
   Signature,
@@ -16,9 +19,9 @@ import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from 
 import { create } from 'zustand'
 import type { Color, MutationResult, Rect } from '@shared/types'
 import { ActionButton, ToolButton } from '@/components/Toolbar'
-import { Checkbox, Field, Segmented } from '@/components/ui'
+import { Checkbox, Field, MenuButton, Segmented } from '@/components/ui'
 import { fmt, L, plural } from '@/i18n'
-import { query } from '@/lib/api'
+import { query, unwrap } from '@/lib/api'
 import { usePageData } from '@/lib/pageData'
 import { mutate, setTool, toastError, updateSettings } from '@/state/actions'
 import { type DocView, useApp } from '@/state/app'
@@ -79,6 +82,16 @@ async function detectFields(doc: DocView): Promise<void> {
     useApp
       .getState()
       .toast(suggestions.length ? 'info' : 'warning', suggestions.length ? plural(L.form.detect.found, suggestions.length) : L.form.detect.none)
+  } catch (error) {
+    toastError(error)
+  }
+}
+
+/** Guarda lo rellenado en un .json (el formato de «molino rellenar») o un .csv para una hoja de cálculo. */
+async function exportFormData(doc: string, format: 'json' | 'csv'): Promise<void> {
+  try {
+    const outcome = unwrap(await window.molino.files.exportFormData(doc, format))
+    if (outcome.done) useApp.getState().toast('success', L.form.tools.exported)
   } catch (error) {
     toastError(error)
   }
@@ -146,6 +159,18 @@ export function FormTools({ doc }: { doc: DocView }) {
               })
             }
           />
+          <MenuButton
+            className="tool"
+            tip={L.form.tools.exportTip}
+            disabled={!doc.info.hasForm}
+            entries={[
+              { label: L.form.tools.exportJson, icon: <FileBraces size={16} />, onSelect: () => void exportFormData(doc.id, 'json') },
+              { label: L.form.tools.exportCsv, icon: <FileSpreadsheet size={16} />, onSelect: () => void exportFormData(doc.id, 'csv') }
+            ]}
+          >
+            <Download size={16} />
+            <span>{L.form.tools.export}</span>
+          </MenuButton>
         </>
       )}
     </>

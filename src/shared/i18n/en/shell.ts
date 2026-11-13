@@ -38,7 +38,8 @@ export const shell: typeof source = {
       reorderPages: 'Reorder pages',
       duplicatePages: 'Duplicate pages',
       fillForm: 'Fill in the form',
-      designForm: 'Design the form'
+      designForm: 'Design the form',
+      exportFormData: 'Export the form data'
     },
     keywords: {
       open: 'open file document pdf load',
@@ -67,6 +68,7 @@ export const shell: typeof source = {
       whiteout: 'white out cover hide erase',
       content: 'edit change existing text modify fix',
       field: 'field form fillable create',
+      formData: 'export form data json csv spreadsheet',
       signature: 'signature handwritten sign',
       fillText: 'text write fill',
       check: 'check tick box',
@@ -117,7 +119,7 @@ export const shell: typeof source = {
     menuTip: 'Menu',
     create: {
       open: 'Open…',
-      blank: 'Blank document',
+      blank: 'Blank document…',
       merge: 'Combine files…',
       images: 'Images to PDF…',
       scan: 'Scan document…'

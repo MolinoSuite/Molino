@@ -5,6 +5,8 @@ import { checkRecovery, resetRecoveryCheck } from './components/Recovery'
 // Registra los cuadros de imprimir (se abre con printDoc) y de comentarios.
 import './components/PrintDialog'
 import './components/PdfCommands'
+// Y los de crear un PDF nuevo (documento en blanco, imágenes a PDF, contraseña al combinar).
+import './components/CreateDialogs'
 import { StartScreen } from './components/StartScreen'
 import { TitleBar } from './components/TitleBar'
 import { BusyOverlay, Toasts } from './components/Toasts'
