@@ -113,6 +113,7 @@
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 .office-word-merge > .btn {
@@ -126,6 +127,9 @@
   font-size: 12px;
 }
 .office-word-merge-paste .textarea {
+  box-sizing: border-box;
+  width: 100%;
+  resize: vertical;
   font: 12px/1.4 var(--font-mono, ui-monospace, monospace);
 }
 .office-word-merge section {
@@ -159,8 +163,16 @@
 .office-word-chips .chip:disabled {
   opacity: 0.5;
 }
+.office-word-merge-toggle {
+  justify-self: start;
+}
 .office-word-merge-nav {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+.office-word-merge-record {
+  color: var(--text-2);
+  font-size: 12px;
+  white-space: nowrap;
 }

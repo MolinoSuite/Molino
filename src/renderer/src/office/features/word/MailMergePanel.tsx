@@ -78,7 +78,8 @@ export function MailMergePanel({ state, run }: PanelProps) {
           </h3>
           <div className="office-word-chips">
             {merge.fields.map((name) => (
-              <button key={name} className="chip" disabled={preview !== null} onClick={() => run('mailMergeField', name)}>
+              // Sin quitarle el foco al documento: se pulsa el campo y se sigue escribiendo.
+              <button key={name} className="chip" disabled={preview !== null} onMouseDown={(e) => e.preventDefault()} onClick={() => run('mailMergeField', name)}>
                 «{name}»
               </button>
             ))}
@@ -92,22 +93,20 @@ export function MailMergePanel({ state, run }: PanelProps) {
           >
             {M.highlight}
           </Checkbox>
-          <div className="row office-word-merge-nav">
-            <button className="btn sm" onClick={() => (preview === null ? go(0) : run('mailMergePreview', ''))}>
-              {preview === null ? M.preview : M.previewOff}
-            </button>
-            {preview !== null && (
-              <>
-                <button className="icon-btn sm" aria-label={M.prev} data-tip={M.prev} disabled={preview <= 0} onClick={() => go(preview - 1)}>
-                  <ChevronLeft size={15} />
-                </button>
-                <span className="hint">{fmt(M.record, { n: preview + 1, total: merge.rows })}</span>
-                <button className="icon-btn sm" aria-label={M.next} data-tip={M.next} disabled={preview >= merge.rows - 1} onClick={() => go(preview + 1)}>
-                  <ChevronRight size={15} />
-                </button>
-              </>
-            )}
-          </div>
+          <button className="btn sm office-word-merge-toggle" onClick={() => (preview === null ? go(0) : run('mailMergePreview', ''))}>
+            {preview === null ? M.preview : M.previewOff}
+          </button>
+          {preview !== null && (
+            <div className="office-word-merge-nav">
+              <button className="icon-btn sm" aria-label={M.prev} data-tip={M.prev} disabled={preview <= 0} onClick={() => go(preview - 1)}>
+                <ChevronLeft size={15} />
+              </button>
+              <span className="office-word-merge-record">{fmt(M.record, { n: preview + 1, total: merge.rows })}</span>
+              <button className="icon-btn sm" aria-label={M.next} data-tip={M.next} disabled={preview >= merge.rows - 1} onClick={() => go(preview + 1)}>
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          )}
           <p className="hint">{M.finish}</p>
         </section>
       )}

@@ -52,6 +52,8 @@ export function NavigationPanel({ session, state, run }: PanelProps) {
           className={cn('office-word-nav-item', i === current && 'on', item.start && 'beginning')}
           style={{ paddingLeft: 8 + Math.min(item.level, 8) * 14 }}
           title={item.text || N.beginning}
+          // El foco se queda en el documento: se va al título y se sigue escribiendo.
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => run('navGo', String(i))}
         >
           <span className={cn('lvl', `l${Math.min(item.level, 3)}`)}>{item.start ? '' : item.level + 1}</span>
