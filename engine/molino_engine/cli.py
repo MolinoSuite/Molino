@@ -43,6 +43,32 @@ def _app_command() -> list[str] | None:
     return parts if all(Path(p).exists() for p in parts) else None
 
 
+def _called_as_app() -> bool:
+    """Lanzado por el alias ``molino-pdf.exe``: abrir Molino PDF, no una orden."""
+    name = Path(sys.argv[0] if sys.argv and sys.argv[0] else "").name.lower()
+    return name.startswith("molino-pdf")
+
+
+def _open_app(command: list[str], arguments: list[str]) -> int:
+    """Abre Molino PDF con los archivos (desde la carpeta donde se llamo) y vuelve enseguida.
+
+    Solo pasan los archivos: las opciones (``-...``) no llegan a Molino.exe.
+    """
+    cwd = Path.cwd()
+    files = [str((cwd / a).resolve()) for a in arguments if a and not a.startswith("-")]
+    flags = getattr(subprocess, "DETACHED_PROCESS", 0) | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+    subprocess.Popen(
+        [*command, *files],
+        cwd=str(cwd),
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        close_fds=True,
+        creationflags=flags,
+    )
+    return 0
+
+
 def _pump(source, target, skip_blank: bool = False) -> None:
     first = skip_blank
     for chunk in iter(lambda: source.read1(65536) if hasattr(source, "read1") else source.read(65536), b""):
@@ -78,6 +104,8 @@ def main(arguments: list[str]) -> int:
     if command is None:
         sys.stderr.write("No se encuentra Molino junto a este programa.\n")
         return 1
+    if _called_as_app():
+        return _open_app(command, list(arguments))
     args = list(arguments)
     password: str | None = None
     if ("--pfx" in args or any(a.startswith("--pfx=") for a in args)) and not any(a.split("=")[0] in PASSWORD_OPTIONS for a in args):
