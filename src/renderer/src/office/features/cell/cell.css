@@ -1,0 +1,111 @@
+/* Las funciones de Hojas (features/cell.tsx): pegado especial, ordenar y nombres. */
+
+/* ------------------------------------------------------- pegado especial */
+.cell-radios {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.cell-radios legend {
+  grid-column: 1 / -1;
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-2);
+}
+.cell-radios:disabled {
+  opacity: 0.5;
+}
+.cell-paste {
+  gap: 16px;
+}
+
+/* --------------------------------------------------------------- ordenar */
+.cell-sort-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cell-sort-levels li {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+}
+.cell-sort-label {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--text-2);
+}
+.cell-sort .btn svg {
+  margin-right: 2px;
+}
+
+/* --------------------------------------------------------------- nombres */
+.cell-names {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow-y: auto;
+}
+.cell-names > .btn {
+  align-self: flex-start;
+}
+.cell-names-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-subtle);
+}
+.cell-names-form > .btn {
+  align-self: flex-start;
+}
+.cell-names-form .row {
+  display: flex;
+  gap: 6px;
+}
+.cell-names-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cell-names-list li {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 4px 6px 8px;
+  border-radius: var(--radius-sm);
+}
+.cell-names-list li:hover {
+  background: var(--bg-hover);
+}
+.cell-names-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.cell-names-text b {
+  font-weight: 600;
+  color: var(--text);
+}
+.cell-names-text .hint {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
