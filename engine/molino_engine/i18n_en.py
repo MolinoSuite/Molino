@@ -750,6 +750,7 @@ CATALOG: dict[str, str] = {
     "Este tipo de archivo no es compatible.": "This file type isn’t supported.",
     "El archivo está dañado o no es del tipo que indica su nombre.": "The file is damaged or isn’t the type its name says.",
     "Esa imagen no se puede usar.": "That image can’t be used.",
+    "Ese vídeo o audio no se puede usar.": "That video or audio file can’t be used.",
     "Este documento no se puede guardar en ese formato.": "This document can’t be saved in that format.",
     "Exportando a PDF…": "Exporting to PDF…",
 }
