@@ -9,7 +9,7 @@ import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
 import { log } from './log'
 import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
-import type { OfficeAsk, OfficeTabs } from '@shared/officeui'
+import type { OfficeAsk, OfficeMergeMode, OfficeOtherDocument, OfficeTabs } from '@shared/officeui'
 import { installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
 import { cleanFontIndex, fontAllowed, ownFontsDir } from './officefonts'
@@ -108,6 +108,51 @@ function mediaPoster(kind: 'video' | 'audio', media: string): Buffer {
   header[9] = 2
   const note = chunk('tEXt', Buffer.from(`molino-media\u0000${media}`, 'latin1'))
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', header), note, chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
+}
+
+/**
+ * Combinar correspondencia: como mucho tantas copias en archivos sueltos de una
+ * vez, y lo que puede ocupar cada copia que da el editor (texto en base64).
+ */
+const MERGE_MAX_FILES = 500
+const MERGE_MAX_DATA = 256 * 1024 * 1024
+/** Así empieza una copia del editor: «DOCY;v5;<bytes>;» (el motor la comprueba entera). */
+const EDITOR_COPY = /^DOCY;v\d{1,3};\d{1,10};/
+/** Comparar o combinar con un archivo: los documentos de texto que se pueden elegir. */
+const COMPARE_SUFFIXES = ['.docx', '.doc', '.odt', '.rtf']
+
+/**
+ * El nombre (sin extensión) de una copia: sin lo que Windows no admite en un
+ * nombre de archivo ni nombres reservados (CON, PRN…); null si no queda nada.
+ * La interfaz los propone; aquí se vuelven a limpiar y el motor, otra vez.
+ */
+export function cleanStem(raw: string): string | null {
+  const text = raw
+    .replace(/[<>:"/\\|?*\u0000-\u001f\u007f]/g, '_')
+    .replace(/\s+/g, ' ')
+    .replace(/^[ .]+/, '')
+    .slice(0, 120)
+    .replace(/[ .]+$/, '')
+  if (!text || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(text.split('.')[0])) return null
+  return text
+}
+
+/** Combinar correspondencia: lo que se está creando (las rutas se quedan en este proceso). */
+interface MergeJob {
+  win: AppWindow
+  doc: string
+  mode: OfficeMergeMode
+  suffix: '.docx' | '.pdf'
+  /** «single» e «print»: el archivo; «files»: la carpeta. */
+  target: string
+  /** «files»: el nombre de cada copia y si se reemplazan las que ya estén (lo dijo el usuario). */
+  names: string[]
+  replace: boolean
+  /** Las copias ya pedidas (cada una, una vez) y lo que se ha escrito. */
+  done: Set<number>
+  written: string[]
+  /** La petición al motor en curso, para cancelarla. */
+  request: number | null
 }
 
 /** Una contraseña de documento: texto de 1 a 255 caracteres, sin caracteres de control. */
@@ -301,6 +346,11 @@ export interface OfficeOptions {
   }
   /** Carpeta de las plantillas para empezar (resources/templates). */
   templatesDir: string
+  /**
+   * Diccionarios del corrector que trae Molino además de los de la pieza
+   * (resources/dictionaries: las variantes del español; scripts/fetch-dictionaries.py).
+   */
+  dictionariesDir: string
   /** La IA local de Molino (Ajustes → IA): su estado (index.ts). */
   ai: {
     status(): Promise<{ on: boolean; ready: boolean }>
@@ -339,6 +389,9 @@ export class OfficeWindows {
 
   /** Imprimir en cada app, con su propio cuadro. */
   private readonly printing: OfficePrint
+  /** Combinar correspondencia: lo que se está creando en cada ventana. */
+  private readonly mergeJobs = new Map<number, MergeJob>()
+  private nextMerge = 1
 
   constructor(private readonly options: OfficeOptions) {
     rmSync(PRINT_DIR, { recursive: true, force: true, maxRetries: 2 })
@@ -696,6 +749,7 @@ export class OfficeWindows {
     })
     window.on('closed', () => {
       this.printing.closeWindow(window)
+      for (const [job, entry] of this.mergeJobs) if (entry.win === win) this.mergeEnd(job, false)
       for (const [id, entry] of this.asks) {
         if (entry.win !== win) continue
         this.asks.delete(id)
@@ -888,6 +942,163 @@ export class OfficeWindows {
     }
   }
 
+  /**
+   * Combinar correspondencia: pregunta dónde van las copias. «single»: un
+   * archivo (el cuadro de Windows pregunta si se reemplaza uno que ya está);
+   * «files»: una carpeta y, si ya hay archivos con esos nombres, si se
+   * reemplazan o se guardan con otro nombre; «print»: un PDF temporal.
+   */
+  private async mergeBegin(win: AppWindow, open: OpenDoc, mode: OfficeMergeMode, format: 'docx' | 'pdf', rawNames: unknown[]): Promise<{ job: number; where: string } | null> {
+    const T = L.main.office.merge
+    const folder = open.path ? dirname(open.path) : app.getPath('documents')
+    const stem = parse(open.name).name
+    let suffix: '.docx' | '.pdf' = format === 'pdf' ? '.pdf' : '.docx'
+    let target: string
+    let names: string[] = []
+    let replace = false
+    if (mode === 'print') {
+      const dir = join(PRINT_DIR, randomBytes(6).toString('hex'))
+      mkdirSync(dir, { recursive: true })
+      target = join(dir, `${cleanStem(stem) ?? 'Molino'}.pdf`)
+      suffix = '.pdf'
+    } else if (mode === 'single') {
+      const F = L.main.office.formats as Record<string, string>
+      const filters = [
+        { name: F['.docx'], extensions: ['docx'] },
+        { name: L.main.office.filters.pdf, extensions: ['pdf'] }
+      ]
+      const picked = await dialog.showSaveDialog(win.window, {
+        title: T.saveAll,
+        defaultPath: join(folder, `${fmt(T.combinedName, { stem })}${suffix}`),
+        filters: suffix === '.pdf' ? filters.reverse() : filters
+      })
+      if (picked.canceled || !picked.filePath) return null
+      const ext = extname(picked.filePath).toLowerCase()
+      target = ext === '.docx' || ext === '.pdf' ? picked.filePath : `${picked.filePath}${suffix}`
+      suffix = extname(target).toLowerCase() === '.pdf' ? '.pdf' : '.docx'
+    } else {
+      if (rawNames.length === 0 || rawNames.length > MERGE_MAX_FILES) return null
+      names = rawNames.map((n, i) => (typeof n === 'string' ? cleanStem(n) : null) ?? String(i + 1))
+      const picked = await dialog.showOpenDialog(win.window, { title: T.folder, defaultPath: folder, properties: ['openDirectory', 'createDirectory'] })
+      const dir = picked.canceled ? undefined : picked.filePaths[0]
+      if (!dir) return null
+      target = dir
+      // Lo que ya está en la carpeta no se pisa sin preguntar.
+      const existing = [...new Set(names)].filter((n) => existsSync(join(dir, `${n}${suffix}`)))
+      if (existing.length) {
+        const answer = await this.ask(win, {
+          type: 'question',
+          title: L.main.office.apps[win.kind],
+          message: existing.length === 1 ? T.existsOne : fmt(T.exists, { n: existing.length }),
+          detail: fmt(T.existsDetail, { names: existing.slice(0, 3).map((n) => `${n}${suffix}`).join(', ') }),
+          buttons: [T.keep, T.replace, L.common.cancel],
+          defaultId: 0,
+          cancelId: 2
+        })
+        if (answer === 2) return null
+        replace = answer === 1
+      }
+    }
+    const job = this.nextMerge++
+    this.mergeJobs.set(job, { win, doc: open.doc, mode, suffix, target, names, replace, done: new Set(), written: [], request: null })
+    return { job, where: mode === 'print' ? '' : basename(target) }
+  }
+
+  /** Una copia del editor (``data``) al motor, que la escribe donde dijo el usuario; el documento no cambia. */
+  private async mergeWrite(entry: MergeJob, index: number, data: string): Promise<{ ok: boolean; error?: string }> {
+    const win = entry.win
+    const open = win.docs.get(entry.doc)
+    const count = entry.mode === 'files' ? entry.names.length : 1
+    if (!open || index < 0 || index >= count || entry.done.has(index) || data.length > MERGE_MAX_DATA || !EDITOR_COPY.test(data.slice(0, 40))) {
+      return { ok: false, error: L.main.errors.invalidParams }
+    }
+    entry.done.add(index)
+    let params: Record<string, unknown> = { doc: open.doc, path: entry.target }
+    if (entry.mode === 'files') {
+      const name = entry.names[index]
+      const path = join(entry.target, `${name}${entry.suffix}`)
+      // Reemplazar solo si el usuario lo dijo; si no, uno nuevo («Ana (2).docx» si ya hay un «Ana.docx»).
+      params = entry.replace && existsSync(path) ? { doc: open.doc, path } : { doc: open.doc, dir: entry.target, stem: name, suffix: entry.suffix }
+    }
+    try {
+      const { result } = await this.engine.request<{ path?: unknown }>('office.saveCopy', params, {
+        binary: Buffer.from(data, 'latin1'),
+        priority: 7,
+        onId: (id) => {
+          entry.request = id
+        }
+      })
+      if (typeof result.path === 'string') entry.written.push(result.path)
+      if (entry.mode === 'print' && !win.window.isDestroyed()) void this.printing.show(win.window, entry.target, dirname(entry.target))
+      return { ok: true }
+    } catch (error) {
+      log.warn(`oficina: no se pudo guardar una copia (${error instanceof EngineError ? error.code : '?'})`)
+      return { ok: false, error: error instanceof EngineError ? error.message : L.main.errors.unexpected }
+    } finally {
+      entry.request = null
+    }
+  }
+
+  /** Termina: con ``show``, enseña lo creado (la carpeta o el archivo). Lo de imprimir que no llegó a imprimirse, fuera. */
+  private mergeEnd(job: number, show: boolean): boolean {
+    const entry = this.mergeJobs.get(job)
+    if (!entry) return false
+    this.mergeJobs.delete(job)
+    if (entry.request !== null) this.engine.cancel(entry.request)
+    if (entry.mode === 'print' && entry.written.length === 0) rmSync(dirname(entry.target), { recursive: true, force: true, maxRetries: 2 })
+    if (show && entry.written.length) {
+      if (entry.mode === 'files') void shell.openPath(entry.target)
+      else if (entry.mode === 'single') shell.showItemInFolder(entry.written[0])
+    }
+    return true
+  }
+
+  /**
+   * Comparar o combinar con un documento que no está abierto: se elige aquí y
+   * el motor lo convierte (sin abrirlo) y pone sus imágenes con las de ``open``.
+   * A la interfaz llegan su nombre, su contenido y el mapa de sus imágenes.
+   */
+  private async compareFile(win: AppWindow, open: OpenDoc): Promise<OfficeOtherDocument | null> {
+    const picked = await dialog.showOpenDialog(win.window, {
+      title: L.main.office.compare.pick,
+      defaultPath: open.path ? dirname(open.path) : undefined,
+      properties: ['openFile'],
+      filters: [{ name: L.main.office.filters.word, extensions: COMPARE_SUFFIXES.map((s) => s.slice(1)) }]
+    })
+    const file = picked.canceled ? undefined : picked.filePaths[0]
+    if (!file || !COMPARE_SUFFIXES.includes(extname(file).toLowerCase())) return null
+    const name = basename(file)
+    try {
+      let password: string | undefined
+      for (let tries = 0; ; tries++) {
+        try {
+          const { result, binary } = await this.engine.request<{ images?: unknown }>(
+            'office.readOther',
+            password ? { doc: open.doc, path: file, password } : { doc: open.doc, path: file },
+            { priority: 7 }
+          )
+          if (!binary?.length || binary.subarray(0, 5).toString('latin1') !== 'DOCY;') throw new Error('respuesta no válida del motor')
+          // El mapa de imágenes viene del motor aislado: solo «media/<nombre>» → un nombre de los suyos.
+          const images: Record<string, string> = {}
+          const raw = result.images && typeof result.images === 'object' ? (result.images as Record<string, unknown>) : {}
+          for (const [key, value] of Object.entries(raw).slice(0, 1000)) {
+            if (/^media\/[^/\\]{1,200}$/.test(key) && typeof value === 'string' && MEDIA_NAME.test(value)) images[key] = value
+          }
+          return { name, data: new Uint8Array(binary), images }
+        } catch (error) {
+          if (!(error instanceof EngineError) || (error.code !== 'protected' && error.code !== 'wrong_password') || tries >= 20) throw error
+          const given = await this.askPassword(win, name, error.code === 'wrong_password')
+          if (!given) return null
+          password = given
+        }
+      }
+    } catch (error) {
+      log.warn(`oficina: no se pudo leer el documento para comparar (${error instanceof EngineError ? error.code : error instanceof Error ? error.name : '?'})`)
+      this.notify(win, 'error', fmt(L.main.office.compare.failed, { name }), error instanceof EngineError ? error.message : undefined)
+      return null
+    }
+  }
+
   /** Imprimir: un PDF temporal hecho por el motor, en el cuadro de imprimir de esta misma app (officeprint.ts). */
   private async printDoc(win: AppWindow, open: OpenDoc): Promise<boolean> {
     const folder = join(PRINT_DIR, randomBytes(6).toString('hex'))
@@ -1053,6 +1264,38 @@ export class OfficeWindows {
       const { doc, format } = (raw ?? {}) as { doc?: unknown; format?: unknown }
       const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
       return win && open && typeof format === 'string' ? this.exportDoc(win, open, format) : false
+    })
+    // Comparar o combinar con un documento que no está abierto (solo Documentos).
+    ipcMain.handle('office:compareFile', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const open = win && typeof raw === 'string' ? win.docs.get(raw) : undefined
+      return win && open && open.kind === 'word' ? this.compareFile(win, open) : null
+    })
+    // Combinar correspondencia: dónde, cada copia, cancelar y terminar (solo Documentos, desde su interfaz).
+    ipcMain.handle('office:mergeBegin', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { doc, mode, format, names } = (typeof raw === 'object' && raw !== null ? raw : {}) as { doc?: unknown; mode?: unknown; format?: unknown; names?: unknown }
+      const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
+      if (!win || !open || open.kind !== 'word' || (mode !== 'single' && mode !== 'files' && mode !== 'print') || (format !== 'docx' && format !== 'pdf')) return null
+      return this.mergeBegin(win, open, mode, format, Array.isArray(names) ? names : [])
+    })
+    ipcMain.handle('office:mergeWrite', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { job, index, data } = (typeof raw === 'object' && raw !== null ? raw : {}) as { job?: unknown; index?: unknown; data?: unknown }
+      const entry = typeof job === 'number' ? this.mergeJobs.get(job) : undefined
+      if (!win || !entry || entry.win !== win || !Number.isInteger(index) || typeof data !== 'string') return { ok: false, error: L.main.errors.invalidParams }
+      return this.mergeWrite(entry, index as number, data)
+    })
+    ipcMain.on('office:mergeCancel', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const entry = typeof raw === 'number' ? this.mergeJobs.get(raw) : undefined
+      if (win && entry && entry.win === win && entry.request !== null) this.engine.cancel(entry.request)
+    })
+    ipcMain.handle('office:mergeEnd', (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { job, show } = (typeof raw === 'object' && raw !== null ? raw : {}) as { job?: unknown; show?: unknown }
+      const entry = typeof job === 'number' ? this.mergeJobs.get(job) : undefined
+      return win && entry && entry.win === win ? this.mergeEnd(job as number, show === true) : false
     })
     ipcMain.handle('office:new', async (event) => {
       const win = this.uiSender(event)
@@ -1430,11 +1673,24 @@ export class OfficeWindows {
         return await this.font(open, docFonts[3], setup)
       }
       if (path === '/sdkjs/common/AllFonts.js') return respond(Buffer.from(setup.allFonts, 'utf8'), MIME['.js'], EDITOR_CSP)
-      if (path.startsWith('/dictionaries/')) return await this.file(inside(join(setup.piece, 'dictionaries'), path.slice('/dictionaries/'.length)), { piece: true, bridge: true })
+      if (path.startsWith('/dictionaries/')) return await this.dictionary(setup, path.slice('/dictionaries/'.length))
       return await this.file(inside(join(setup.piece, 'editors'), path.slice(1)), { piece: true, bridge: true })
     } catch {
       return notFound()
     }
+  }
+
+  /**
+   * Un archivo de los diccionarios del corrector (el Worker de hunspell de los
+   * editores los pide como /dictionaries/es_MX/es_MX.aff): los de la pieza y, si
+   * no está ahí, los que trae Molino (las variantes del español). De Molino, solo
+   * un .aff o un .dic con la forma de un diccionario, dentro de su carpeta.
+   */
+  private async dictionary(setup: Setup, rel: string): Promise<Response> {
+    const own = inside(join(setup.piece, 'dictionaries'), rel)
+    if (own && existsSync(own)) return this.file(own, { piece: true, bridge: true })
+    if (!/^([a-z]{2,3}_[A-Z]{2})\/\1\.(aff|dic)$/.test(rel)) return notFound()
+    return this.file(inside(this.options.dictionariesDir, rel), { piece: true })
   }
 
   /** Una fuente del índice del editor de ``open``: del equipo o de la pieza (del disco), o una letra incrustada suya (del motor). */

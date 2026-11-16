@@ -207,6 +207,30 @@
   // personal de Molino (Ajustes → Aplicaciones), que vale para todos los
   // documentos y se queda; las palabras de ahí se dan por buenas.
   let speller = null
+  // Las variantes del español que trae Molino (resources/dictionaries; officewin.ts
+  // las da en /dictionaries junto a las de la pieza): su código de Windows (LCID) y
+  // su carpeta. La misma lista que LANGS en features/word/data.ts.
+  const MOLINO_DICTIONARIES = {
+    2058: 'es_MX',
+    21514: 'es_US',
+    11274: 'es_AR',
+    16394: 'es_BO',
+    13322: 'es_CL',
+    9226: 'es_CO',
+    5130: 'es_CR',
+    12298: 'es_EC',
+    17418: 'es_SV',
+    4106: 'es_GT',
+    18442: 'es_HN',
+    19466: 'es_NI',
+    6154: 'es_PA',
+    15370: 'es_PY',
+    10250: 'es_PE',
+    20490: 'es_PR',
+    7178: 'es_DO',
+    14346: 'es_UY',
+    8202: 'es_VE'
+  }
   const personal = new Set()
   // Hasta que llega el diccionario personal no se contesta (así no se marcan de más).
   const personalReady = Promise.resolve(typeof host.userWords === 'function' ? host.userWords(info.doc) : [])
@@ -241,6 +265,7 @@
     } catch {
       return null
     }
+    for (const id of Object.keys(MOLINO_DICTIONARIES)) if (!languages[id]) languages[id] = MOLINO_DICTIONARIES[id]
     speller = new Worker('/sdkjs/common/spell/spell/spell.js')
     speller.onmessage = (e) => void personalReady.then(() => answer(e.data))
     speller.onerror = (e) => {

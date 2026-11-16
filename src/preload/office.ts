@@ -59,6 +59,13 @@ const ui: OfficeUiApi = {
   saveScript: (script) => ipcRenderer.invoke('office:scriptSave', script),
   removeScript: (id) => ipcRenderer.invoke('office:scriptRemove', id),
   exportDoc: (doc, format) => ipcRenderer.invoke('office:export', { doc, format }),
+  compareFile: (doc) => ipcRenderer.invoke('office:compareFile', doc),
+  merge: {
+    begin: (doc, mode, format, names) => ipcRenderer.invoke('office:mergeBegin', { doc, mode, format, names }),
+    write: (job, index, data) => ipcRenderer.invoke('office:mergeWrite', { job, index, data }),
+    cancel: (job) => ipcRenderer.send('office:mergeCancel', job),
+    end: (job, show) => ipcRenderer.invoke('office:mergeEnd', { job, show })
+  },
   newDoc: () => ipcRenderer.invoke('office:new'),
   recent: () => ipcRenderer.invoke('office:recent'),
   openRecent: (id) => ipcRenderer.invoke('office:openRecent', id),

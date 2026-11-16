@@ -25,8 +25,12 @@ export interface WordExtra {
   /** Los títulos del documento (panel de navegación) y el actual. */
   outline?: OutlineItem[]
   outlinePos?: number
-  /** Combinar correspondencia: los campos de la lista, cuántas filas y la que se ve (null: los campos). */
-  mailMerge?: { fields: string[]; rows: number; preview: number | null } | null
+  /**
+   * Combinar correspondencia: los campos de la lista, cuántas filas, la que se
+   * ve (null: los campos) y la lista misma (la primera fila, con los nombres),
+   * para el nombre del archivo de cada copia.
+   */
+  mailMerge?: { fields: string[]; rows: number; preview: number | null; list: string[][] } | null
   /** Sube cuando cambian los marcadores (el cuadro los vuelve a leer). */
   bookmarks?: number
 }
@@ -52,12 +56,13 @@ export interface TableStyleInfo {
 // ---------------------------------------------------------------- idiomas
 
 /**
- * Los idiomas del corrector: los diccionarios que trae la pieza de oficina
- * (dist-office/…/dictionaries), con su código de Windows (LCID). Del español
- * solo hay el de España: marcar un texto como español de México, por ejemplo,
- * lo dejaría sin corregir.
+ * Los idiomas del corrector, con su código de Windows (LCID): los diccionarios
+ * que trae la pieza de oficina (dist-office/…/dictionaries) y las variantes del
+ * español que trae Molino (resources/dictionaries, de RLA-ES; el Worker del
+ * corrector las conoce por la misma lista en public/office/bridge.js). Las
+ * variantes (``more``) van en «Más idiomas…», no en el menú, salvo la de Windows.
  */
-export const LANGS: { code: keyof typeof W.lang.names; lcid: number }[] = [
+export const LANGS: { code: keyof typeof W.lang.names; lcid: number; more?: boolean }[] = [
   { code: 'es-ES', lcid: 3082 },
   { code: 'ca-ES', lcid: 1027 },
   { code: 'ca-ES-valencia', lcid: 2051 },
@@ -69,8 +74,38 @@ export const LANGS: { code: keyof typeof W.lang.names; lcid: number }[] = [
   { code: 'pt-PT', lcid: 2070 },
   { code: 'pt-BR', lcid: 1046 },
   { code: 'de-DE', lcid: 1031 },
-  { code: 'it-IT', lcid: 1040 }
+  { code: 'it-IT', lcid: 1040 },
+  { code: 'es-MX', lcid: 2058, more: true },
+  { code: 'es-US', lcid: 21514, more: true },
+  { code: 'es-AR', lcid: 11274, more: true },
+  { code: 'es-BO', lcid: 16394, more: true },
+  { code: 'es-CL', lcid: 13322, more: true },
+  { code: 'es-CO', lcid: 9226, more: true },
+  { code: 'es-CR', lcid: 5130, more: true },
+  { code: 'es-EC', lcid: 12298, more: true },
+  { code: 'es-SV', lcid: 17418, more: true },
+  { code: 'es-GT', lcid: 4106, more: true },
+  { code: 'es-HN', lcid: 18442, more: true },
+  { code: 'es-NI', lcid: 19466, more: true },
+  { code: 'es-PA', lcid: 6154, more: true },
+  { code: 'es-PY', lcid: 15370, more: true },
+  { code: 'es-PE', lcid: 10250, more: true },
+  { code: 'es-PR', lcid: 20490, more: true },
+  { code: 'es-DO', lcid: 7178, more: true },
+  { code: 'es-UY', lcid: 14346, more: true },
+  { code: 'es-VE', lcid: 8202, more: true }
 ]
+
+/** Los del menú «Idioma»: los de siempre y, delante, la variante del español de Windows si es una de las de «Más idiomas…». */
+export function menuLangs(locale: string): typeof LANGS {
+  const mine = LANGS.find((l) => l.more && l.code.toLowerCase() === locale.toLowerCase())
+  return [...(mine ? [mine] : []), ...LANGS.filter((l) => !l.more)]
+}
+
+/** Todos, por su nombre (en el cuadro «Más idiomas…» y en el del idioma del documento). */
+export function sortedLangs(): typeof LANGS {
+  return [...LANGS].sort((a, b) => W.lang.names[a.code].localeCompare(W.lang.names[b.code]))
+}
 
 export function langByLcid(lcid: number): (typeof LANGS)[number] | undefined {
   return LANGS.find((l) => l.lcid === lcid)
@@ -123,6 +158,12 @@ export function describeTableStyle(name: string, type: number): { name: string; 
 
 /** Lo más que se lee de una lista para combinar correspondencia. */
 export const MAIL_MERGE_MAX_ROWS = 5000
+/**
+ * Cuántas copias se crean de una vez: en archivos sueltos (cada una es una
+ * conversión del motor) y en un solo documento o a la impresora (el editor las
+ * junta todas en memoria). El proceso principal tiene el mismo tope de archivos.
+ */
+export const MAIL_MERGE_MAX_COPIES = { files: 500, single: 1000, print: 1000 } as const
 const MAX_COLUMNS = 100
 const MAX_CELL = 1000
 

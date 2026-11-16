@@ -13,6 +13,7 @@ import {
   Donut,
   Eraser,
   FileStack,
+  FileUp,
   GitCompareArrows,
   GitMerge,
   Hash,
@@ -36,12 +37,25 @@ import type { ReactNode } from 'react'
 import type { MenuOption, Mode, SelectedObject, Tool } from '../apps'
 import type { PromptSpec } from '../dialogs'
 import type { EditorSession, EditorState } from '../engine'
-import { L } from '../i18n'
+import { env, L } from '../i18n'
 import type { Api, Feature, FeatureContext } from './types'
 import { BookmarksDialog } from './word/BookmarksDialog'
 import { CompareDialog } from './word/CompareDialog'
 import { CrossRefDialog } from './word/CrossRefDialog'
-import { CHARTS, type ChartKind, chartKindOf, describeTableStyle, extraOf, intIn, LANGS, langByLcid, MAIL_MERGE_MAX_ROWS, selectedElements, type TableStyleInfo } from './word/data'
+import {
+  CHARTS,
+  type ChartKind,
+  chartKindOf,
+  describeTableStyle,
+  extraOf,
+  intIn,
+  langByLcid,
+  MAIL_MERGE_MAX_ROWS,
+  menuLangs,
+  selectedElements,
+  sortedLangs,
+  type TableStyleInfo
+} from './word/data'
 import { MailMergePanel } from './word/MailMergePanel'
 import { NavigationPanel } from './word/NavigationPanel'
 import './word/word.css'
@@ -182,7 +196,10 @@ const SHADING: Tool = {
   defaultColor: '#dbe5f1'
 }
 
-/** Revisar: el idioma del texto (lo seleccionado) y el del documento. */
+/**
+ * Revisar: el idioma del texto (lo seleccionado) y el del documento. Las
+ * variantes del español, en «Más idiomas…» (salvo la de Windows, que va delante).
+ */
 const LANG_MENU = menu(
   'wLanguage',
   W.lang.menu,
@@ -190,7 +207,8 @@ const LANG_MENU = menu(
   <Languages size={ICON} />,
   [
     { value: '', label: W.lang.selection, heading: true },
-    ...LANGS.map((l) => ({ value: String(l.lcid), label: W.lang.names[l.code] })),
+    ...menuLangs(env.locale).map((l) => ({ value: String(l.lcid), label: W.lang.names[l.code] })),
+    { value: '', label: W.lang.moreAsk, command: 'textLangAsk', action: true, icon: <Languages size={15} /> },
     { value: '', label: W.lang.documentAsk, command: 'docLangAsk', action: true, icon: <Languages size={15} /> }
   ],
   { caption: true, current: (s) => String(extraOf(s).textLang ?? '') }
@@ -202,7 +220,9 @@ const COMPARE_MENU = menu(
   <GitCompareArrows size={ICON} />,
   [
     { value: 'compare:compare', label: W.compare.compare, icon: <GitCompareArrows size={15} /> },
-    { value: 'compare:combine', label: W.compare.combine, icon: <GitMerge size={15} /> }
+    { value: 'compare:compareFile', label: W.compare.compareFile, icon: <FileUp size={15} /> },
+    { value: 'compare:combine', label: W.compare.combine, icon: <GitMerge size={15} /> },
+    { value: 'compare:combineFile', label: W.compare.combineFile, icon: <FileUp size={15} /> }
   ],
   { caption: true }
 )
@@ -538,7 +558,7 @@ function wordCommands(ctx: FeatureContext): Record<string, (value?: string) => v
       const clean = rows.map((r) => (Array.isArray(r) ? r.map((v) => String(v ?? '').slice(0, 1000)) : []))
       api.asc_StartMailMergeByList(ctx.local(clean))
       const fields: string[] = (api.asc_GetMailMergeFieldsNameList?.() || []).map(String)
-      extra().mailMerge = { fields, rows: Number(api.asc_GetReceptionsCount?.() ?? clean.length - 1) || clean.length - 1, preview: null }
+      extra().mailMerge = { fields, rows: Number(api.asc_GetReceptionsCount?.() ?? clean.length - 1) || clean.length - 1, preview: null, list: clean }
       ctx.changed()
     },
     mailMergeField: (name) => {
@@ -548,7 +568,8 @@ function wordCommands(ctx: FeatureContext): Record<string, (value?: string) => v
     mailMergePreview: (index) => {
       const merge = extra().mailMerge
       if (!merge) return
-      const i = intIn(index, 0, merge.rows - 1)
+      // Sin fila («Ver los campos»): fuera la vista (Number('') es 0: sería la fila 1).
+      const i = index ? intIn(index, 0, merge.rows - 1) : null
       if (i === null) api.asc_EndPreviewMailMergeResult()
       else api.asc_PreviewMailMergeResult(i)
       merge.preview = i
@@ -645,8 +666,17 @@ function ask(command: string, _value: string | undefined, session: EditorSession
     return {
       title: W.lang.documentTitle,
       intro: W.lang.documentIntro,
-      fields: [{ key: 'lang', label: W.lang.language, value: String(langByLcid(now)?.lcid ?? 3082), options: LANGS.map((l) => ({ value: String(l.lcid), label: W.lang.names[l.code] })) }],
+      fields: [{ key: 'lang', label: W.lang.language, value: String(langByLcid(now)?.lcid ?? 3082), options: sortedLangs().map((l) => ({ value: String(l.lcid), label: W.lang.names[l.code] })) }],
       onOk: (v) => run('docLang', v.lang)
+    }
+  }
+  if (command === 'textLangAsk') {
+    const now = Number(extraOf(session.state).textLang)
+    return {
+      title: W.lang.moreTitle,
+      intro: W.lang.moreIntro,
+      fields: [{ key: 'lang', label: W.lang.language, value: String(langByLcid(now)?.lcid ?? 3082), options: sortedLangs().map((l) => ({ value: String(l.lcid), label: W.lang.names[l.code] })) }],
+      onOk: (v) => run('textLang', v.lang)
     }
   }
   if (command === 'chartTitleAsk') {
@@ -691,6 +721,8 @@ export const wordFeature: Feature = {
   palette: [
     { label: W.fields.update, group: L.office.modes.insert, keywords: W.keywords.updateFields, command: 'updateFields' },
     { label: W.lang.documentTitle, group: L.office.modes.review, keywords: W.keywords.docLang, command: 'docLangAsk' },
+    { label: W.lang.moreTitle, group: L.office.modes.review, keywords: W.keywords.docLang, command: 'textLangAsk' },
+    { label: W.compare.compareFile, group: L.office.modes.review, keywords: W.keywords.compare, command: 'dialog', value: 'compare:compareFile' },
     { label: W.bookmarks.title, group: L.office.modes.references, keywords: W.keywords.bookmarks, command: 'dialog', value: 'bookmarks' },
     { label: W.nav.title, group: L.office.modes.references, keywords: W.keywords.navigation, command: 'panel', value: 'navigation' }
   ]

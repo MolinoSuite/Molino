@@ -21,6 +21,8 @@ __pycache__/
 
 # Recursos descargados en la preparacion (se regeneran con scripts/)
 resources/tessdata/*.traineddata
+# Variantes del español del corrector (scripts/fetch-dictionaries.py)
+resources/dictionaries/
 
 # Artefactos de pruebas
 test-output/

@@ -137,6 +137,20 @@ export const main: typeof source = {
     },
     recoveredName: '{stem} (recovered){suffix}',
     recentMissing: 'Can’t find “{name}”: it may have been moved or deleted. It’s been removed from your recent files.',
+    merge: {
+      folder: 'Folder for the copies',
+      saveAll: 'Save all the copies',
+      combinedName: '{stem} (merged)',
+      exists: 'That folder already has {n} files with the same names.',
+      existsOne: 'That folder already has a file with the same name.',
+      existsDetail: 'For example: {names}',
+      keep: 'Save with another name',
+      replace: 'Replace'
+    },
+    compare: {
+      pick: 'Choose the other document',
+      failed: 'Couldn’t read “{name}”.'
+    },
     descriptions: {
       word: 'Write and edit Word and OpenDocument documents.',
       cell: 'Work with numbers and tables in Excel and OpenDocument spreadsheets.',

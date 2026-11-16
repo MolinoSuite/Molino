@@ -10,7 +10,8 @@ Recoge lo que se distribuye dentro del instalador:
   empaquetado;
 * los paquetes de la interfaz que se compilan dentro de la aplicacion (lo que
   importa src/ y sus dependencias);
-* los datos de idioma del OCR.
+* los datos de idioma del OCR y los diccionarios de las variantes del espanol
+  del corrector (Molino Suite).
 
 Electron anade sus propias licencias (LICENSE.electron.txt y
 LICENSES.chromium.html) al empaquetar. El resultado va a
@@ -198,6 +199,16 @@ def main() -> int:
         "carpeta licenses) y se abren desde Acerca de. Las fuentes que Molino instala",
         "del catalogo de Google Fonts guardan su licencia (OFL, Apache-2.0 o UFL) en la",
         "carpeta fonts-licenses de los datos de Molino.",
+        "",
+        "Diccionarios de las variantes del espanol del corrector de Documentos, Hojas y",
+        "Presentaciones (Molino Suite): los de RLA-ES 2.9 (https://github.com/sbosio/rla-es),",
+        "de Santiago Bosio y colaboradores, tal como los distribuye LibreOffice",
+        "(https://github.com/LibreOffice/dictionaries, carpeta es, commit",
+        "762abe74008b94b2ff06db6f4024b59a8254c467), sin cambios. Triple licencia, a",
+        "elegir: GNU GPL 3 o posterior, GNU LGPL 3 o posterior o MPL 1.1 o posterior.",
+        "Los textos de las tres licencias y la autoria van con ellos, en la carpeta",
+        "resources\\dictionaries de la aplicacion (LICENSE.md, GPLv3.txt, LGPLv3.txt,",
+        "MPL-1.1.txt y README_hunspell_es.txt).",
         "",
         "Inter (https://github.com/rsms/inter), la letra de la interfaz y la de los",
         "documentos nuevos de Molino Suite: SIL Open Font License 1.1 (resources/fonts/",

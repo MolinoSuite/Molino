@@ -1,13 +1,16 @@
-import { ChevronLeft, ChevronRight, FileUp } from 'lucide-react'
+import { ChevronLeft, ChevronRight, FileUp, FolderOpen, Printer } from 'lucide-react'
 import { useRef, useState } from 'react'
-import { Checkbox } from '@/components/ui'
+import type { OfficeMergeMode } from '@shared/officeui'
+import { Checkbox, Field } from '@/components/ui'
 import { fmt, L } from '../../i18n'
 import type { PanelProps } from '../types'
-import { extraOf, MAIL_MERGE_MAX_ROWS, parseList } from './data'
+import { extraOf, MAIL_MERGE_MAX_COPIES, MAIL_MERGE_MAX_ROWS, parseList } from './data'
+import { cancelMerge, canMerge, closeMerge, copyNames, type MergeRun, startMerge, useMergeRun } from './merge'
 
 const M = L.officeWord.mailMerge
 /** Lo más que se lee de un archivo de lista (5 MB). */
 const MAX_FILE = 5 * 1024 * 1024
+const MODES: OfficeMergeMode[] = ['single', 'files', 'print']
 
 /** El texto de un CSV: en UTF-8 si lo es; si no, como lo guarda Excel en Windows (Windows-1252). */
 function decode(buffer: ArrayBuffer): string {
@@ -18,12 +21,17 @@ function decode(buffer: ArrayBuffer): string {
   }
 }
 
+/** La columna que da nombre a cada archivo, de entrada: la del nombre, si la hay. */
+function nameColumn(fields: string[]): string {
+  return fields.find((f) => /^(nombre|name|nombre completo|full name)$/i.test(f.trim())) ?? fields.find((f) => /nombre|name/i.test(f)) ?? fields[0] ?? ''
+}
+
 /**
  * Combinar correspondencia: la lista (un CSV elegido o pegado), sus campos
- * para ponerlos en el texto y la vista de cada fila. Crear las copias
- * necesita que el proceso principal guarde el documento combinado (aún no).
+ * para ponerlos en el texto, la vista de cada fila y crear las copias: todas en
+ * un documento, una por destinatario (cada una en su archivo) o a la impresora.
  */
-export function MailMergePanel({ state, run }: PanelProps) {
+export function MailMergePanel({ session, doc, state, run }: PanelProps) {
   const merge = extraOf(state).mailMerge ?? null
   const [text, setText] = useState('')
   const [error, setError] = useState('')
@@ -107,9 +115,131 @@ export function MailMergePanel({ state, run }: PanelProps) {
               </button>
             </div>
           )}
-          <p className="hint">{M.finish}</p>
         </section>
       )}
+      {merge && <MakeCopies key={`${doc}:${merge.rows}:${merge.fields.join('\u0001')}`} doc={doc} api={session.featureContext().api} fields={merge.fields} rows={merge.rows} list={merge.list} />}
     </div>
+  )
+}
+
+/** «Crear las copias»: qué, de qué filas, en qué formato y con qué nombre; y lo que se está creando. */
+function MakeCopies({ doc, api, fields, rows, list }: { doc: string; api: unknown; fields: string[]; rows: number; list: string[][] }) {
+  const running = useMergeRun(doc)
+  const [mode, setMode] = useState<OfficeMergeMode>('single')
+  const [format, setFormat] = useState<'docx' | 'pdf'>('docx')
+  const [from, setFrom] = useState('1')
+  const [to, setTo] = useState(String(rows))
+  const [field, setField] = useState(() => nameColumn(fields))
+  const first = Number(from)
+  const last = Number(to)
+  const valid = Number.isInteger(first) && Number.isInteger(last) && first >= 1 && last >= first && last <= rows
+  const count = valid ? last - first + 1 : 0
+  const tooMany = count > MAIL_MERGE_MAX_COPIES[mode]
+  const supported = canMerge(api)
+
+  const create = (): void => {
+    if (!valid || tooMany) return
+    // La columna del campo elegido en la lista (la primera fila son los nombres).
+    const header = list[0] ?? []
+    const column = header.includes(field) ? header.indexOf(field) : Math.max(0, fields.indexOf(field))
+    const names = mode === 'files' ? copyNames(list, column, first - 1, last - 1) : []
+    void startMerge(api, doc, mode, format, first - 1, last - 1, names)
+  }
+
+  if (running) return <MergeProgress doc={doc} run={running} />
+  return (
+    <section className="office-word-merge-make">
+      <h3>{M.make}</h3>
+      <Field label={M.what}>
+        <select className="select" value={mode} onChange={(e) => setMode(e.target.value as OfficeMergeMode)}>
+          {MODES.map((m) => (
+            <option key={m} value={m}>
+              {M.modes[m]}
+            </option>
+          ))}
+        </select>
+      </Field>
+      <div className="office-word-row2">
+        <Field label={M.from}>
+          <input className="input" type="number" min={1} max={rows} value={from} onChange={(e) => setFrom(e.target.value)} />
+        </Field>
+        <Field label={M.to}>
+          <input className="input" type="number" min={1} max={rows} value={to} onChange={(e) => setTo(e.target.value)} />
+        </Field>
+      </div>
+      {mode !== 'print' && (
+        <Field label={M.format}>
+          <select className="select" value={format} onChange={(e) => setFormat(e.target.value === 'pdf' ? 'pdf' : 'docx')}>
+            <option value="docx">{M.formats.docx}</option>
+            <option value="pdf">{M.formats.pdf}</option>
+          </select>
+        </Field>
+      )}
+      {mode === 'files' && (
+        <Field label={M.nameField} hint={M.nameHint}>
+          <select className="select" value={field} onChange={(e) => setField(e.target.value)}>
+            {fields.map((f) => (
+              <option key={f} value={f}>
+                {f}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
+      {tooMany && <p className="office-word-error">{fmt(M.limit, { n: MAIL_MERGE_MAX_COPIES[mode] })}</p>}
+      {!supported && <p className="office-word-error">{M.unsupported}</p>}
+      <button className="btn primary sm office-word-merge-go" disabled={!valid || tooMany || !supported} onClick={create}>
+        {mode === 'print' ? <Printer size={14} /> : <FolderOpen size={14} />}
+        {M.go[mode]}
+      </button>
+    </section>
+  )
+}
+
+/** Lo que se está creando: la barra, «Copia 3 de 20» y Cancelar; al terminar, cómo ha ido. */
+function MergeProgress({ doc, run }: { doc: string; run: MergeRun }) {
+  const busy = run.phase === 'asking' || run.phase === 'preparing' || run.phase === 'writing'
+  const status =
+    run.phase === 'asking'
+      ? M.asking
+      : run.phase === 'error'
+        ? run.error || M.failed
+        : run.phase === 'cancelled'
+          ? fmt(M.cancelled, { n: run.done, total: run.total })
+          : run.phase === 'done'
+            ? fmt(M.done[run.mode], { n: run.total, where: run.where })
+            : run.mode === 'files'
+              ? fmt(M.progress, { n: Math.min(run.done + 1, run.total), total: run.total })
+              : M.preparing
+  const determinate = run.mode === 'files' && run.phase !== 'asking'
+  return (
+    <section className="office-word-merge-make" aria-live="polite">
+      <h3>{M.make}</h3>
+      {busy && (
+        <div className={determinate ? 'progress' : 'progress indeterminate'} role="progressbar" aria-valuemin={0} aria-valuemax={run.total} aria-valuenow={run.done}>
+          <div style={determinate ? { width: `${Math.round((run.done / Math.max(1, run.total)) * 100)}%` } : undefined} />
+        </div>
+      )}
+      <p className={run.phase === 'error' ? 'office-word-error' : 'office-word-merge-status'}>{status}</p>
+      <div className="office-word-merge-actions">
+        {busy ? (
+          <button className="btn sm" disabled={run.cancel || run.phase === 'asking'} onClick={() => cancelMerge(doc)}>
+            {M.cancel}
+          </button>
+        ) : (
+          <>
+            {run.job !== null && run.mode !== 'print' && (
+              <button className="btn sm" onClick={() => void closeMerge(doc, true)}>
+                <FolderOpen size={14} />
+                {M.show[run.mode === 'files' ? 'files' : 'single']}
+              </button>
+            )}
+            <button className="btn sm" onClick={() => void closeMerge(doc, false)}>
+              {M.dismiss}
+            </button>
+          </>
+        )}
+      </div>
+    </section>
   )
 }
