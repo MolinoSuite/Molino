@@ -98,7 +98,14 @@ _NEW_IN = {"pages.split": (".pdf",), "tools.exportImages": (".png", ".jpg")}
 _READ_ONE["office.open"] = "path"
 _WRITE["office.save"] = office.SAVE_SUFFIXES
 _WRITE["office.exportPdf"] = (".pdf",)
-_OFFICE_X2T = frozenset({"office.open", "office.new", "office.save", "office.exportPdf", "office.fonts", "office.recover"})
+# Combinar correspondencia: cada copia, en el archivo elegido o nueva en la carpeta elegida.
+_WRITE["office.saveCopy"] = (".docx", ".pdf")
+_NEW_IN["office.saveCopy"] = (".docx", ".pdf")
+# Comparar o combinar con un documento que no esta abierto: solo se lee.
+_READ_ONE["office.readOther"] = "path"
+_OFFICE_X2T = frozenset(
+    {"office.open", "office.new", "office.save", "office.exportPdf", "office.fonts", "office.recover", "office.saveCopy", "office.readOther"}
+)
 # La pieza es la carpeta de su version dentro de la de la aplicacion
 # (office\<version>), y el indice de fuentes, office\fonts\<huella>.
 _OFFICE_VERSION = re.compile(r"^[0-9]{1,4}(\.[0-9]{1,4}){1,3}(-[0-9]{1,4})?$")

@@ -15,12 +15,17 @@ leen los editores y x2t:
 El documento original no se toca hasta guardar: la copia que se abre se borra
 en cuanto x2t la ha convertido. Cada conversion va en una subcarpeta propia
 (``x-`` + 12 cifras) con su tarea y su temporal, que se borra al terminar.
+Tambien de paso, en ``c-`` + 12 cifras y borradas al terminar: una copia que da el
+editor, con las imagenes del documento (combinar correspondencia,
+``office.saveCopy``), u otro documento convertido para compararlo con este
+(``office.readOther``).
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 import secrets
 import shutil
 import zipfile
@@ -501,12 +506,25 @@ class SaveParams(Params):
     export: bool = False
 
 
-def _export(ctx: Ctx, piece: office.Piece, item: OfficeDoc, code: int, suffix: str, options: str | None, extra: dict[str, object] | None = None) -> Path:
-    """Editor.bin con los cambios apuntados, convertido a ``code``; devuelve el archivo de salida."""
+def _export(
+    ctx: Ctx,
+    piece: office.Piece,
+    item: OfficeDoc,
+    code: int,
+    suffix: str,
+    options: str | None,
+    extra: dict[str, object] | None = None,
+    source: Path | None = None,
+) -> Path:
+    """Editor.bin con los cambios apuntados, convertido a ``code``; devuelve el archivo de salida.
+
+    Con ``source``, ese otro documento en el formato de trabajo (una copia que hace
+    el editor, con las imagenes al lado, en media/), sin los cambios.
+    """
     out = item.folder / f"salida-{secrets.token_hex(6)}{suffix}"
-    has_changes = item.changes.is_file() and item.changes.stat().st_size > 0
+    has_changes = source is None and item.changes.is_file() and item.changes.stat().st_size > 0
     fields: dict[str, object] = {
-        "m_sFileFrom": item.doc / "Editor.bin",
+        "m_sFileFrom": source or item.doc / "Editor.bin",
         "m_sFileTo": out,
         "m_nFormatTo": code,
         "m_bIsNoBase64": "false",
@@ -591,6 +609,169 @@ def office_export_pdf(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
     finally:
         out.unlink(missing_ok=True)
     return {"path": dest, "size": size, "cleaned": cleaned}
+
+
+# --------------------------------------------- copias que hace el editor
+
+# Un documento que da el editor en su formato de trabajo, como lo escribe al
+# guardar: «DOCY;v<version>;<bytes>;<base64>». Es el de una copia de combinar
+# correspondencia (cada carta, o todas juntas).
+_EDITOR_TEXT = re.compile(rb"^DOCY;v([0-9]{1,3});([0-9]{1,10});")
+_BASE64_BODY = re.compile(rb"^[A-Za-z0-9+/]*={0,2}$")
+# En que se guarda una copia y con que codigo de x2t.
+_COPY_FORMATS = {".docx": office.SAVE_FORMATS["word"][".docx"], ".pdf": office.PDF}
+CopyStem = Annotated[str, StringConstraints(min_length=1, max_length=150, pattern=r"^[^\x00-\x1f\x7f]+$")]
+
+
+def _check_editor_text(data: bytes) -> None:
+    """Comprueba entera una copia del editor antes de darsela a x2t: cabecera, base64 y tamano."""
+    head = _EDITOR_TEXT.match(data[:40])
+    if head is None or len(data) > office.MAX_CANVAS:
+        raise invalid(_("La copia no es válida."))
+    body = data[head.end():]
+    expected = int(head.group(2))
+    # El base64 dice cuantos bytes lleva: tienen que ser los de la cabecera.
+    if not body or len(body) % 4 or not _BASE64_BODY.match(body) or len(body) // 4 * 3 - body[-2:].count(b"=") != expected:
+        raise invalid(_("La copia no es válida."))
+
+
+def _media_into(item: OfficeDoc, target: Path) -> None:
+    """Las imagenes del documento en ``target`` (enlaces duros si se puede; si no, copias)."""
+    target.mkdir(parents=True)
+    for image in (item.doc / "media").iterdir():
+        if image.is_symlink() or not image.is_file() or not office.MEDIA_NAME.match(image.name):
+            continue
+        try:
+            os.link(image, target / image.name)
+        except OSError:
+            shutil.copyfile(image, target / image.name)
+
+
+class CopyParams(Params):
+    doc: OfficeDocId
+    # Un archivo que eligio el usuario (se reemplaza si ya esta: ya lo confirmo)...
+    path: PathStr | None = None
+    # ...o uno nuevo en una carpeta: «stem.docx» o, si ya hay uno, «stem (2).docx».
+    dir: PathStr | None = None
+    stem: CopyStem | None = None
+    suffix: Literal[".docx", ".pdf"] | None = None
+
+
+@method("office.saveCopy", CopyParams)
+def office_save_copy(ctx: Ctx, p: CopyParams) -> dict[str, Any]:
+    """Guarda en .docx o PDF una copia que ha hecho el editor de ``doc`` (en la carga binaria).
+
+    Es lo de combinar correspondencia: el editor pone los datos de cada fila en
+    una copia del documento y aqui x2t la escribe. El documento abierto no cambia:
+    ni su Editor.bin, ni sus cambios apuntados, ni su archivo, ni su nombre.
+    """
+    piece = _piece(ctx)
+    item = _doc(ctx, p.doc)
+    if item.kind != "word" or (p.path is None) == (p.dir is None):
+        raise invalid()
+    if p.path is not None:
+        dest = ctx.engine.host.check_output(p.path, tuple(_COPY_FORMATS))
+        suffix = Path(dest).suffix.lower()
+    else:
+        if p.stem is None or p.suffix is None:
+            raise invalid()
+        folder = ctx.engine.host.check_output_dir(p.dir)  # type: ignore[arg-type]
+        suffix = p.suffix
+    data = ctx.binary
+    _check_editor_text(data)
+    # En una carpeta aparte, con las imagenes del documento (media/, donde las busca
+    # x2t) y sin sus cambios: al hacer un PDF, x2t aplica los cambios que encuentre
+    # junto al documento (changes/), que son los del abierto y no casan con la copia.
+    work = item.folder / f"c-{secrets.token_hex(6)}"
+    try:
+        _media_into(item, work / "media")
+        source = work / "Editor.bin"
+        with open(source, "xb") as fh:
+            fh.write(data)
+        ctx.progress(0, 0, _("Guardando…"))
+        out = _export(ctx, piece, item, _COPY_FORMATS[suffix], suffix, None, source=source)
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    try:
+        if suffix == ".pdf":
+            office.clean_pdf(out)
+        if p.path is not None:
+            size, _mtime = ctx.engine.host.install(out, dest)
+            path = dest
+        else:
+            size = out.stat().st_size
+            path = ctx.engine.host.create_new(folder, p.stem, suffix, out)  # type: ignore[arg-type]
+    finally:
+        out.unlink(missing_ok=True)
+    return {"path": path, "size": size}
+
+
+# --------------------------------------------- otro documento, para comparar
+
+MAX_OTHER_IMAGES = 1000
+
+
+class OtherParams(Params):
+    # El documento abierto con el que se compara: las imagenes del otro van con las suyas.
+    doc: OfficeDocId
+    path: PathStr
+    password: DocPassword | None = None
+
+
+@method("office.readOther", OtherParams)
+def office_read_other(ctx: Ctx, p: OtherParams) -> Reply:
+    """Otro documento de texto, en el formato de trabajo del editor, para compararlo o combinarlo con ``doc``.
+
+    No se abre como un documento mas: se convierte en una carpeta aparte, que se
+    borra. Sus imagenes pasan a las de ``doc`` con nombres nuevos (lo que la
+    comparacion traiga de ellas se ve y se guarda con el documento); ``images``
+    dice que nombre nuevo tiene cada una («media/image1.png» -> «compare-….png»),
+    como el mapa de imagenes de la app de escritorio.
+    """
+    piece = _piece(ctx)
+    item = _doc(ctx, p.doc)
+    suffix = Path(p.path).suffix.lower()
+    if item.kind != "word" or office.OPEN_FORMATS.get(suffix, ("",))[0] != "word":
+        raise EngineError("invalid_file", _("Este tipo de archivo no es compatible."))
+    work = item.folder / f"c-{secrets.token_hex(6)}"
+    (work / "media").mkdir(parents=True)
+    source = work / f"source{suffix}"
+    images: dict[str, str] = {}
+    copied: list[Path] = []
+    try:
+        ctx.engine.host.fetch(p.path, source, max_bytes=office.MAX_INPUT)
+        with open(source, "rb") as fh:
+            if not fh.read(8).startswith(_MAGIC):
+                raise EngineError("invalid_file", _("El archivo está dañado o no es del tipo que indica su nombre."))
+        ctx.progress(0, 0, _("Leyendo el otro documento…"))
+        extra: dict[str, object] = {"m_sPassword": p.password} if p.password else {}
+        # La tarea va en la carpeta del documento (o<id>/x-…): las otras rutas no las acepta el intermediario.
+        _convert(ctx, piece, item.folder, {"m_sFileFrom": source, "m_sFileTo": work / "Editor.bin", "m_nFormatTo": office.CANVAS, **extra})
+        canvas = work / "Editor.bin"
+        if not canvas.is_file() or not 0 < canvas.stat().st_size <= office.MAX_CANVAS:
+            raise EngineError("conversion_failed", _("No se pudo convertir el documento."))
+        data = canvas.read_bytes()
+        if not data.startswith(b"DOCY;"):
+            raise EngineError("conversion_failed", _("No se pudo convertir el documento."))
+        for image in sorted((work / "media").iterdir()):
+            if len(images) >= MAX_OTHER_IMAGES:
+                break
+            if image.is_symlink() or not image.is_file() or not office.MEDIA_NAME.match(image.name) or image.stat().st_size > office.MAX_MEDIA:
+                continue
+            name = f"compare-{secrets.token_hex(6)}{image.suffix.lower()}"
+            target = item.doc / "media" / name
+            # "x": un nombre nuevo, nunca se escribe sobre una imagen del documento.
+            with open(image, "rb") as src, open(target, "xb") as out:
+                shutil.copyfileobj(src, out, 1 << 20)
+            copied.append(target)
+            images[f"media/{image.name}"] = name
+    except BaseException:
+        for target in copied:
+            target.unlink(missing_ok=True)
+        raise
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    return Reply({"images": images, "size": len(data)}, data)
 
 
 class CloseParams(Params):
