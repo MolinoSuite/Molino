@@ -16,10 +16,16 @@ export const officeSlide: typeof source = {
     guides: 'Guides',
     grid: 'Grid',
     show: 'Show',
-    master: 'Master'
+    master: 'Master',
+    presenter: 'Presenter',
+    chartData: 'Data'
   },
-  modes: { view: 'View' },
+  modes: { view: 'View', chart: 'Chart' },
   tools: {
+    presenterView: 'Presenter view',
+    usePresenter: 'Use presenter view',
+    screen: 'Display',
+    chartData: 'Edit data',
     video: 'Video',
     audio: 'Audio',
     textDirection: 'Text direction',
@@ -63,7 +69,9 @@ export const officeSlide: typeof source = {
     textDirection: { normal: 'Horizontal', vert: 'Rotate 90°', vert270: 'Rotate 270°' },
     rotate: { left: 'Rotate left 90°', right: 'Rotate right 90°', flipH: 'Flip horizontal', flipV: 'Flip vertical' },
     gridSpacing: { '0.25': '0.25 cm', '0.5': '0.5 cm', '1': '1 cm', '2': '2 cm' },
-    gridSpacingCustom: 'Other spacing…'
+    gridSpacingCustom: 'Other spacing…',
+    /** Where the slide show goes (with two displays or more). */
+    screen: { heading: 'Where the slide show goes', auto: 'Automatic (not the main display)', single: 'There is only one display' }
   },
   anim: {
     entrance: 'Entrance',
@@ -153,7 +161,29 @@ export const officeSlide: typeof source = {
     prev: 'Previous',
     nextSlide: 'Next',
     present: 'Present from here',
-    hint: 'Rehearse with your notes in view. Presenter view on a second screen is not available yet.'
+    hint: 'Rehearse with your notes in view. To rehearse full screen, with the timer and the next slide, use Presenter view (Alt+F5).'
+  },
+  /** Presenter view: its own window (presenter/PresenterApp.tsx). */
+  presenter: {
+    title: 'Presenter view',
+    loading: 'Getting the slide show ready…',
+    slide: 'Slide {n} of {total}',
+    finished: 'End of slide show',
+    current: 'Current slide',
+    next: 'Next',
+    end: 'End show',
+    prev: 'Previous',
+    nextSlide: 'Next',
+    notes: 'Notes',
+    noNotes: 'This slide has no notes.',
+    bigger: 'Larger text',
+    smaller: 'Smaller text',
+    elapsed: 'Time',
+    pause: 'Pause',
+    resume: 'Resume',
+    reset: 'Reset',
+    clock: 'Clock',
+    keys: 'Arrows, Page Down or Space: move on. Esc: end. A number and Enter: go to that slide.'
   },
   smartArt: {
     title: 'Insert a SmartArt',
@@ -169,6 +199,7 @@ export const officeSlide: typeof source = {
     renameField: 'Name'
   },
   context: {
+    chartData: 'Edit data…',
     animPanel: 'Animations…',
     replaceImage: 'Change picture…',
     originalSize: 'Original size',
@@ -180,6 +211,8 @@ export const officeSlide: typeof source = {
     guides: 'guides rulers align',
     smartArt: 'smartart diagram org chart process',
     wordArt: 'wordart text art decorated',
-    master: 'master slide master layout template'
+    master: 'master slide master layout template',
+    presenterView: 'presenter speaker view second screen display projector monitor notes',
+    chartData: 'data chart series category figures values edit'
   }
 }

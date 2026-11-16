@@ -86,6 +86,54 @@ export interface OfficeOtherDocument {
   images: Record<string, string>
 }
 
+/** Una pantalla del equipo, para elegir dónde se ve la presentación (Presentaciones). */
+export interface PresenterScreen {
+  id: number
+  /** Su nombre y su tamaño («Pantalla 2 · 1920 × 1080»). */
+  label: string
+  primary: boolean
+}
+
+/** Cómo empezar a presentar (Presentaciones). */
+export interface PresenterStart {
+  /** Con dos pantallas o más, la vista del moderador en la de Molino (si no, solo la presentación en la otra). */
+  presenter: boolean
+  /** La pantalla de la presentación (null: la automática, la que no es la principal). */
+  screen: number | null
+  /** Con una sola pantalla, la vista del moderador también (para ensayar, como Alt+F5 en PowerPoint). */
+  rehearse: boolean
+  /** El color de la app (#rrggbb), para la vista del moderador. */
+  accent: string
+}
+
+/** Lo que enseña la vista del moderador (lo manda la ventana de Presentaciones). */
+export interface PresenterState {
+  /** El nombre del documento. */
+  title: string
+  /** La diapositiva que se ve (desde 0) y cuántas hay. */
+  index: number
+  count: number
+  /** Se ha pasado de la última: la pantalla del final. */
+  finished: boolean
+  /** Las notas del orador de la que se ve. */
+  notes: string
+  /** Su imagen (data:image/jpeg o png). */
+  current: string | null
+  /** La siguiente que se verá (null: no hay más) y su imagen. */
+  next: { index: number; image: string | null } | null
+}
+
+/** Lo que pide la vista del moderador a la presentación. */
+export type PresenterAction = 'next' | 'prev' | 'first' | 'last' | 'goto' | 'end'
+
+/** La vista del moderador (su página, presenter.html; preload/office.ts). */
+export interface PresenterApi {
+  /** La página ya escucha: que le llegue lo último. */
+  ready(): void
+  command(action: PresenterAction, slide?: number): void
+  onState(listener: (state: PresenterState) => void): () => void
+}
+
 export interface OfficeUiApi {
   /** ``piece``: la versión del motor de oficina (para «Acerca de»). */
   env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; piece: string; author: string }
@@ -166,6 +214,24 @@ export interface OfficeUiApi {
   fromTemplate(id: string): Promise<boolean>
   /** Abrir un vínculo del documento en el navegador (pregunta antes, con el destino). */
   openLink(url: string): Promise<boolean>
+  /**
+   * Presentar con la vista del moderador (Presentaciones): la presentación, a
+   * pantalla completa en la otra pantalla, y la vista del moderador en esta.
+   */
+  presenter: {
+    /** Las pantallas del equipo (en orden). */
+    screens(): Promise<PresenterScreen[]>
+    /** Avisa cuando se conecta o se quita una pantalla. */
+    onScreens(listener: (screens: PresenterScreen[]) => void): () => void
+    /** Antes de empezar: mueve la ventana a su pantalla y abre la vista del moderador (``presenter``: si se ha abierto). */
+    start(doc: string, options: PresenterStart): Promise<{ presenter: boolean }>
+    /** Lo que enseña la vista del moderador. */
+    state(doc: string, state: PresenterState): void
+    /** Se ha terminado: se cierra la vista del moderador y la ventana vuelve a su sitio. */
+    end(doc: string): void
+    /** Lo que pide la vista del moderador. */
+    onCommand(listener: (command: { doc: string; action: PresenterAction; slide?: number }) => void): () => void
+  }
   /** La IA local de Molino (la de Ajustes → IA), sobre los documentos de esta ventana. */
   ai: {
     status(): Promise<{ on: boolean; ready: boolean }>

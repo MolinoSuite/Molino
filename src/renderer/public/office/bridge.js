@@ -162,9 +162,12 @@
   }
 
   // Los atajos de la ventana, como en Office: Ctrl+F buscar, Ctrl+H reemplazar,
-  // Ctrl+K vínculo, Alt+Q el buscador de órdenes. La misma lista está en OfficeApp.tsx.
+  // Ctrl+K vínculo, Alt+Q el buscador de órdenes, F5 presentar. La misma lista está en OfficeApp.tsx.
   const molinoShortcut = (e) => {
     const key = e.key.toLowerCase()
+    // Presentaciones: F5 desde el principio, Mayús+F5 desde aquí y Alt+F5 con la vista del moderador
+    // (también Ctrl+F5, que el editor usaría para presentar sin pasar por Molino).
+    if (key === 'f5' && info.kind === 'slide' && !e.metaKey) return e.altKey ? 'presentRehearse' : e.shiftKey ? 'presentHere' : 'present'
     if (e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey && key === 'q') return 'palette'
     if (!(e.ctrlKey || e.metaKey) || e.altKey) return null
     if (key === 'tab') return e.shiftKey ? 'prevTab' : 'nextTab'

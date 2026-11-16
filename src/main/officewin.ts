@@ -14,6 +14,7 @@ import { installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
 import { cleanFontIndex, fontAllowed, ownFontsDir } from './officefonts'
 import { configureOffice } from './officeconfig'
+import { OfficePresenter } from './officepresenter'
 import { OfficePrint } from './officeprint'
 import type { PrintService } from './print'
 
@@ -25,6 +26,8 @@ import type { PrintService } from './print'
  * por documento; cada pestaña es un marco (``frame.html``) que arranca el
  * editor de ONLYOFFICE (la pieza, office.ts) con su interfaz oculta. La
  * interfaz de Molino maneja el editor por su API (renderer/src/office/engine.ts).
+ * En Presentaciones, la vista del moderador es otra ventana de Molino, con su
+ * propia página (presenter.html; officepresenter.ts).
  *
  * Todo corre aparte de Molino PDF:
  * - **su propia sesión**, en memoria, que solo deja pedir ``molino://office/``
@@ -49,6 +52,8 @@ const PARTITION = 'molino-office'
 const HOST = 'office'
 const ORIGIN = `molino://${HOST}`
 const UI_PAGE = `${ORIGIN}/__molino__/ui/office.html`
+/** La vista del moderador de Presentaciones (officepresenter.ts): una página de Molino en su propia ventana. */
+const PRESENTER_PAGE = `${ORIGIN}/__molino__/ui/presenter.html`
 export type Kind = 'word' | 'cell' | 'slide'
 
 export function isOfficeFile(path: string): boolean {
@@ -405,6 +410,8 @@ export class OfficeWindows {
   /** Combinar correspondencia: lo que se está creando en cada ventana. */
   private readonly mergeJobs = new Map<number, MergeJob>()
   private nextMerge = 1
+  /** Presentaciones: la vista del moderador y la presentación en otra pantalla. */
+  private readonly presenter: OfficePresenter
 
   constructor(private readonly options: OfficeOptions) {
     rmSync(PRINT_DIR, { recursive: true, force: true, maxRetries: 2 })
@@ -419,6 +426,21 @@ export class OfficeWindows {
     this.session.protocol.handle('molino', (request) => this.serve(request))
     this.registerIpc()
     this.printing = new OfficePrint(this.engine, options.printer, (event) => this.uiWindow(event))
+    this.presenter = new OfficePresenter({
+      session: this.session,
+      preload: join(__dirname, '../preload/office.js'),
+      page: PRESENTER_PAGE,
+      icon: appIcon('slide'),
+      appDetails: windowDetails('slide'),
+      args: (dark) => this.windowArgs('slide', dark),
+      dark: () => this.options.dark('slide'),
+      uiWindow: (event) => {
+        const win = this.uiSender(event)
+        return win && win.kind === 'slide' ? win.window : null
+      },
+      hasDoc: (window, doc) => [...this.windows.values()].some((w) => w.window === window && w.docs.has(doc)),
+      windows: () => [...this.windows.values()].filter((w) => w.kind === 'slide').map((w) => w.window)
+    })
   }
 
   /** El tema ha cambiado: cada ventana (su barra de título y su interfaz, con los editores dentro) sin volver a cargarse. */
@@ -429,6 +451,7 @@ export class OfficeWindows {
       win.window.setTitleBarOverlay({ color: dark ? '#1c1d20' : '#ffffff', symbolColor: dark ? '#e5e7eb' : '#1f2937', height: 40 })
       win.window.webContents.send('office:theme', dark)
     }
+    if (kind === 'slide') this.presenter.setDark(dark)
   }
 
   /** La ventana de una app si lo pide la página de su interfaz (para lo compartido con Molino PDF; ipc.ts). */
@@ -730,15 +753,7 @@ export class OfficeWindows {
         spellcheck: false,
         navigateOnDragDrop: false,
         devTools: !app.isPackaged,
-        additionalArguments: [
-          `--molino-lang=${lang}`,
-          `--molino-locale=${locale}`,
-          `--molino-theme=${dark ? 'dark' : 'light'}`,
-          `--molino-kind=${kind}`,
-          `--molino-version=${app.getVersion()}`,
-          `--molino-piece=${pieceVersion()}`,
-          `--molino-author=${encodeURIComponent(this.options.author().replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100))}`
-        ]
+        additionalArguments: this.windowArgs(kind, dark)
       }
     })
     window.removeMenu()
@@ -765,6 +780,7 @@ export class OfficeWindows {
     window.on('closed', () => {
       this.printing.closeWindow(window)
       for (const [job, entry] of this.mergeJobs) if (entry.win === win) this.mergeEnd(job, false)
+      this.presenter.closeOwner(window)
       for (const [id, entry] of this.asks) {
         if (entry.win !== win) continue
         this.asks.delete(id)
@@ -777,6 +793,19 @@ export class OfficeWindows {
     window.once('ready-to-show', () => window.show())
     void window.loadURL(`${UI_PAGE}?kind=${kind}`)
     return win
+  }
+
+  /** Lo que la página de una ventana de oficina sabe al abrirse (preload/office.ts): idioma, tema, app… */
+  private windowArgs(kind: Kind, dark: boolean): string[] {
+    return [
+      `--molino-lang=${lang}`,
+      `--molino-locale=${locale}`,
+      `--molino-theme=${dark ? 'dark' : 'light'}`,
+      `--molino-kind=${kind}`,
+      `--molino-version=${app.getVersion()}`,
+      `--molino-piece=${pieceVersion()}`,
+      `--molino-author=${encodeURIComponent(this.options.author().replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100))}`
+    ]
   }
 
   private show(win: AppWindow, doc: string | null): void {
@@ -881,6 +910,8 @@ export class OfficeWindows {
     win.docs.delete(doc)
     win.order = win.order.filter((d) => d !== doc)
     if (win.active === doc) win.active = win.order.at(-1) ?? null
+    // Si se estaba presentando, se termina: fuera la vista del moderador y la ventana, a su sitio.
+    this.presenter.closeDoc(win.window, doc)
     this.engine.request('office.close', { doc }, { priority: 7 }).catch(() => undefined)
     this.sendTabs(win)
     return true
@@ -1618,7 +1649,10 @@ export class OfficeWindows {
     })
     ipcMain.on('office:fullscreen', (event, raw: unknown) => {
       const { doc, value } = (raw ?? {}) as { doc?: unknown; value?: unknown }
-      this.editorDoc(event, doc)?.win.window.setFullScreen(value === true)
+      const found = this.editorDoc(event, doc)
+      if (!found) return
+      // Presentando con la vista del moderador (o en una pantalla simulada, en pruebas): lo suyo primero.
+      if (!this.presenter.fullscreen(found.win.window, value === true)) found.win.window.setFullScreen(value === true)
     })
     // El diccionario personal: lo lee cada editor al empezar y le añade lo que el usuario pide.
     ipcMain.handle('office:userWords', (event, raw: unknown) => (this.editorDoc(event, raw) ? this.options.userWords.list() : []))
@@ -1711,6 +1745,7 @@ export class OfficeWindows {
       const path = decodeURIComponent(url.pathname)
       // La interfaz de Molino (compilada con la de Molino PDF): política estricta.
       if (path === '/__molino__/ui/office.html') return await this.file(join(this.options.rendererDir, 'office.html'), { csp: UI_CSP })
+      if (path === '/__molino__/ui/presenter.html') return await this.file(join(this.options.rendererDir, 'presenter.html'), { csp: UI_CSP })
       if (path.startsWith('/__molino__/ui/')) {
         const rel = path.slice('/__molino__/ui/'.length)
         if (!UI_ASSET.test(rel)) return notFound()

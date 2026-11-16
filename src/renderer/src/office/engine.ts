@@ -305,6 +305,8 @@ export class EditorSession {
   onSelectionBar: (at: { x: number; y: number } | null) => void = () => undefined
   private statsRunning: Promise<Record<string, number>> | null = null
   onNotice: (notice: EditorNotice) => void = () => undefined
+  /** Una orden de Molino que pide el propio editor (un doble clic en un gráfico abre sus datos): la hace la ventana. */
+  onRequest: (command: string, value?: string) => void = () => undefined
   /** La última palabra mal escrita bajo el cursor (para el menú del botón derecho). */
   private spellObject: Api = null
 
@@ -420,7 +422,8 @@ export class EditorSession {
       changed: () => this.changed(),
       color: (hex) => this.color(hex),
       local: (value) => this.ew.JSON.parse(JSON.stringify(value)),
-      builder: (fn, data) => this.builder(fn, data)
+      builder: (fn, data) => this.builder(fn, data),
+      request: (command, value) => this.onRequest(command, value)
     }
   }
 

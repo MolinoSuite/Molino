@@ -1,9 +1,11 @@
-import type { OfficeUiApi } from '@shared/officeui'
+import type { OfficeUiApi, PresenterApi } from '@shared/officeui'
 
 declare global {
   interface Window {
     /** La interfaz de Documentos, Hojas y Presentaciones (preload/office.ts). */
     molinoOffice: OfficeUiApi
+    /** Solo en la vista del moderador (presenter.html): lo que enseña y lo que pide. */
+    molinoPresenter?: PresenterApi
     /** Atajos de la ventana que llegan desde el editor (office/bridge.js). */
     molinoShortcut?: (key: string) => void
     /** El editor entra o sale de presentar a pantalla completa. */
