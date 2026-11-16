@@ -21,7 +21,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Callable
 
 from asn1crypto import x509 as asn1_x509
@@ -156,6 +156,15 @@ def _people(certificate: Any) -> tuple[dict[str, str], dict[str, str]]:
     return subject, {"cn": info.issuer["cn"] or info.issuer["organization"]}
 
 
+def _validity(certificate: Any) -> dict[str, Any]:
+    """Hasta cuando vale el certificado de una firma y si ya ha caducado (hoy, no al firmar)."""
+    try:
+        until = certificate.not_valid_after
+        return {"certValidUntil": _iso(until), "certExpired": bool(until < datetime.now(timezone.utc))}
+    except Exception:  # noqa: BLE001 - certificado que no se deja leer: no se sabe
+        return {"certValidUntil": None, "certExpired": None}
+
+
 def unknown_entry(name: str, kind: str = "signature") -> dict[str, Any]:
     """Resultado de una firma que no se ha podido validar."""
     return {
@@ -175,6 +184,8 @@ def unknown_entry(name: str, kind: str = "signature") -> dict[str, Any]:
         "revocationChecked": False,
         "longTerm": False,
         "certify": False,
+        "certValidUntil": None,
+        "certExpired": None,
         "summary": "unknown",
         "messages": [_("No se pudo validar esta firma: su formato no es compatible o está dañado.")],
     }
@@ -446,6 +457,7 @@ async def _signature(
         "revocationChecked": revocation_checked,
         "longTerm": long_term,
         "certify": certify,
+        **_validity(certificate),
         "summary": verdict.summary,
         "messages": verdict.messages,
     }
@@ -490,6 +502,7 @@ async def _document_timestamp(embedded: EmbeddedPdfSignature, trust: Trust, leni
         "revocationChecked": False,
         "longTerm": False,
         "certify": False,
+        **_validity(embedded.signer_cert),
         "summary": verdict.summary,
         "messages": verdict.messages,
     }

@@ -4,7 +4,7 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
+import { Archive, Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Signature, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
@@ -38,6 +38,7 @@ const HOST_COMMANDS: Record<string, (doc: string, session: EditorSession | null,
   // Imprimir y exportar los hace el motor: antes, el editor le manda lo que le quede.
   print: (doc, session) => void session?.flush().then(() => window.molinoOffice.print(doc)),
   savePdf: (doc, session) => void session?.flush().then(() => window.molinoOffice.exportDoc(doc, 'pdf')),
+  savePdfA: (doc, session) => void session?.flush().then(() => window.molinoOffice.exportDoc(doc, 'pdfa')),
   exportAs: (doc, session, value) => void session?.flush().then(() => window.molinoOffice.exportDoc(doc, value ?? '')),
   saveAs: (doc) => void window.molinoOffice.saveAs(doc)
 }
@@ -279,6 +280,26 @@ export function OfficeApp() {
         })
         return true
       }
+      // «Firmar…»: PDF/A o PDF, junto al documento o donde se diga; después, Molino PDF en su modo Firmar.
+      if (command === 'signAsk' && tabs?.active) {
+        const doc = tabs.active
+        const S = T.signFlow
+        setDialog({
+          type: 'prompt',
+          spec: {
+            title: S.title,
+            intro: S.intro,
+            ok: S.ok,
+            fields: [
+              { key: 'format', label: S.format, value: 'pdfa', hint: S.formatHint, options: [{ value: 'pdfa', label: S.pdfa }, { value: 'pdf', label: S.pdf }] },
+              // Un documento nuevo o recuperado aún no tiene carpeta: se pregunta dónde.
+              ...(activeHasFile ? [{ key: 'place', label: S.place, value: 'here', options: [{ value: 'here', label: S.here }, { value: 'ask', label: S.ask }] }] : [])
+            ],
+            onOk: (v) => void active.flush().then(() => window.molinoOffice.signDoc(doc, { pdfa: v.format !== 'pdf', here: v.place === 'here' }))
+          }
+        })
+        return true
+      }
       if (command === 'propertiesAsk') {
         const props = active.coreProps()
         const R = T.properties
@@ -455,16 +476,41 @@ export function OfficeApp() {
           >
             <Printer size={16} />
           </button>
-          {app.header.map((b, i) => (
-            <button
-              key={b.key}
-              className={cn('btn sm', i === app.header.length - 1 ? 'primary' : 'ghost')}
-              disabled={!state?.ready}
-              onClick={() => run(b.command, b.value)}
-            >
-              {T.actions[b.key]}
-            </button>
-          ))}
+          <button className="icon-btn sm" aria-label={T.actions.signTip} data-tip={T.actions.signTip} disabled={!state?.ready} onClick={() => run('signAsk')}>
+            <Signature size={16} />
+          </button>
+          {app.header.map((b, i) => {
+            const button = (
+              <button
+                key={b.key}
+                className={cn('btn sm', i === app.header.length - 1 ? 'primary' : 'ghost')}
+                disabled={!state?.ready}
+                onClick={() => run(b.command, b.value)}
+              >
+                {T.actions[b.key]}
+              </button>
+            )
+            if (b.key !== 'savePdf') return button
+            // «Guardar como PDF» y, en su flecha, PDF/A y firmar.
+            return (
+              <span key={b.key} className="office-split">
+                {button}
+                <MenuButton
+                  className="btn sm ghost office-split-more"
+                  label={T.actions.pdfMore}
+                  tip={T.actions.pdfMore}
+                  align="end"
+                  disabled={!state?.ready}
+                  entries={[
+                    { label: T.tools.savePdfA, icon: <Archive size={15} />, onSelect: () => run('savePdfA') },
+                    { label: T.tools.sign, icon: <Signature size={15} />, onSelect: () => run('signAsk') }
+                  ]}
+                >
+                  <ChevronDown size={13} />
+                </MenuButton>
+              </span>
+            )
+          })}
         </div>
       </header>
 
@@ -703,6 +749,8 @@ function fileEntries({
     { label: F.save, icon: <Save size={15} />, kbd: 'Ctrl+S', disabled: !hasDoc, onSelect: () => run('save') },
     { label: F.saveAs, icon: <SaveAll size={15} />, kbd: 'Ctrl+Mayús+S', disabled: !hasDoc || !doc, onSelect: () => doc && void window.molinoOffice.saveAs(doc) },
     { label: F.savePdf, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('savePdf') },
+    { label: F.savePdfA, icon: <Archive size={15} />, disabled: !hasDoc, onSelect: () => run('savePdfA') },
+    { label: F.sign, icon: <Signature size={15} />, disabled: !hasDoc || !doc, onSelect: () => run('signAsk') },
     ...exports,
     { label: F.print, icon: <Printer size={15} />, kbd: 'Ctrl+P', disabled: !hasDoc || !doc, onSelect: () => run('print') },
     { label: F.showInFolder, icon: <SquareArrowOutUpRight size={15} />, disabled: !hasFile || !doc, onSelect: () => doc && void window.molinoOffice.showInFolder(doc) },

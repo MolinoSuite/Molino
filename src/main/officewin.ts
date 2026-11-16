@@ -130,13 +130,13 @@ const TEMPLATES: Record<Kind, { id: string; file: { es: string; en: string } }[]
 }
 
 /**
- * «Guardar como PDF» y «Archivo → Exportar»: una copia; el documento abierto
- * sigue siendo el de antes (exportDoc). En el motor, office.SAVE_FORMATS.
+ * «Guardar como PDF» (y PDF/A) y «Archivo → Exportar»: una copia; el documento
+ * abierto sigue siendo el de antes (exportDoc). En el motor, office.SAVE_FORMATS.
  */
 const EXPORT_SUFFIXES: Record<Kind, Record<string, string>> = {
-  word: { pdf: '.pdf', txt: '.txt', html: '.html', epub: '.epub' },
-  cell: { pdf: '.pdf' },
-  slide: { pdf: '.pdf', ppsx: '.ppsx' }
+  word: { pdf: '.pdf', pdfa: '.pdf', txt: '.txt', html: '.html', epub: '.epub' },
+  cell: { pdf: '.pdf', pdfa: '.pdf' },
+  slide: { pdf: '.pdf', pdfa: '.pdf', ppsx: '.ppsx' }
 }
 const PDF_FORMAT = 513
 const IMAGE_SUFFIXES = ['.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp']
@@ -305,6 +305,8 @@ export interface OfficeOptions {
   ai: {
     status(): Promise<{ on: boolean; ready: boolean }>
   }
+  /** Abre un PDF recién guardado en Molino PDF, en el modo Firmar (index.ts e ipc.ts). */
+  signInPdf(path: string): void
 }
 
 /**
@@ -871,14 +873,15 @@ export class OfficeWindows {
     const T = L.main.office.filters
     const F = L.main.office.formats as Record<string, string>
     const folder = open.path ? dirname(open.path) : app.getPath('documents')
+    const pdfa = format === 'pdfa'
     const picked = await dialog.showSaveDialog(win.window, {
       defaultPath: join(folder, `${parse(open.name).name}${suffix}`),
-      filters: [{ name: suffix === '.pdf' ? T.pdf : (F[suffix] ?? T[open.kind]), extensions: [suffix.slice(1)] }]
+      filters: [{ name: pdfa ? T.pdfa : suffix === '.pdf' ? T.pdf : (F[suffix] ?? T[open.kind]), extensions: [suffix.slice(1)] }]
     })
     if (picked.canceled || !picked.filePath) return false
     const dest = extname(picked.filePath).toLowerCase() === suffix ? picked.filePath : `${picked.filePath}${suffix}`
     try {
-      if (suffix === '.pdf') await this.engine.request('office.exportPdf', { doc: open.doc, path: dest }, { priority: 7 })
+      if (suffix === '.pdf') await this.engine.request('office.exportPdf', { doc: open.doc, path: dest, ...(pdfa ? { pdfa: true } : {}) }, { priority: 7 })
       else await this.engine.request('office.save', { doc: open.doc, path: dest, export: true }, { priority: 7 })
       return true
     } catch (error) {
@@ -886,6 +889,41 @@ export class OfficeWindows {
       this.notify(win, 'error', fmt(L.main.office.saveFailed, { name: basename(dest) }), error instanceof EngineError ? error.message : undefined)
       return false
     }
+  }
+
+  /**
+   * «Firmar…»: guarda una copia en PDF/A (o PDF) junto al documento (o donde
+   * diga el usuario) y la abre en Molino PDF, en el modo Firmar. Aquí no se
+   * firma nada: la firma es la de Molino PDF, con su certificado y su
+   * comprobación. Junto al documento no se pisa ningún PDF sin preguntar.
+   */
+  private async signDoc(win: AppWindow, open: OpenDoc, pdfa: boolean, here: boolean): Promise<boolean> {
+    const T = L.main.office.filters
+    const stem = parse(open.name).name
+    let dest: string | null = null
+    if (here && open.path) {
+      const next = join(dirname(open.path), `${stem}.pdf`)
+      if (!existsSync(next)) dest = next
+    }
+    if (!dest) {
+      const folder = open.path ? dirname(open.path) : app.getPath('documents')
+      const picked = await dialog.showSaveDialog(win.window, {
+        title: L.main.office.signSave,
+        defaultPath: join(folder, `${stem}.pdf`),
+        filters: [{ name: pdfa ? T.pdfa : T.pdf, extensions: ['pdf'] }]
+      })
+      if (picked.canceled || !picked.filePath) return false
+      dest = extname(picked.filePath).toLowerCase() === '.pdf' ? picked.filePath : `${picked.filePath}.pdf`
+    }
+    try {
+      await this.engine.request('office.exportPdf', { doc: open.doc, path: dest, ...(pdfa ? { pdfa: true } : {}) }, { priority: 7 })
+    } catch (error) {
+      log.warn(`oficina: no se pudo preparar el PDF para firmar (${error instanceof EngineError ? error.code : '?'})`)
+      this.notify(win, 'error', fmt(L.main.office.saveFailed, { name: basename(dest) }), error instanceof EngineError ? error.message : undefined)
+      return false
+    }
+    this.options.signInPdf(dest)
+    return true
   }
 
   /** Imprimir: un PDF temporal hecho por el motor, en el cuadro de imprimir de esta misma app (officeprint.ts). */
@@ -1047,6 +1085,14 @@ export class OfficeWindows {
       if (!open?.path || !existsSync(open.path)) return false
       shell.showItemInFolder(open.path)
       return true
+    })
+    // «Firmar…»: el formato (PDF/A o PDF) y si va junto al documento; lo demás lo decide este proceso.
+    ipcMain.handle('office:sign', async (event, raw: unknown) => {
+      const win = this.uiSender(event)
+      const { doc, pdfa, here } = (typeof raw === 'object' && raw !== null ? raw : {}) as { doc?: unknown; pdfa?: unknown; here?: unknown }
+      const open = win && typeof doc === 'string' ? win.docs.get(doc) : undefined
+      if (!win || !open || typeof pdfa !== 'boolean' || typeof here !== 'boolean') return false
+      return this.signDoc(win, open, pdfa, here)
     })
     ipcMain.handle('office:export', async (event, raw: unknown) => {
       const win = this.uiSender(event)

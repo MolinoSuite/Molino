@@ -72,6 +72,8 @@ const PASSTHROUGH = new Set<string>([
   'tools.pageNumbers', 'tools.listAdded', 'tools.removeAdded', 'tools.ocr', 'tools.ocrStatus',
   'redact.mark', 'redact.list', 'redact.unmark', 'redact.find', 'redact.apply',
   'sign.certificates', 'sign.fields', 'sign.addField', 'sign.validate',
+  // «Comprobar para un trámite» (ops/tramite.py): solo lee el documento abierto.
+  'tramite.check',
   'recovery.list', 'recovery.discard',
   'scan.preview', 'scan.update', 'scan.discard',
   // Detección de datos personales (reglas y, con la IA activada, el modelo de entidades)
@@ -206,6 +208,8 @@ export class Bridge {
   private waitingFiles: string[] = []
   /** PDF de Documentos, Hojas o Presentaciones que esperan a la interfaz para imprimirse. */
   private waitingPrints: string[] = []
+  /** Y los que esperan para firmarse. */
+  private waitingSigns: string[] = []
   /** Si ya se ha dibujado alguna página (se anota una vez en el registro, para las comprobaciones). */
   private firstRender = false
 
@@ -404,12 +408,16 @@ export class Bridge {
 
   // ---------------------------------------------------------------- abrir
 
-  /** Abre archivos cuyas rutas ha aportado el usuario (diálogo, arrastre, sistema). */
-  async openPaths(paths: string[], password?: string): Promise<OpenOutcome[]> {
+  /**
+   * Abre archivos cuyas rutas ha aportado el usuario (diálogo, arrastre, sistema).
+   * Uno que ya está abierto se trae delante; con ``fresh`` se vuelve a abrir
+   * (acaba de escribirse: lo abierto puede ser una versión anterior).
+   */
+  async openPaths(paths: string[], password?: string, fresh = false): Promise<OpenOutcome[]> {
     const outcomes: OpenOutcome[] = []
     for (const path of paths.slice(0, 30)) {
       const name = basename(path)
-      const already = [...this.docs.entries()].find(([, entry]) => entry.path?.toLowerCase() === path.toLowerCase())
+      const already = fresh ? undefined : [...this.docs.entries()].find(([, entry]) => entry.path?.toLowerCase() === path.toLowerCase())
       try {
         if (already) {
           const { result } = await this.engine.request<DocDescriptor>('doc.describe', { doc: already[0] }, { priority: 9 })
@@ -461,6 +469,23 @@ export class Bridge {
     } catch (error) {
       this.send('files:opened', [{ ok: false, name: basename(path), error: toInfo(error) }])
     }
+  }
+
+  /**
+   * Firmar un documento de Documentos, Hojas o Presentaciones: su PDF (o PDF/A,
+   * ya guardado donde dijo el usuario, officewin.ts) se abre aquí como
+   * cualquier PDF suyo, y la interfaz lo pone en el modo Firmar, lista para
+   * elegir el certificado. La firma es la de siempre de Molino PDF.
+   */
+  async signFile(path: string): Promise<void> {
+    if (!isOpenable(path) || extname(path).toLowerCase() !== '.pdf') return
+    if (!this.rendererReady) {
+      this.waitingSigns.push(path)
+      return
+    }
+    // Recién escrito por el motor de oficina: si ya estaba abierto (se firmó antes), se abre otra vez.
+    const outcomes = await this.openPaths([path], undefined, true)
+    this.send('files:opened', outcomes.map((outcome) => (outcome.ok ? { ...outcome, sign: true } : outcome)))
   }
 
   /** Archivos abiertos desde fuera de la interfaz (doble clic, «Abrir con», segunda instancia). */
@@ -1193,6 +1218,7 @@ export class Bridge {
       const files = this.waitingFiles.splice(0)
       if (files.length > 0) void this.openFromSystem(files)
       for (const path of this.waitingPrints.splice(0)) void this.printFile(path)
+      for (const path of this.waitingSigns.splice(0)) void this.signFile(path)
     })
 
     ipcMain.on('window:closeNow', (event) => {

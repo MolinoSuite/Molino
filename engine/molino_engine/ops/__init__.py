@@ -19,4 +19,5 @@ from . import (  # noqa: F401
     signing,
     stamps,
     text,
+    tramite,
 )

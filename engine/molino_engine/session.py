@@ -383,6 +383,11 @@ class DocSession:
     def dirty(self) -> bool:
         return self.saved_at != self.cur or self._protection_changed
 
+    @property
+    def saved_size(self) -> int | None:
+        """Lo que ocupa el archivo del usuario tal como se abrio o se guardo (None si no tiene)."""
+        return self._source_stat[0] if self.source is not None and self._source_stat is not None else None
+
     def state(self) -> dict[str, Any]:
         return {
             "token": self._token,

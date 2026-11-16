@@ -10,7 +10,15 @@ export const office: typeof es = {
     open: 'Open (Ctrl+O)'
   },
 
-  actions: { save: 'Save', savePdf: 'Save as PDF', present: 'Present', printTip: 'Print (Ctrl+P)', findTip: 'Find and replace (Ctrl+F)' },
+  actions: {
+    save: 'Save',
+    savePdf: 'Save as PDF',
+    present: 'Present',
+    printTip: 'Print (Ctrl+P)',
+    findTip: 'Find and replace (Ctrl+F)',
+    pdfMore: 'More PDF options',
+    signTip: 'Sign with a digital certificate…'
+  },
   start: {
     subtitle: {
       word: 'Write documents and open Word and OpenDocument files.',
@@ -169,6 +177,8 @@ export const office: typeof es = {
     zoomOut: 'Zoom out',
     save: 'Save',
     savePdf: 'Save as PDF',
+    savePdfA: 'Save as PDF/A',
+    sign: 'Sign with a digital certificate…',
     saveAs: 'Save as… (Ctrl+Shift+S)',
     print: 'Print (Ctrl+P)',
     comment: 'Comment',
@@ -402,6 +412,8 @@ export const office: typeof es = {
     save: 'Save',
     saveAs: 'Save as…',
     savePdf: 'Export to PDF…',
+    savePdfA: 'Export to PDF/A…',
+    sign: 'Sign…',
     print: 'Print…',
     exportTxt: 'Export as plain text…',
     exportHtml: 'Export as web page…',
@@ -467,6 +479,8 @@ export const office: typeof es = {
     zoomOut: 'zoom smaller',
     save: 'save store',
     savePdf: 'pdf export send print',
+    savePdfA: 'pdfa pdf/a archive preserve export government submission',
+    sign: 'sign signature digital electronic certificate id card smart card submission pdf',
     saveAs: 'save as copy another name folder format',
     print: 'print printer paper',
     comment: 'comment note review annotate',
@@ -976,5 +990,17 @@ export const office: typeof es = {
   noFill: 'No fill',
   noHighlight: 'No highlight',
   /** New sheets are named this plus a number (Sheet2, Sheet3…). */
-  sheetName: 'Sheet'
+  sheetName: 'Sheet',
+  signFlow: {
+    title: 'Sign the document',
+    intro: 'A PDF copy is saved and opened in Molino PDF so you can sign it with your digital certificate (ID card, smart card or installed certificate). The document stays as it is.',
+    format: 'Format',
+    pdfa: 'PDF/A, for archiving (recommended)',
+    pdf: 'PDF',
+    formatHint: 'PDF/A is the kind of PDF meant for keeping documents: it carries its fonts and color profile inside.',
+    place: 'Where to save it',
+    here: 'Next to the document',
+    ask: 'Choose where…',
+    ok: 'Save and sign'
+  }
 }

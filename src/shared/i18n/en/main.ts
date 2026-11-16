@@ -120,7 +120,9 @@ export const main: typeof source = {
     cancel: 'Cancel',
     /** Nombre de los documentos nuevos hechos con una plantilla. */
     templates: { letter: 'Letter', resume: 'Resume', invoice: 'Invoice', quote: 'Quote', budget: 'Household budget', presentation: 'Presentation' },
-    filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' },
+    filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', pdfa: 'PDF/A', images: 'Images' },
+    /** «Firmar…»: dónde se guarda el PDF que se abre en Molino PDF para firmarlo. */
+    signSave: 'Save the PDF to sign it',
     formats: {
       '.docx': 'Word document',
       '.odt': 'OpenDocument text',

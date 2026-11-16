@@ -130,7 +130,9 @@ export const main = {
     cancel: 'Cancelar',
     /** Nombre de los documentos nuevos hechos con una plantilla. */
     templates: { letter: 'Carta', resume: 'Currículum', invoice: 'Factura', quote: 'Presupuesto', budget: 'Presupuesto doméstico', presentation: 'Presentación' },
-    filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' },
+    filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', pdfa: 'PDF/A', images: 'Imágenes' },
+    /** «Firmar…»: dónde se guarda el PDF que se abre en Molino PDF para firmarlo. */
+    signSave: 'Guardar el PDF para firmarlo',
     /** «Guardar como»: los formatos que se pueden elegir. */
     formats: {
       '.docx': 'Documento de Word',

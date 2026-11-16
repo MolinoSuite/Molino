@@ -3,15 +3,13 @@ import {
   CalendarDays,
   Check,
   CircleAlert,
-  CircleCheck,
-  CircleX,
+  ClipboardCheck,
   FileKey,
   MousePointer2,
   PenLine,
   Plus,
   ShieldCheck,
   Signature,
-  TriangleAlert,
   Type,
   X
 } from 'lucide-react'
@@ -36,6 +34,8 @@ import { ObjectOptions } from '../edit'
 import { addImage, addShape, addText, selectObject } from '../edit/objects'
 import { ObjectsLayer } from '../edit/ObjectsLayer'
 import { exportTrimmed, imageToInk, INKS, SCRIPT_FONTS, type SignatureImage, useSignatures } from './signatures'
+import { type SignatureStatus, signerText, STATUS_ICON, statusText } from './status'
+import { openTramite } from './tramite'
 
 const fillStyle = (size: number, color: [number, number, number]): TextStyle => ({
   font: 'Arial',
@@ -116,6 +116,7 @@ export function SignTools({ doc }: { doc: DocView }) {
         onClick={() => useApp.getState().openDialog({ type: 'custom', id: 'signatureCheck', doc: doc.id })}
         compact
       />
+      <ActionButton icon={<ClipboardCheck size={16} />} label={L.sign.tools.tramite} tip={L.sign.tools.tramiteTip} onClick={() => openTramite(doc.id)} />
     </>
   )
 }
@@ -678,8 +679,11 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
           ? L.sign.cert.notLocked
           : result.signature?.warnings?.[0]
       if (warning) useApp.getState().toast('warning', warning)
-      // Lo habitual es guardar el firmado como un archivo aparte.
-      void saveDocAs(doc.id, fmt(L.sign.cert.fileName, { name: doc.state.name.replace(/\.pdf$/i, '') }))
+      // Lo habitual es guardar el firmado como un archivo aparte. Después, se ofrece
+      // comprobar si está listo para presentarlo (también si no se guarda: lo dirá).
+      void saveDocAs(doc.id, fmt(L.sign.cert.fileName, { name: doc.state.name.replace(/\.pdf$/i, '') })).then(() =>
+        useApp.getState().toast('info', L.sign.tramite.offer, { label: L.sign.cert.checkTramite, run: () => openTramite(doc.id) })
+      )
     } catch (err) {
       // Cancelar el aviso de Windows (o el PIN) no es un error que mostrar.
       if (!(err instanceof MolinoError && err.code === 'cancelled')) {
@@ -864,44 +868,6 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
 
 // ----------------------------------------------------- comprobar firmas
 
-interface SignatureStatus {
-  field: string
-  type?: 'signature' | 'timestamp'
-  signer: { cn?: string; serialNumber?: string; organization?: string }
-  issuer: { cn?: string }
-  signedAt: string | null
-  timestamp: { time: string; valid: boolean; trusted?: boolean } | null
-  intact: boolean
-  trusted: boolean
-  coverage: string
-  modifiedAfter: boolean
-  summary: 'valid' | 'warning' | 'invalid' | 'unknown'
-  messages: string[]
-}
-
-const STATUS_ICON = {
-  valid: <CircleCheck size={18} />,
-  warning: <TriangleAlert size={18} />,
-  invalid: <CircleX size={18} />,
-  unknown: <CircleAlert size={18} />
-}
-
-/** Titular de cada firma. No se llama «válida» a una firma cuyo firmante no se ha podido identificar. */
-function statusText(item: SignatureStatus): string {
-  const stamp = item.type === 'timestamp'
-  switch (item.summary) {
-    case 'valid':
-      return stamp ? L.sign.check.status.timestampValid : L.sign.check.status.valid
-    case 'warning':
-      if (stamp) return L.sign.check.status.timestampWarning
-      return item.trusted ? L.sign.check.status.warning : L.sign.check.status.unverified
-    case 'invalid':
-      return stamp ? L.sign.check.status.timestampInvalid : L.sign.check.status.invalid
-    default:
-      return L.sign.check.status.unknown
-  }
-}
-
 function SignatureCheckDialog({ doc: docId }: CustomDialogProps) {
   const close = useApp((s) => s.closeDialog)
   const [items, setItems] = useState<SignatureStatus[] | null>(null)
@@ -960,11 +926,7 @@ function SignatureCheckDialog({ doc: docId }: CustomDialogProps) {
           <div key={index} className={cn('sig-status', item.summary)}>
             {STATUS_ICON[item.summary] ?? STATUS_ICON.unknown}
             <div className="grow">
-              <div className="cert-name">
-                {item.signer.cn ?? (item.type === 'timestamp' ? L.sign.check.timestampAuthority : L.sign.check.unknownSigner)}
-                {/* El número de serie del titular suele llevar un prefijo de tipo y país (IDCES-, PNOES-…). */}
-                {item.signer.serialNumber ? ` · ${item.signer.serialNumber.replace(/^(IDC|PNO|PAS|TIN|VAT|NTR)[A-Z]{2}-/, '')}` : ''}
-              </div>
+              <div className="cert-name">{signerText(item)}</div>
               <div className="cert-meta">
                 {statusText(item)}
                 {item.signedAt ? ` · ${formatDate(item.signedAt)}` : ''}

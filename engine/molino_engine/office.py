@@ -18,7 +18,8 @@ x2t no gana nada que el motor no tenga: el mismo contenedor, sin red ni
 archivos del usuario, y ademas sin poder crear procesos.
 
 Este modulo lo comparten los dos: rutas permitidas, la orden de x2t, la tarea,
-la lectura estricta del indice de fuentes y la limpieza de los PDF que escribe.
+la lectura estricta del indice de fuentes y la limpieza de los PDF que escribe
+(tambien lo que declaran sus PDF/A).
 """
 
 from __future__ import annotations
@@ -504,6 +505,52 @@ def clean_pdf(path: Path) -> int:
     finally:
         if not doc.is_closed:
             doc.close()
+
+
+# Con esta orden en la tarea, x2t escribe PDF/A (m_nFormatTo sigue siendo PDF;
+# con el codigo de PDF/A, 521, x2t no convierte desde Editor.bin).
+PDFA_TASK = {"m_bIsPDFA": "true"}
+_LEVEL_A = b"<pdfaid:conformance>A</pdfaid:conformance>"
+_LEVEL_B = b"<pdfaid:conformance>B</pdfaid:conformance>"
+
+
+def settle_pdfa(path: Path) -> str | None:
+    """Deja que un PDF/A de x2t diga solo lo que es de verdad. Devuelve lo que declara al final («2B»).
+
+    x2t (ONLYOFFICE 10) declara PDF/A-2a, el nivel «accesible», pero en ese
+    modo no escribe la estructura del documento (etiquetas), que ese nivel
+    exige: lo que tiene es el nivel basico, PDF/A-2b. Se rebaja la declaracion
+    cambiando una letra en los metadatos XMP, que x2t escribe sin comprimir:
+    ningun byte del archivo se mueve. Si no se encuentra asi, se reescriben
+    los metadatos con PyMuPDF en una actualizacion incremental (sin comprimir,
+    como exige PDF/A).
+
+    Solo se cambia lo que se declara: lo demas (perfil de salida, letras
+    incrustadas…) es como lo escribe x2t. Ver pdfcheck.py: no es una
+    validacion completa de la norma.
+    """
+    import pymupdf
+
+    from . import pdfcheck
+
+    with pymupdf.open(path) as doc:
+        claim = pdfcheck.pdfa_claim(doc)
+        if claim is None or not claim.endswith("A") or pdfcheck.is_tagged(doc):
+            return claim
+    data = path.read_bytes()
+    if data.count(_LEVEL_A) == 1:
+        at = data.index(_LEVEL_A)
+        with open(path, "r+b") as handle:
+            handle.seek(at)
+            handle.write(_LEVEL_B)
+    else:
+        with pymupdf.open(path) as doc:
+            xmp = doc.get_xml_metadata()
+            fixed = re.sub(r"(pdfaid:conformance\s*(?:>|=\s*[\"'])\s*)[Aa]", r"\1B", xmp, count=1)
+            doc.set_xml_metadata(fixed)
+            doc.save(path, incremental=True, encryption=pymupdf.PDF_ENCRYPT_KEEP)
+    with pymupdf.open(path) as doc:
+        return pdfcheck.pdfa_claim(doc)
 
 
 # --------------------------------------------------------------- video y audio

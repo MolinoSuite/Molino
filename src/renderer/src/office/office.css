@@ -42,6 +42,25 @@ body,
   align-items: center;
   gap: 6px;
 }
+/* «Guardar como PDF» con su flecha (PDF/A y firmar): un solo botón partido en dos. */
+.office-split {
+  display: inline-flex;
+  align-items: center;
+}
+.office-split > .btn:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  padding-right: 8px;
+}
+.office-split > .office-split-more {
+  width: 22px;
+  padding: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.office-split:hover > .btn:not(:hover) {
+  background: var(--bg-subtle);
+}
 
 /* --------------------------------------------------------------- cuerpo */
 

@@ -99,8 +99,13 @@ export interface OfficeUiApi {
   setPassword(doc: string, password: string | null): Promise<{ ok: boolean; saved: boolean }>
   /** Cerrado el cuadro de imprimir: fuera el PDF temporal. */
   printClose(doc: string): Promise<boolean>
-  /** Exportar una copia (pdf, txt, html, epub, ppsx): el documento sigue con sus cambios sin guardar. */
+  /** Exportar una copia (pdf, pdfa, txt, html, epub, ppsx): el documento sigue con sus cambios sin guardar. */
   exportDoc(doc: string, format: string): Promise<boolean>
+  /**
+   * «Firmar…»: guarda una copia en PDF/A (``pdfa``) o PDF, junto al documento
+   * (``here``) o donde diga el usuario, y la abre en Molino PDF para firmarla.
+   */
+  signDoc(doc: string, options: { pdfa: boolean; here: boolean }): Promise<boolean>
   newDoc(): Promise<boolean>
   onTabs(listener: (tabs: OfficeTabs) => void): () => void
   /** Ha cambiado el tema (en cualquier ventana de Molino o en Windows): oscuro o no. */

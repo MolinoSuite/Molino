@@ -9,7 +9,15 @@ export const office = {
     open: 'Abrir (Ctrl+O)'
   },
 
-  actions: { save: 'Guardar', savePdf: 'Guardar como PDF', present: 'Presentar', printTip: 'Imprimir (Ctrl+P)', findTip: 'Buscar y reemplazar (Ctrl+F)' },
+  actions: {
+    save: 'Guardar',
+    savePdf: 'Guardar como PDF',
+    present: 'Presentar',
+    printTip: 'Imprimir (Ctrl+P)',
+    findTip: 'Buscar y reemplazar (Ctrl+F)',
+    pdfMore: 'Más opciones de PDF',
+    signTip: 'Firmar con certificado digital…'
+  },
   loading: 'Abriendo…',
   start: {
     subtitle: {
@@ -169,6 +177,8 @@ export const office = {
     zoomOut: 'Reducir',
     save: 'Guardar',
     savePdf: 'Guardar como PDF',
+    savePdfA: 'Guardar como PDF/A',
+    sign: 'Firmar con certificado digital…',
     saveAs: 'Guardar como… (Ctrl+Mayús+S)',
     print: 'Imprimir (Ctrl+P)',
     comment: 'Comentario',
@@ -403,6 +413,8 @@ export const office = {
     save: 'Guardar',
     saveAs: 'Guardar como…',
     savePdf: 'Exportar a PDF…',
+    savePdfA: 'Exportar a PDF/A…',
+    sign: 'Firmar…',
     print: 'Imprimir…',
     exportTxt: 'Exportar como texto sin formato…',
     exportHtml: 'Exportar como página web…',
@@ -469,6 +481,8 @@ export const office = {
     zoomOut: 'zoom alejar',
     save: 'guardar grabar salvar',
     savePdf: 'pdf exportar enviar imprimir',
+    savePdfA: 'pdfa pdf/a archivar conservar exportar administracion sede tramite',
+    sign: 'firmar firma digital electronica certificado dnie fnmt tarjeta tramite sede pdf',
     saveAs: 'guardar como copia otro nombre carpeta formato',
     print: 'imprimir impresora papel',
     comment: 'comentario nota revisar anotar',
@@ -989,5 +1003,18 @@ export const office = {
   noFill: 'Sin relleno',
   noHighlight: 'Sin resaltado',
   /** Las hojas nuevas se llaman así más un número (Hoja2, Hoja3…). */
-  sheetName: 'Hoja'
+  sheetName: 'Hoja',
+  /** «Firmar…»: se guarda una copia en PDF/A o PDF y se firma en Molino PDF, con su firma de siempre. */
+  signFlow: {
+    title: 'Firmar el documento',
+    intro: 'Se guarda una copia en PDF y se abre en Molino PDF para que la firmes con tu certificado digital (DNIe, FNMT o el de tu tarjeta). El documento sigue como está.',
+    format: 'Formato',
+    pdfa: 'PDF/A, para archivar (recomendado)',
+    pdf: 'PDF',
+    formatHint: 'PDF/A es la variante de PDF pensada para conservar documentos: lleva dentro sus letras y su perfil de color.',
+    place: 'Dónde guardarlo',
+    here: 'Junto al documento',
+    ask: 'Elegir dónde…',
+    ok: 'Guardar y firmar'
+  }
 }

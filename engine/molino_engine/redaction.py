@@ -1744,6 +1744,50 @@ def remove_hidden_text(doc: pymupdf.Document, page: pymupdf.Page, retired: set[i
 _SCRIPTED_ACTIONS = ("JavaScript", "Rendition")
 
 
+def _direct_dicts(top: Any) -> Iterator[Any]:
+    """El objeto y los diccionarios escritos dentro de el, a cualquier profundidad.
+
+    Solo lo escrito dentro del propio objeto: no sigue las referencias, porque
+    quien recorre el documento ya visita cada objeto indirecto por su cuenta.
+    """
+    is_dict, is_array, is_indirect = mupdf.pdf_is_dict, mupdf.pdf_is_array, mupdf.pdf_is_indirect
+    stack = [top]
+    while stack:
+        obj = stack.pop()
+        if is_dict(obj):
+            yield obj
+            children = [mupdf.pdf_dict_get_val(obj, i) for i in range(mupdf.pdf_dict_len(obj))]
+        elif is_array(obj):
+            children = [mupdf.pdf_array_get(obj, i) for i in range(mupdf.pdf_array_len(obj))]
+        else:
+            continue
+        stack.extend(c for c in children if not is_indirect(c) and (is_dict(c) or is_array(c)))
+
+
+def _has_script(obj: Any) -> bool:
+    """Es una accion con codigo (JavaScript o /Rendition) y su /JS no esta vacio."""
+    if _name(_get(obj, "S")) not in _SCRIPTED_ACTIONS:
+        return False
+    code = _get(obj, "JS")
+    return _has(code) and not (mupdf.pdf_is_string(code) and mupdf.pdf_to_str_len(code) == 0)
+
+
+def count_scripts(doc: pymupdf.Document, tick: Callable[[], None] | None = None) -> int:
+    """Cuantos guiones lleva el documento, sin tocarlo (lo mismo que quitaria ``scrub_objects``).
+
+    Cuenta los del nivel del documento (/Names /JavaScript) como uno y cada
+    accion con codigo, este escrita como objeto propio o dentro de una
+    anotacion, un campo o el catalogo.
+    """
+    pdf = _pdf(doc)
+    names = _get(_catalog(doc), "Names")
+    found = 1 if mupdf.pdf_is_dict(names) and _has(_get(names, "JavaScript")) else 0
+    for num, _kind, _entry in _used_entries(doc, tick):
+        top = mupdf.pdf_load_object(pdf, num)
+        found += sum(1 for obj in _direct_dicts(top) if _has_script(obj))
+    return found
+
+
 def scrub_objects(
     doc: pymupdf.Document, *, javascript: bool, metadata: bool, tick: Callable[[], None] | None = None
 ) -> tuple[int, int]:
@@ -1760,7 +1804,7 @@ def scrub_objects(
       lo tiene ocupado minutos (A06:2025).
     """
     pdf = _pdf(doc)
-    is_dict, is_array, is_indirect = mupdf.pdf_is_dict, mupdf.pdf_is_array, mupdf.pdf_is_indirect
+    is_dict = mupdf.pdf_is_dict
     scripts = items = 0
     catalog = _catalog(doc)
     if javascript:
@@ -1790,23 +1834,10 @@ def scrub_objects(
                 blank.append(num)
         if not javascript:
             continue
-        stack = [top]
-        while stack:
-            obj = stack.pop()
-            if is_dict(obj):
-                if _name(_get(obj, "S")) in _SCRIPTED_ACTIONS:
-                    code = _get(obj, "JS")
-                    if _has(code) and not (mupdf.pdf_is_string(code) and mupdf.pdf_to_str_len(code) == 0):
-                        mupdf.pdf_dict_put_text_string(obj, pymupdf.PDF_NAME("JS"), "")
-                        scripts += 1
-                children = [mupdf.pdf_dict_get_val(obj, i) for i in range(mupdf.pdf_dict_len(obj))]
-            elif is_array(obj):
-                children = [mupdf.pdf_array_get(obj, i) for i in range(mupdf.pdf_array_len(obj))]
-            else:
-                continue
-            # Solo lo escrito dentro del propio objeto: cada objeto indirecto
-            # ya se visita en el bucle exterior.
-            stack.extend(c for c in children if not is_indirect(c) and (is_dict(c) or is_array(c)))
+        for obj in _direct_dicts(top):
+            if _has_script(obj):
+                mupdf.pdf_dict_put_text_string(obj, pymupdf.PDF_NAME("JS"), "")
+                scripts += 1
     for num in blank:
         # El paquete XMP en si: aunque alguien lo siga nombrando con otra
         # clave, deja de tener contenido.
@@ -1833,6 +1864,25 @@ def drop_embedded_files(doc: pymupdf.Document) -> int:
     tree = _get(names, "EmbeddedFiles") if mupdf.pdf_is_dict(names) else None
     if tree is None or not _has(tree):
         return 0
+    count = _count_embedded(tree)
+    mupdf.pdf_dict_dels(names, "EmbeddedFiles")
+    # Una "cartera" de PDF solo es la forma de presentar esos adjuntos.
+    if _has(_get(catalog, "Collection")):
+        mupdf.pdf_dict_dels(catalog, "Collection")
+    return count
+
+
+def count_embedded_files(doc: pymupdf.Document) -> int:
+    """Cuantos archivos adjuntos lleva el documento, sin tocarlo (tambien en un arbol con /Kids)."""
+    names = _get(_catalog(doc), "Names")
+    tree = _get(names, "EmbeddedFiles") if mupdf.pdf_is_dict(names) else None
+    if tree is None or not _has(tree):
+        return 0
+    return _count_embedded(tree)
+
+
+def _count_embedded(tree: Any) -> int:
+    """Los adjuntos que lista el arbol /EmbeddedFiles; al menos uno si el arbol es raro o desmesurado."""
     count = 0
     uncounted = not mupdf.pdf_is_dict(tree)
     seen: set[int] = set()
@@ -1842,7 +1892,7 @@ def drop_embedded_files(doc: pymupdf.Document) -> int:
         node = stack.pop()
         visited += 1
         if visited > _MAX_TREE_NODES:
-            uncounted = True  # arbol desmesurado o con bucles: se quita igualmente
+            uncounted = True  # arbol desmesurado o con bucles: cuenta al menos como uno
             break
         num = _ref(node)
         if num:
@@ -1858,10 +1908,6 @@ def drop_embedded_files(doc: pymupdf.Document) -> int:
         kids = _get(node, "Kids")
         if mupdf.pdf_is_array(kids):
             stack.extend(mupdf.pdf_array_get(kids, i) for i in range(mupdf.pdf_array_len(kids)))
-    mupdf.pdf_dict_dels(names, "EmbeddedFiles")
-    # Una "cartera" de PDF solo es la forma de presentar esos adjuntos.
-    if _has(_get(catalog, "Collection")):
-        mupdf.pdf_dict_dels(catalog, "Collection")
     return max(count, 1) if (count or uncounted) else 0
 
 

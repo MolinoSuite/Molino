@@ -572,9 +572,14 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
     return {"path": dest, "size": size}
 
 
-@method("office.exportPdf", SaveParams)
-def office_export_pdf(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
-    """Exporta el documento a PDF, sin las ordenes de pintar sin trazado que escribe x2t."""
+class ExportPdfParams(SaveParams):
+    # PDF/A (para archivar): lo escribe x2t y se declara solo el nivel que tiene (office.settle_pdfa).
+    pdfa: bool = False
+
+
+@method("office.exportPdf", ExportPdfParams)
+def office_export_pdf(ctx: Ctx, p: ExportPdfParams) -> dict[str, Any]:
+    """Exporta el documento a PDF (o PDF/A), sin las ordenes de pintar sin trazado que escribe x2t."""
     piece = _piece(ctx)
     item = _doc(ctx, p.doc)
     dest = ctx.engine.host.check_output(p.path, (".pdf",))
@@ -583,14 +588,24 @@ def office_export_pdf(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
         # Como Excel al guardar como PDF: todo el libro respetando el area de
         # impresion. Sin opciones, x2t saca solo la hoja activa e ignora el area.
         options = office.json_options({"spreadsheetLayout": {"ignorePrintArea": False}})
-    ctx.progress(0, 0, _("Exportando a PDF…"))
-    out = _export(ctx, piece, item, office.PDF, ".pdf", options)
+    ctx.progress(0, 0, _("Exportando a PDF/A…") if p.pdfa else _("Exportando a PDF…"))
+    out = _export(ctx, piece, item, office.PDF, ".pdf", options, dict(office.PDFA_TASK) if p.pdfa else None)
+    declared: str | None = None
     try:
+        if p.pdfa:
+            declared = office.settle_pdfa(out)
+            if declared is None:
+                # x2t no lo ha escrito como PDF/A: no se entrega algo que no es lo que se pidio.
+                log.warning("x2t no escribio un PDF/A")
+                raise EngineError("conversion_failed", _("No se pudo convertir el documento."))
         cleaned = office.clean_pdf(out)
         size, _mtime = ctx.engine.host.install(out, dest)
     finally:
         out.unlink(missing_ok=True)
-    return {"path": dest, "size": size, "cleaned": cleaned}
+    reply: dict[str, Any] = {"path": dest, "size": size, "cleaned": cleaned}
+    if p.pdfa:
+        reply["pdfa"] = declared
+    return reply
 
 
 class CloseParams(Params):

@@ -16,7 +16,9 @@ export const sign = {
     cert: 'Con certificado',
     certTip: 'Firmar con tu certificado digital',
     signatures: 'Firmas',
-    signaturesTip: 'Comprobar las firmas digitales del documento'
+    signaturesTip: 'Comprobar las firmas digitales del documento',
+    tramite: 'Trámite',
+    tramiteTip: 'Comprobar si el documento está listo para presentarlo en una sede electrónica'
   },
   options: {
     format: 'Formato',
@@ -127,7 +129,9 @@ export const sign = {
     done: 'Documento firmado. Guárdalo para conservar la firma.',
     notLocked: 'Firmado, pero sin bloquear: el documento ya tenía firmas y este campo no admite bloqueo. Para bloquearlo, firma en una zona nueva.',
     /** Nombre propuesto al guardar el documento firmado; {name} es el original sin «.pdf». */
-    fileName: '{name}-firmado.pdf'
+    fileName: '{name}-firmado.pdf',
+    /** Botón del aviso que sale al guardar el documento firmado. */
+    checkTramite: 'Comprobar'
   },
   /** Diálogo «Firmas digitales del documento». */
   check: {
@@ -149,5 +153,120 @@ export const sign = {
       timestampInvalid: 'Sello de tiempo no válido',
       unknown: 'No se ha podido comprobar'
     }
+  },
+  /**
+   * «Comprobar para un trámite» (modes/sign/tramite.tsx): si el PDF está listo
+   * para presentarlo en una sede electrónica. Nunca se promete una conformidad
+   * que no se ha comprobado: lo de PDF/A es lo que el documento dice ser y lo
+   * básico que se puede mirar.
+   */
+  tramite: {
+    title: 'Comprobar para un trámite',
+    checking: 'Comprobando el documento…',
+    offer: '¿Lo compruebas antes de presentarlo en la sede?',
+    verdict: {
+      ready: 'Listo para presentar',
+      readyText: 'No hay nada que impida presentarlo. Aun así, mira los requisitos de la sede: cada una pone los suyos.',
+      review: 'Revisa los avisos antes de presentarlo',
+      reviewText: 'Hay cosas que alguna sede podría no aceptar. Abajo tienes qué es y cómo arreglarlo.',
+      notReady: 'Aún no está listo para presentar',
+      notReadyText: 'Hay problemas que impiden presentarlo. Abajo tienes qué falta y cómo arreglarlo.'
+    },
+    toReview: 'Por revisar',
+    passed: 'Comprobado',
+    signaturesTitle: 'Firmas',
+    details: 'Más detalles',
+    note: 'Es una comprobación básica y automática: no sustituye a los requisitos de cada sede ni a una validación completa de PDF/A.',
+    /** Botones que llevan a la herramienta que lo arregla. */
+    fix: {
+      save: 'Guardar',
+      saveAs: 'Guardar como…',
+      rename: 'Guardar con otro nombre…',
+      sign: 'Firmar…',
+      compress: 'Comprimir…',
+      clean: 'Limpiar…',
+      unprotect: 'Quitar la protección'
+    },
+    saved: {
+      saved: 'Guardado: se comprueba el archivo tal como lo vas a presentar.',
+      changes: 'Tiene cambios sin guardar. Lo que se presenta es el archivo guardado: guárdalo antes.',
+      new: 'Todavía no es un archivo: guárdalo para poder presentarlo.'
+    },
+    signatures: {
+      none: 'No lleva firma digital. Si el trámite pide el documento firmado, fírmalo con tu certificado.',
+      valid: { one: 'Lleva {n} firma válida.', other: 'Lleva {n} firmas válidas.' },
+      invalid: 'Alguna firma no es válida o no se ha podido comprobar: mira el detalle más abajo.',
+      modified: 'El documento se modificó después de firmarlo: lo que se ve puede no ser lo que se firmó.',
+      untrusted: 'Las firmas están íntegras, pero este equipo no reconoce a la autoridad que emitió algún certificado: la sede podría no aceptarlo.',
+      expired: 'Algún certificado ha caducado y no hay un sello de tiempo que demuestre que se firmó cuando era válido.',
+      warning: 'Las firmas tienen avisos: mira el detalle más abajo.',
+      stamped: 'Con sello de tiempo.',
+      notStamped: 'Sin sello de tiempo: la fecha es la del equipo de quien firmó.'
+    },
+    /** Los datos de cada firma. */
+    signature: {
+      unchanged: 'Sin cambios después de firmar',
+      allowed: 'Después solo se añadieron firmas o se rellenaron campos',
+      changed: 'Con cambios después de firmar',
+      stamp: 'Sello de tiempo del {date}',
+      noStamp: 'Sin sello de tiempo',
+      validUntil: 'Certificado válido hasta el {date}',
+      expiredOn: 'Certificado caducado el {date}'
+    },
+    protection: {
+      none: 'Sin contraseña ni restricciones.',
+      password: 'Pide una contraseña para abrirlo: la sede no podrá leerlo. Quítala antes de presentarlo.',
+      restricted: 'Está protegido con restricciones de uso (imprimir, copiar…). Algunas sedes no aceptan PDF protegidos.'
+    },
+    pdfa: {
+      none: 'No es PDF/A. Si te lo piden así, guárdalo como PDF/A desde Documentos, Hojas o Presentaciones (Molino PDF no convierte un PDF que ya existe).',
+      ok: 'Dice ser {version} y lo básico que se puede comprobar aquí está bien.',
+      problems: 'Dice ser {version}, pero {list}.',
+      problem: {
+        outputIntent: 'le falta el perfil de color',
+        fonts: 'hay letras sin incrustar',
+        encrypted: 'está cifrado',
+        javascript: 'lleva código JavaScript'
+      }
+    },
+    fonts: {
+      ok: 'Todas las letras van dentro del archivo.',
+      missing: {
+        one: 'Hay {n} letra que no va dentro del archivo ({names}): en otro equipo puede verse distinta.',
+        other: 'Hay {n} letras que no van dentro del archivo ({names}): en otro equipo pueden verse distintas.'
+      }
+    },
+    javascript: {
+      ok: 'Sin código JavaScript.',
+      found: 'Lleva código JavaScript. Algunas sedes rechazan los PDF con código: quítalo con «Limpiar datos ocultos».'
+    },
+    attachments: {
+      ok: 'Sin archivos adjuntos.',
+      found: {
+        one: 'Lleva {n} archivo adjunto dentro. Algunas sedes no lo aceptan: si hace falta, preséntalo aparte.',
+        other: 'Lleva {n} archivos adjuntos dentro. Algunas sedes no lo aceptan: si hace falta, preséntalos aparte.'
+      }
+    },
+    size: {
+      ok: 'Pesa {size}.',
+      unsaved: 'Pesará unos {size}.',
+      large: 'Pesa {size}. Cada sede pone su límite de tamaño (o ninguno): mira el de la tuya y, si se pasa, comprímelo.',
+      /** Firmado: comprimirlo ahora anularía la firma. */
+      largeSigned: 'Pesa {size}. Cada sede pone su límite de tamaño (o ninguno): mira el de la tuya. Si se pasa, comprime el documento sin firmar y fírmalo después.'
+    },
+    name: {
+      ok: 'El nombre del archivo no da problemas.',
+      issues: 'El nombre tiene {list}, que algunas sedes no aceptan. Mejor así: «{suggestion}».',
+      issue: {
+        accents: 'tildes o eñes',
+        spaces: 'espacios',
+        symbols: 'signos',
+        dots: 'más de un punto',
+        long: 'demasiados caracteres',
+        extension: 'una extensión que no es .pdf'
+      }
+    },
+    /** Con el documento firmado, lo que lo arregla anularía la firma. */
+    signedHint: 'Arreglarlo ahora anularía la firma: hazlo en el documento sin firmar y fírmalo después.'
   }
 }
