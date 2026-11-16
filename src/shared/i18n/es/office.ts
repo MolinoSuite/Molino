@@ -33,11 +33,25 @@ export const office = {
   /** Las plantillas para empezar (pantalla de inicio de cada app). */
   templates: {
     title: 'Plantillas',
+    /** Los grupos en que se ordenan cuando hay de más de uno (OfficeStart.tsx). */
+    groups: {
+      basic: 'De uso general',
+      paperwork: 'Trámites y reclamaciones',
+      business: 'Autónomos y pymes',
+      home: 'Casa'
+    },
     items: {
       letter: { name: 'Carta', desc: 'Formal: remitente, fecha, asunto y firma.' },
       resume: { name: 'Currículum', desc: 'Perfil, experiencia, formación e idiomas.' },
+      request: { name: 'Solicitud', desc: 'Instancia a la Administración: expone y solicita.' },
+      authorization: { name: 'Autorización', desc: 'Para que otra persona haga un trámite por ti.' },
+      complaint: { name: 'Reclamación', desc: 'A una empresa: hechos, lo que pides y pruebas.' },
+      withdrawal: { name: 'Desistimiento', desc: 'Para devolver una compra por internet.' },
+      cancellation: { name: 'Baja de un servicio', desc: 'Para dejar un contrato o una suscripción.' },
+      services: { name: 'Contrato de servicios', desc: 'Entre un autónomo y su cliente.' },
       invoice: { name: 'Factura', desc: 'Con base imponible, IVA y retención de IRPF.' },
       quote: { name: 'Presupuesto', desc: 'Para un cliente, con validez y firma de aceptación.' },
+      ledger: { name: 'Libro de ingresos y gastos', desc: 'Por trimestres, con el IVA y el IRPF orientativos.' },
       budget: { name: 'Presupuesto doméstico', desc: 'Ingresos, gastos y ahorro del mes.' },
       presentation: { name: 'Presentación sencilla', desc: 'Título, índice, puntos y cierre.' }
     }

@@ -129,7 +129,21 @@ export const main = {
     dontSave: 'No guardar',
     cancel: 'Cancelar',
     /** Nombre de los documentos nuevos hechos con una plantilla. */
-    templates: { letter: 'Carta', resume: 'Currículum', invoice: 'Factura', quote: 'Presupuesto', budget: 'Presupuesto doméstico', presentation: 'Presentación' },
+    templates: {
+      letter: 'Carta',
+      resume: 'Currículum',
+      request: 'Solicitud',
+      authorization: 'Autorización',
+      complaint: 'Reclamación',
+      withdrawal: 'Desistimiento',
+      cancellation: 'Baja de servicio',
+      services: 'Contrato de servicios',
+      invoice: 'Factura',
+      quote: 'Presupuesto',
+      ledger: 'Libro de ingresos y gastos',
+      budget: 'Presupuesto doméstico',
+      presentation: 'Presentación'
+    },
     filters: { word: 'Documento', cell: 'Hoja de cálculo', slide: 'Presentación', pdf: 'PDF', images: 'Imágenes' },
     /** «Guardar como»: los formatos que se pueden elegir. */
     formats: {

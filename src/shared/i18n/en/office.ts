@@ -33,11 +33,24 @@ export const office: typeof es = {
   loading: 'Opening…',
   templates: {
     title: 'Templates',
+    groups: {
+      basic: 'General',
+      paperwork: 'Requests and complaints',
+      business: 'Freelancers and small business',
+      home: 'Home'
+    },
     items: {
       letter: { name: 'Letter', desc: 'Formal: sender, date, subject and signature.' },
       resume: { name: 'Resume', desc: 'Profile, experience, education and languages.' },
+      request: { name: 'Formal request', desc: 'To an authority or organization: background and request.' },
+      authorization: { name: 'Authorization', desc: 'Let someone else handle a matter for you.' },
+      complaint: { name: 'Complaint', desc: 'To a company: what happened, what you ask, evidence.' },
+      withdrawal: { name: 'Withdrawal', desc: 'Return something you bought online.' },
+      cancellation: { name: 'Service cancellation', desc: 'End a contract or a subscription.' },
+      services: { name: 'Service agreement', desc: 'Between a freelancer and a client.' },
       invoice: { name: 'Invoice', desc: 'With subtotal, tax and total.' },
       quote: { name: 'Quote', desc: 'For a client, with validity and signature.' },
+      ledger: { name: 'Income and expenses', desc: 'By quarter, with tax collected and paid.' },
       budget: { name: 'Household budget', desc: 'Income, expenses and savings for the month.' },
       presentation: { name: 'Simple presentation', desc: 'Title, agenda, points and closing.' }
     }

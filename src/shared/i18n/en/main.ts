@@ -119,7 +119,21 @@ export const main: typeof source = {
     dontSave: 'Don’t save',
     cancel: 'Cancel',
     /** Nombre de los documentos nuevos hechos con una plantilla. */
-    templates: { letter: 'Letter', resume: 'Resume', invoice: 'Invoice', quote: 'Quote', budget: 'Household budget', presentation: 'Presentation' },
+    templates: {
+      letter: 'Letter',
+      resume: 'Resume',
+      request: 'Request',
+      authorization: 'Authorization',
+      complaint: 'Complaint',
+      withdrawal: 'Withdrawal',
+      cancellation: 'Cancellation',
+      services: 'Service agreement',
+      invoice: 'Invoice',
+      quote: 'Quote',
+      ledger: 'Income and expenses',
+      budget: 'Household budget',
+      presentation: 'Presentation'
+    },
     filters: { word: 'Document', cell: 'Spreadsheet', slide: 'Presentation', pdf: 'PDF', images: 'Images' },
     formats: {
       '.docx': 'Word document',

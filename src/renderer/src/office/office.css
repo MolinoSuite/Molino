@@ -410,6 +410,10 @@ body,
 .office-start .recent {
   width: 100%;
 }
+/* Algo más ancha que la de Molino PDF: caben tres plantillas por fila y los recientes quedan más arriba. */
+.office-start .start-inner {
+  width: min(760px, calc(100% - 48px));
+}
 .office-opening {
   position: static;
 }
@@ -763,9 +767,20 @@ body,
 }
 .office-template-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 8px;
   margin-top: 8px;
+}
+/* Si hay de varios grupos (trámites, autónomos…), cada uno con su nombre encima. */
+.office-template-group-title {
+  display: block;
+  margin-top: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+.office-template-group-title + .office-template-list {
+  margin-top: 6px;
 }
 .office-template {
   display: flex;
