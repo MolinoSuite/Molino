@@ -6,7 +6,8 @@
 //    dist-suite\win-unpacked (electron-builder --win dir).
 // 2. Monta el paquete en dist-suite\layout: el programa en app\, la pieza de
 //    oficina en app\resources\office (la arma office\build.py en dist-office),
-//    los iconos de las apps y las plantillas, las imágenes y el manifiesto
+//    los iconos de las apps, las plantillas y los diccionarios de las variantes
+//    del español (scripts\fetch-dictionaries.py), las imágenes y el manifiesto
 //    (build\suite) y resources.pri (makepri).
 // 3. Deja dist-suite\MolinoSuite.msix (makeappx), sin firmar: la Store lo firma.
 //
@@ -96,6 +97,9 @@ copyTree(join(root, 'build', 'icons'), join(layout, 'app', 'resources', 'icons')
 copyTree(join(root, 'resources', 'templates'), join(layout, 'app', 'resources', 'templates'))
 // Inter, la letra predeterminada de los documentos nuevos (scripts/make-default-font.py; officeconfig.ts).
 copyTree(join(root, 'resources', 'fonts'), join(layout, 'app', 'resources', 'fonts'))
+// Las variantes del español del corrector, con su licencia (scripts/fetch-dictionaries.py; officewin.ts las sirve).
+if (!existsSync(join(root, 'resources', 'dictionaries', 'es_MX', 'es_MX.dic'))) fail('faltan los diccionarios (engine\\.venv\\Scripts\\python.exe -I scripts\\fetch-dictionaries.py)')
+copyTree(join(root, 'resources', 'dictionaries'), join(layout, 'app', 'resources', 'dictionaries'))
 copyTree(join(root, 'build', 'suite', 'assets'), join(layout, 'assets'))
 const windowsVersion = `${version}.0`
 const manifest = readFileSync(join(root, 'build', 'suite', 'AppxManifest.xml'), 'utf8')

@@ -176,3 +176,33 @@
   font-size: 12px;
   white-space: nowrap;
 }
+.office-word-merge-make .field {
+  margin: 0;
+}
+.office-word-merge-go {
+  justify-self: start;
+  gap: 6px;
+}
+.office-word-merge-status {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.office-word-merge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.office-word-merge-actions .btn {
+  gap: 6px;
+}
+.office-word-list-file {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.office-word-compare-file {
+  justify-self: start;
+  align-self: flex-start;
+  gap: 6px;
+}

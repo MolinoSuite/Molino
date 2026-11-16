@@ -70,6 +70,22 @@ export interface OfficeRecoverable {
   time: string
 }
 
+/**
+ * Combinar correspondencia: cómo se crean las copias. «single»: todas en un
+ * documento; «files»: una por fila, cada una en su archivo; «print»: todas, a
+ * la impresora (con el cuadro de imprimir de la app).
+ */
+export type OfficeMergeMode = 'single' | 'files' | 'print'
+
+/** Otro documento (que no está abierto) para comparar o combinar: su nombre, su contenido y sus imágenes. */
+export interface OfficeOtherDocument {
+  name: string
+  /** En el formato de trabajo del editor (Editor.bin). */
+  data: Uint8Array
+  /** «media/image1.png» → el nombre que tiene ahora entre las imágenes de este documento. */
+  images: Record<string, string>
+}
+
 export interface OfficeUiApi {
   /** ``piece``: la versión del motor de oficina (para «Acerca de»). */
   env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; piece: string; author: string }
@@ -106,6 +122,21 @@ export interface OfficeUiApi {
    * (``here``) o donde diga el usuario, y la abre en Molino PDF para firmarla.
    */
   signDoc(doc: string, options: { pdfa: boolean; here: boolean }): Promise<boolean>
+  /** Comparar o combinar con un documento que no está abierto: se elige (cuadro de Windows) y llega convertido; null si no. */
+  compareFile(doc: string): Promise<OfficeOtherDocument | null>
+  /**
+   * Combinar correspondencia: las copias que hace el editor, guardadas por el
+   * motor sin tocar el documento. ``begin`` pregunta dónde (las rutas se quedan
+   * en el proceso principal; la interfaz recibe un número y el nombre de la
+   * carpeta o del archivo); ``write``, cada copia (``names[index]`` en «files»);
+   * ``end`` termina y, con ``show``, enseña lo creado en el Explorador.
+   */
+  merge: {
+    begin(doc: string, mode: OfficeMergeMode, format: 'docx' | 'pdf', names: string[]): Promise<{ job: number; where: string } | null>
+    write(job: number, index: number, data: string): Promise<{ ok: boolean; error?: string }>
+    cancel(job: number): void
+    end(job: number, show: boolean): Promise<boolean>
+  }
   newDoc(): Promise<boolean>
   onTabs(listener: (tabs: OfficeTabs) => void): () => void
   /** Ha cambiado el tema (en cualquier ventana de Molino o en Windows): oscuro o no. */

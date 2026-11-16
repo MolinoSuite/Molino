@@ -37,6 +37,8 @@ export type Run = (command: string, value?: string) => unknown
 /** Lo que recibe un panel lateral de una función (a la derecha, como los comentarios). */
 export interface PanelProps {
   session: EditorSession
+  /** El documento de la pestaña (para lo que pide al proceso principal). */
+  doc: string
   state: EditorState
   run: Run
   close: () => void
@@ -45,6 +47,8 @@ export interface PanelProps {
 /** Lo que recibe un cuadro propio de una función. */
 export interface DialogProps {
   session: EditorSession
+  /** El documento de la pestaña (para lo que pide al proceso principal). */
+  doc: string
   state: EditorState
   run: Run
   /** Lo que se pasó al abrirlo: run('dialog', 'id:valor'). */

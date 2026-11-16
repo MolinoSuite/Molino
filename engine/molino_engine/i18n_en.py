@@ -745,6 +745,8 @@ CATALOG: dict[str, str] = {
     "No se pudo convertir el documento.": "Couldn’t convert the document.",
     "La conversión tarda demasiado y se ha detenido.": "The conversion is taking too long and was stopped.",
     "Abriendo el documento…": "Opening the document…",
+    "La copia no es válida.": "The copy isn’t valid.",
+    "Leyendo el otro documento…": "Reading the other document…",
     "Preparando las fuentes del equipo…": "Preparing this computer’s fonts…",
     "No se pudieron preparar las fuentes del equipo.": "Couldn’t prepare this computer’s fonts.",
     "Este tipo de archivo no es compatible.": "This file type isn’t supported.",

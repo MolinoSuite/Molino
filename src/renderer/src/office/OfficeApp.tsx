@@ -592,7 +592,7 @@ export function OfficeApp() {
                 <X size={14} />
               </button>
             </header>
-            {panelOf(kind, featurePanel)!.render({ session: active, state, run, close: () => setFeaturePanel(null) })}
+            {panelOf(kind, featurePanel)!.render({ session: active, doc: tabs?.active ?? '', state, run, close: () => setFeaturePanel(null) })}
           </aside>
         ) : currentMode.id === 'review' && state?.ready ? (
           <CommentsPanel state={state} run={run} />
@@ -662,8 +662,9 @@ export function OfficeApp() {
         />
       )}
       {notice && <NoticeDialog notice={notice} onClose={() => setNotice(null)} />}
-      {featureDialog && active && state && dialogOf(kind, featureDialog.id)?.({
+      {featureDialog && active && state && tabs?.active && dialogOf(kind, featureDialog.id)?.({
         session: active,
+        doc: tabs.active,
         state,
         run,
         value: featureDialog.value,

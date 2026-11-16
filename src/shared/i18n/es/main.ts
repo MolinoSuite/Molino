@@ -164,6 +164,22 @@ export const main = {
     },
     recoveredName: '{stem} (recuperado){suffix}',
     recentMissing: 'No se encuentra «{name}»: puede que se haya movido o borrado. Se quita de los recientes.',
+    // Combinar correspondencia: dónde van las copias.
+    merge: {
+      folder: 'Carpeta para las copias',
+      saveAll: 'Guardar todas las copias',
+      combinedName: '{stem} (combinado)',
+      exists: 'En esa carpeta ya hay {n} archivos con los mismos nombres.',
+      existsOne: 'En esa carpeta ya hay un archivo con el mismo nombre.',
+      existsDetail: 'Por ejemplo: {names}',
+      keep: 'Guardar con otro nombre',
+      replace: 'Reemplazar'
+    },
+    // Comparar o combinar con un documento que no está abierto.
+    compare: {
+      pick: 'Elegir el otro documento',
+      failed: 'No se pudo leer «{name}».'
+    },
     // En el menú Inicio y en «Aplicaciones predeterminadas» de Windows.
     descriptions: {
       word: 'Escribe y edita documentos de Word y OpenDocument.',

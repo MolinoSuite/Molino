@@ -314,6 +314,7 @@ void app.whenReady().then(async () => {
     piece: office,
     rendererDir: join(__dirname, '../renderer'),
     templatesDir: app.isPackaged ? join(process.resourcesPath, 'templates') : join(app.getAppPath(), 'resources', 'templates'),
+    dictionariesDir: app.isPackaged ? join(process.resourcesPath, 'dictionaries') : join(app.getAppPath(), 'resources', 'dictionaries'),
     // Cada app con su tema (Ajustes → Apariencia de cada una).
     dark: (kind) => darkFor(store.settings, kind, nativeTheme.shouldUseDarkColors),
     author: () => store.settings.author || windowsUser(),
