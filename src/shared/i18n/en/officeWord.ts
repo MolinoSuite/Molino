@@ -15,6 +15,7 @@ export const officeWord: typeof source = {
     hfClose: 'Close',
     chartType: 'Type',
     chartTitle: 'Title',
+    chartData: 'Data',
     mailMerge: 'Mailings'
   },
 
@@ -22,7 +23,8 @@ export const officeWord: typeof source = {
     updateFields: 'update fields date page references',
     docLang: 'language proofing spelling document',
     bookmarks: 'bookmark bookmarks go to',
-    navigation: 'navigation headings outline pane'
+    navigation: 'navigation headings outline pane',
+    chartData: 'data chart series category figures values edit'
   },
 
   toc: {
@@ -186,6 +188,31 @@ export const officeWord: typeof source = {
     titleLabel: 'Title',
     legend: 'Legend',
     legends: { bottom: 'Bottom', right: 'Right', top: 'Top', none: 'No legend' },
+    edit: 'Edit data',
+    editMenu: 'Edit data…',
+    /** The Chart data dialog (Docs and Slides: features/chart/ChartDataDialog.tsx). */
+    data: {
+      title: 'Chart data',
+      intro: 'Each row is a category and each column a series. Type the figures and the names.',
+      introScatter: 'Each row is a point: its X value and the value of each series. Type the figures and the names.',
+      category: 'Category',
+      x: 'X',
+      addSeries: 'Add series',
+      addCategory: 'Add category',
+      addPoint: 'Add point',
+      removeSeries: 'Remove the “{name}” series',
+      removeCategory: 'Remove the “{name}” row',
+      seriesName: 'Name of series {n}',
+      categoryName: 'Name of category {n}',
+      value: '“{series}” in “{category}”',
+      newSeries: 'Series {n}',
+      newCategory: 'Category {n}',
+      invalid: 'Some boxes are not numbers (in red). An empty box counts as 0.',
+      rebuild: 'You added or removed rows or series: the chart will be made again with the new data, with the same type, title and legend. Each series’ own formatting (colors, labels…) is not kept.',
+      none: 'No chart is selected.',
+      unreadable: 'This chart’s data can’t be edited here.',
+      tooMany: 'At most {n} series and {m} categories.'
+    },
     sample: {
       title: 'Chart title',
       series: ['Series 1', 'Series 2', 'Series 3'],

@@ -103,6 +103,13 @@ export const main = {
   },
   /** Documentos, Hojas y Presentaciones: las ventanas de los editores (officewin.ts). */
   office: {
+    /** La vista del moderador de Presentaciones (officepresenter.ts). */
+    presenter: {
+      title: 'Vista del moderador',
+      screen: 'Pantalla {n} · {width} × {height}',
+      primary: 'Pantalla {n} (principal) · {width} × {height}',
+      simulated: 'Pantalla {n} (simulada)'
+    },
     media: {
       pickVideo: 'Insertar un vídeo',
       pickAudio: 'Insertar un audio',

@@ -15,6 +15,7 @@ export const officeWord = {
     hfClose: 'Cerrar',
     chartType: 'Tipo',
     chartTitle: 'Título',
+    chartData: 'Datos',
     mailMerge: 'Correspondencia'
   },
 
@@ -23,7 +24,8 @@ export const officeWord = {
     updateFields: 'actualizar campos fecha pagina referencias',
     docLang: 'idioma lengua corrector ortografia documento',
     bookmarks: 'marcador marcadores ir a',
-    navigation: 'navegacion titulos esquema panel'
+    navigation: 'navegacion titulos esquema panel',
+    chartData: 'datos grafico serie categoria cifras valores editar'
   },
 
   // Índice: la tabla de contenido y el panel de navegación.
@@ -197,6 +199,31 @@ export const officeWord = {
     titleLabel: 'Título',
     legend: 'Leyenda',
     legends: { bottom: 'Abajo', right: 'A la derecha', top: 'Arriba', none: 'Sin leyenda' },
+    edit: 'Editar datos',
+    editMenu: 'Editar datos…',
+    /** El cuadro «Datos del gráfico» (Documentos y Presentaciones: features/chart/ChartDataDialog.tsx). */
+    data: {
+      title: 'Datos del gráfico',
+      intro: 'Cada fila es una categoría y cada columna, una serie. Escribe las cifras y los nombres.',
+      introScatter: 'Cada fila es un punto: su valor en X y el de cada serie. Escribe las cifras y los nombres.',
+      category: 'Categoría',
+      x: 'X',
+      addSeries: 'Añadir serie',
+      addCategory: 'Añadir categoría',
+      addPoint: 'Añadir punto',
+      removeSeries: 'Quitar la serie «{name}»',
+      removeCategory: 'Quitar la fila «{name}»',
+      seriesName: 'Nombre de la serie {n}',
+      categoryName: 'Nombre de la categoría {n}',
+      value: '«{series}» en «{category}»',
+      newSeries: 'Serie {n}',
+      newCategory: 'Categoría {n}',
+      invalid: 'Hay casillas que no son números (en rojo). Una casilla vacía cuenta como 0.',
+      rebuild: 'Has añadido o quitado filas o series: el gráfico se volverá a crear con los datos nuevos, con el mismo tipo, título y leyenda. El formato propio de cada serie (colores, etiquetas…) no se conserva.',
+      none: 'No hay ningún gráfico seleccionado.',
+      unreadable: 'Los datos de este gráfico no se pueden editar aquí.',
+      tooMany: 'Como mucho, {n} series y {m} categorías.'
+    },
     /** Los datos de ejemplo de un gráfico nuevo. */
     sample: {
       title: 'Título del gráfico',

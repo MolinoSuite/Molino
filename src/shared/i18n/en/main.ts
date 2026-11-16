@@ -93,6 +93,13 @@ export const main: typeof source = {
     lampOff: 'The scanner lamp is off.'
   },
   office: {
+    /** Presenter view in Slides (officepresenter.ts). */
+    presenter: {
+      title: 'Presenter view',
+      screen: 'Display {n} · {width} × {height}',
+      primary: 'Display {n} (main) · {width} × {height}',
+      simulated: 'Display {n} (simulated)'
+    },
     media: {
       pickVideo: 'Insert a video',
       pickAudio: 'Insert an audio file',

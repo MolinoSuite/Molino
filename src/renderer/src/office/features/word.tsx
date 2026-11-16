@@ -26,6 +26,7 @@ import {
   PanelBottom,
   PanelTop,
   RefreshCw,
+  Sheet,
   Square,
   SquareCheck,
   Table2,
@@ -36,7 +37,10 @@ import type { ReactNode } from 'react'
 import type { MenuOption, Mode, SelectedObject, Tool } from '../apps'
 import type { PromptSpec } from '../dialogs'
 import type { EditorSession, EditorState } from '../engine'
+import type { MenuEntry } from '@/components/ui'
 import { L } from '../i18n'
+import { ChartDataDialog } from './chart/ChartDataDialog'
+import { takeChartDoubleClick } from './chart/data'
 import type { Api, Feature, FeatureContext } from './types'
 import { BookmarksDialog } from './word/BookmarksDialog'
 import { CompareDialog } from './word/CompareDialog'
@@ -66,7 +70,8 @@ const HEADER = 'header' as unknown as SelectedObject
  *   fecha…), gráficos y combinar correspondencia.
  * - Tabla: la galería de estilos (las miniaturas del editor) y el sombreado.
  * - Revisar: el idioma del texto (para el corrector) y comparar o combinar.
- * - Pestañas de contexto: el encabezado o pie que se edita y el gráfico seleccionado.
+ * - Pestañas de contexto: el encabezado o pie que se edita y el gráfico
+ *   seleccionado (tipo, título, leyenda y sus datos: chart/ChartDataDialog.tsx).
  * Ver types.ts.
  */
 
@@ -239,8 +244,9 @@ const CHART_MODE: Mode = {
   label: W.chart.tab,
   icon: <ChartColumn size={19} />,
   context: 'chart',
-  names: [W.groups.chartType, W.groups.chartTitle],
+  names: [W.groups.chartData, W.groups.chartType, W.groups.chartTitle],
   groups: [
+    [button('wChartData', W.chart.edit, 'dialog', <Sheet size={ICON} />, { value: 'chartData', caption: true })],
     [menu('wChartType', W.chart.type, 'chartType', <ChartColumn size={ICON} />, chartOptions(), { caption: true, tiles: 3, current: (s) => extraOf(s).chartKind ?? '' })],
     [
       button('wChartTitle', W.chart.title, 'chartTitleAsk', <Heading size={ICON} />, { caption: true }),
@@ -616,6 +622,8 @@ function listen(ctx: FeatureContext, on: (name: string, fn: (...args: Api[]) => 
     const merge = extra().mailMerge
     if (merge) merge.preview = null
   })
+  // Doble clic en un gráfico: sus datos, en el cuadro de Molino.
+  takeChartDoubleClick(ctx)
 }
 
 // -------------------------------------------------------------- preguntas
@@ -679,6 +687,8 @@ export const wordFeature: Feature = {
   },
   modes: [HF_MODE, CHART_MODE],
   ask,
+  context: (state, _session, run) =>
+    state.objects.includes('chart') ? ([{ label: W.chart.editMenu, icon: <Sheet size={15} />, onSelect: () => void run('dialog', 'chartData') }] as MenuEntry[]) : [],
   panels: {
     navigation: { title: W.nav.title, render: (props) => <NavigationPanel {...props} /> },
     mailMerge: { title: W.mailMerge.title, render: (props) => <MailMergePanel {...props} /> }
@@ -686,12 +696,14 @@ export const wordFeature: Feature = {
   dialogs: {
     bookmarks: (props) => <BookmarksDialog {...props} />,
     crossRef: (props) => <CrossRefDialog {...props} />,
-    compare: (props) => <CompareDialog {...props} />
+    compare: (props) => <CompareDialog {...props} />,
+    chartData: (props) => <ChartDataDialog {...props} />
   },
   palette: [
     { label: W.fields.update, group: L.office.modes.insert, keywords: W.keywords.updateFields, command: 'updateFields' },
     { label: W.lang.documentTitle, group: L.office.modes.review, keywords: W.keywords.docLang, command: 'docLangAsk' },
     { label: W.bookmarks.title, group: L.office.modes.references, keywords: W.keywords.bookmarks, command: 'dialog', value: 'bookmarks' },
-    { label: W.nav.title, group: L.office.modes.references, keywords: W.keywords.navigation, command: 'panel', value: 'navigation' }
+    { label: W.nav.title, group: L.office.modes.references, keywords: W.keywords.navigation, command: 'panel', value: 'navigation' },
+    { label: W.chart.edit, group: W.chart.tab, keywords: W.keywords.chartData, command: 'dialog', value: 'chartData' }
   ]
 }

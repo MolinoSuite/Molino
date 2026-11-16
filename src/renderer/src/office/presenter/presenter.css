@@ -1,0 +1,188 @@
+/* La vista del moderador de Presentaciones (PresenterApp.tsx): su propia ventana. */
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  background: var(--bg-app);
+  color: var(--text);
+}
+
+.presenter {
+  display: grid;
+  grid-template-rows: var(--titlebar-h) minmax(0, 1fr);
+  height: 100%;
+}
+
+.presenter-bar {
+  gap: 14px;
+  padding-left: 16px;
+}
+.presenter-time,
+.presenter-clock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+}
+.presenter-elapsed {
+  min-width: 56px;
+  color: var(--text);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+.presenter-clock span {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.presenter-doc {
+  overflow: hidden;
+  color: var(--text-2);
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.presenter-end {
+  flex: none;
+}
+
+.presenter-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-2);
+}
+
+.presenter-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr);
+  gap: 16px;
+  min-height: 0;
+  padding: 16px;
+}
+
+/* La diapositiva que se ve: lo más grande. */
+.presenter-current {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+.presenter-stage {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.presenter-stage img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--page-shadow);
+  cursor: pointer;
+  user-select: none;
+}
+.presenter-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+.presenter-where {
+  min-width: 160px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* La siguiente y las notas. */
+.presenter-side {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  min-height: 0;
+}
+.presenter-side h2 {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.presenter-next {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.presenter-next img {
+  align-self: center;
+  max-width: 100%;
+  max-height: 32vh;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--page-shadow);
+  user-select: none;
+}
+.presenter-next-empty {
+  width: 100%;
+  max-height: 32vh;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  font-weight: 600;
+}
+.presenter-notes {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+}
+.presenter-notes header {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 8px 4px 14px;
+}
+.presenter-notes header h2 {
+  flex: 1;
+}
+.presenter-notes-text {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 16px 16px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  outline: none;
+}
+.presenter-notes-none {
+  color: var(--text-3);
+  font-size: 15px;
+}
+.presenter-keys {
+  margin: 0;
+}
+
+/* Con la ventana estrecha (el portátil pequeño): una columna. */
+@media (max-width: 900px) {
+  .presenter-main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1.4fr) minmax(0, 1fr);
+    overflow: auto;
+  }
+  .presenter-keys {
+    display: none;
+  }
+}

@@ -26,7 +26,12 @@ export default defineConfig({
     root: 'src/renderer',
     plugins: [react()],
     resolve: { alias: { '@': resolve('src/renderer/src'), '@shared': resolve('src/shared') } },
-    // index: Molino PDF; office: las ventanas de Documentos, Hojas y Presentaciones (officewin.ts); home: «Molino», el inicio común.
-    build: { rollupOptions: { input: { index: resolve('src/renderer/index.html'), office: resolve('src/renderer/office.html'), home: resolve('src/renderer/home.html') } } }
+    // index: Molino PDF; office: las ventanas de Documentos, Hojas y Presentaciones (officewin.ts); home: «Molino», el inicio común;
+    // presenter: la vista del moderador de Presentaciones (officepresenter.ts).
+    build: {
+      rollupOptions: {
+        input: { index: resolve('src/renderer/index.html'), office: resolve('src/renderer/office.html'), home: resolve('src/renderer/home.html'), presenter: resolve('src/renderer/presenter.html') }
+      }
+    }
   }
 })

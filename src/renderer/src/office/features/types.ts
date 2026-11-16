@@ -30,6 +30,8 @@ export interface FeatureContext {
   local<T>(value: T): T
   /** Ejecuta código de la API de documentos (Api.GetDocument()…) con datos; true si fue bien. */
   builder(fn: (scope: { molino: Api }) => void, data: unknown): boolean
+  /** Pide a la ventana una orden de Molino (abrir un cuadro…), como si se pulsara su botón. */
+  request(command: string, value?: string): void
 }
 
 export type Run = (command: string, value?: string) => unknown

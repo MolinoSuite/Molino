@@ -52,11 +52,13 @@ type OfficeDialog =
 
 /**
  * Los atajos de la ventana, como en Office: Ctrl+F buscar, Ctrl+H reemplazar,
- * Ctrl+K vínculo, Alt+Q el buscador de órdenes. Los mismos que en bridge.js
- * (que los manda aquí cuando el teclado está en el documento).
+ * Ctrl+K vínculo, Alt+Q el buscador de órdenes; en Presentaciones, F5 presentar
+ * desde el principio, Mayús+F5 desde aquí y Alt+F5 con la vista del moderador.
+ * Los mismos que en bridge.js (que los manda aquí cuando el teclado está en el documento).
  */
-function shortcutOf(event: globalThis.KeyboardEvent): string | null {
+function shortcutOf(event: globalThis.KeyboardEvent, kind: OfficeKind): string | null {
   const key = event.key.toLowerCase()
+  if (key === 'f5' && kind === 'slide' && !event.metaKey) return event.altKey ? 'presentRehearse' : event.shiftKey ? 'presentHere' : 'present'
   if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey && key === 'q') return 'palette'
   if (!(event.ctrlKey || event.metaKey) || event.altKey) return null
   if (key === 'tab') return event.shiftKey ? 'prevTab' : 'nextTab'
@@ -157,6 +159,8 @@ export function OfficeApp() {
       if (!open.has(doc)) {
         session.dispose()
         sessions.current.delete(doc)
+        // Se ha cerrado mientras se presentaba (Ctrl+W): el editor ya no dirá que ha terminado.
+        setPresenting(false)
       }
     }
   }, [tabs])
@@ -168,6 +172,7 @@ export function OfficeApp() {
       // El menú del botón derecho y los avisos del editor, con el aspecto de Molino.
       found.onContextMenu = (info) => setMenu(info ? { doc, info } : null)
       found.onNotice = setNotice
+      found.onRequest = (command, value) => void runRef.current(command, value)
       found.onSelectionBar = (at) => setSelBar(at ? { doc, ...at } : null)
       found.groupLabel = (id) => (T.functionGroups as Record<string, string>)[id] ?? id
       sessions.current.set(doc, found)
@@ -317,6 +322,9 @@ export function OfficeApp() {
     },
     [active, tabs?.active, activeHasFile, kind, togglePanel]
   )
+  // Lo que piden los editores (EditorSession.onRequest): siempre con la orden de ahora.
+  const runRef = useRef(run)
+  runRef.current = run
   const ask = useCallback((spec: PromptSpec) => setDialog({ type: 'prompt', spec }), [])
   const closeDialog = useCallback(() => {
     setDialog(null)
@@ -345,8 +353,12 @@ export function OfficeApp() {
       else if (key === 'settings') setSettingsOpen(true)
       else if (key === 'nextTab') step(1)
       else if (key === 'prevTab') step(-1)
+      // Presentar (no mientras ya se presenta).
+      else if (key === 'present' && !presenting) run('present')
+      else if (key === 'presentHere' && !presenting) run('present', 'here')
+      else if (key === 'presentRehearse' && !presenting) run('presentRehearse')
     },
-    [tabs, step, run]
+    [tabs, step, run, presenting]
   )
   // Los atajos llegan del editor (bridge.js) o de la propia interfaz. Ctrl+S solo
   // llega de aquí: dentro del documento lo atiende el propio editor.
@@ -355,14 +367,14 @@ export function OfficeApp() {
     window.molinoFullscreen = setPresenting
     window.molinoNeedsSaveAs = () => !activeHasFile
     const onKey = (event: globalThis.KeyboardEvent): void => {
-      const mapped = shortcutOf(event)
+      const mapped = shortcutOf(event, kind)
       if (!mapped) return
       event.preventDefault()
       shortcut(mapped)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [shortcut, activeHasFile])
+  }, [shortcut, activeHasFile, kind])
 
   // Las pestañas de contexto (tabla, imagen…) solo con su objeto seleccionado; si
   // se deja de seleccionar, se vuelve a la última de las de siempre.

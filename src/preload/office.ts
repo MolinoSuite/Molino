@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
 import type { MolinoShared } from '@shared/api'
 import type { Lang } from '@shared/i18n'
-import type { OfficeAsk, OfficeTabs, OfficeUiApi } from '@shared/officeui'
+import type { OfficeAsk, OfficeTabs, OfficeUiApi, PresenterAction, PresenterApi, PresenterScreen, PresenterState } from '@shared/officeui'
 import type { DocDescriptor, ProgressInfo, Settings, UpdateStatus } from '@shared/types'
 
 /**
@@ -20,6 +20,10 @@ import type { DocDescriptor, ProgressInfo, Settings, UpdateStatus } from '@share
  *   «app de escritorio» de ONLYOFFICE. Cada llamada lleva su documento y el
  *   proceso principal solo la atiende desde un editor y para los documentos
  *   de esa ventana (officewin.ts).
+ * - ``molinoPresenter``: solo en la vista del moderador de Presentaciones
+ *   (presenter.html, en su propia ventana): recibe lo que enseña y pide pasar de
+ *   diapositiva o terminar; el proceso principal solo lo atiende desde esa
+ *   ventana (officepresenter.ts).
  */
 
 // La misma forma que LOCALE_RE de @shared/i18n, copiada: un preload con sandbox es un
@@ -75,6 +79,14 @@ const ui: OfficeUiApi = {
   openLink: (url) => ipcRenderer.invoke('office:openLink', url),
   templates: () => ipcRenderer.invoke('office:templates'),
   fromTemplate: (id) => ipcRenderer.invoke('office:fromTemplate', id),
+  presenter: {
+    screens: () => ipcRenderer.invoke('office:presenterScreens'),
+    onScreens: (listener) => subscribe<PresenterScreen[]>('office:presenterScreens', listener),
+    start: (doc, options) => ipcRenderer.invoke('office:presenterStart', { ...options, doc }),
+    state: (doc, state) => ipcRenderer.send('office:presenterState', { doc, state }),
+    end: (doc) => ipcRenderer.send('office:presenterEnd', doc),
+    onCommand: (listener) => subscribe<{ doc: string; action: PresenterAction; slide?: number }>('office:presenterCommand', listener)
+  },
   ai: {
     status: () => ipcRenderer.invoke('office:aiStatus'),
     run: (call, doc, method, params) => ipcRenderer.invoke('office:ai', { call, doc, method, params }),
@@ -138,7 +150,18 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
 }
 
 const frameUrl = (globalThis as { location?: { href?: string } }).location?.href ?? ''
-if (frameUrl.startsWith('molino://office/__molino__/ui/')) {
+// La vista del moderador (Presentaciones): su página, en su propia ventana (officepresenter.ts).
+// Solo ve lo que le manda la presentación y solo puede pedirle que pase de diapositiva o termine.
+if (frameUrl.startsWith('molino://office/__molino__/ui/presenter.html')) {
+  const presenter: PresenterApi = {
+    ready: () => ipcRenderer.send('presenter:ready'),
+    command: (action, slide) => ipcRenderer.send('presenter:command', { action, slide }),
+    onState: (listener) => subscribe<PresenterState>('presenter:state', listener)
+  }
+  contextBridge.exposeInMainWorld('molinoPresenter', presenter)
+}
+// Lo común de Molino, solo en la página de la interfaz de cada app (no en la vista del moderador).
+if (frameUrl.startsWith('molino://office/__molino__/ui/office.html')) {
   const shared: MolinoShared = {
     env: { version: ui.env.version, built: '', dev: process.argv.includes('--molino-dev'), lang: ui.env.lang, locale: ui.env.locale },
     // Solo para el cuadro de imprimir: dibujar las páginas del PDF temporal e imprimirlo (officeprint.ts).

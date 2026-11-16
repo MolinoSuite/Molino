@@ -5,6 +5,7 @@ import {
   AlignVerticalJustifyCenter,
   ArrowLeftRight,
   ArrowUpDown,
+  ChartColumn,
   Copy,
   Crop,
   Expand,
@@ -19,6 +20,9 @@ import {
   ListIndentDecrease,
   ListIndentIncrease,
   Magnet,
+  Monitor,
+  MonitorCheck,
+  MonitorPlay,
   Music,
   Maximize,
   Minimize2,
@@ -35,6 +39,7 @@ import {
   Ruler,
   SeparatorHorizontal,
   SeparatorVertical,
+  Sheet,
   Shrink,
   Sparkle,
   Sparkles,
@@ -53,8 +58,11 @@ import type { EditorState } from '../engine'
 import type { MenuOption, Mode, Tool } from '../apps'
 import { L } from '../i18n'
 import { ParagraphGlyph, SpacingGlyph } from '../ui/glyphs'
+import { ChartDataDialog } from './chart/ChartDataDialog'
+import { takeChartDoubleClick } from './chart/data'
 import { AnimationPanel } from './slide/AnimationPanel'
 import { EFFECT_BY_KEY, EFFECTS, EffectGlyph, GROUPS, TRIGGERS } from './slide/effects'
+import { chosenScreen, presenterOn, setChosenScreen, setPresenterOn, showEnded, slideChanged, startShow, watchScreens } from './slide/presenter'
 import { RehearsePanel } from './slide/RehearsePanel'
 import { SmartArtDialog, smartArtPreviews } from './slide/SmartArtDialog'
 import type { Api, Feature, FeatureContext } from './types'
@@ -64,7 +72,9 @@ import './slide/slide.css'
  * Funciones de Presentaciones (además de las de siempre): sangría, interlineado
  * y alineación vertical del texto; recortar y cambiar imágenes; el panel de
  * animación y su galería; el ensayo con notas; guías, cuadrícula y patrón de
- * diapositivas (pestaña «Vista»); combinaciones de colores, WordArt y SmartArt.
+ * diapositivas (pestaña «Vista»); combinaciones de colores, WordArt y SmartArt;
+ * presentar con la vista del moderador (slide/presenter.ts) y los datos de un
+ * gráfico (pestaña «Gráfico», chart/ChartDataDialog.tsx).
  * Ver types.ts.
  */
 
@@ -264,6 +274,43 @@ const VIEW_MODE: Mode = {
     [B('notes', 'notes', { label: ST.notes, icon: <StickyNote size={ICON} />, caption: true, active: (s) => s.notes }), B('fit', 'fit', { label: ST.fit, icon: <Square size={ICON} /> })],
     [B('master', 'master', { label: ST.master, icon: <LayoutTemplate size={ICON} />, caption: true, active: flag('master') }), MASTER_MENU]
   ]
+}
+
+// Presentar: la vista del moderador (Alt+F5), usarla con dos pantallas, en cuál se ve la presentación y ensayar.
+interface ScreenInfo {
+  id: number
+  label: string
+  primary: boolean
+}
+const PRESENTER: Tool[] = [
+  B('presenterView', 'presentRehearse', { label: ST.presenterView, icon: <MonitorPlay size={ICON} />, caption: true }),
+  B('usePresenter', 'presenterUse', { label: ST.usePresenter, icon: <MonitorCheck size={ICON} />, active: (s) => s.extra.presenterUse !== false }),
+  MENU(
+    'presenterScreen',
+    'presenterScreen',
+    (s): MenuOption[] => {
+      const list = (s.extra.presenterScreens as ScreenInfo[] | undefined) ?? []
+      if (list.length < 2) return [{ value: '', label: S.options.screen.single, heading: true }]
+      return [
+        { value: '', label: S.options.screen.heading, heading: true },
+        { value: 'auto', label: S.options.screen.auto, icon: <Monitor size={15} /> },
+        ...list.map((d) => ({ value: String(d.id), label: d.label, icon: <Monitor size={15} /> }))
+      ]
+    },
+    <Monitor size={ICON} />,
+    { label: ST.screen, current: (s) => String(s.extra.presenterScreen ?? 'auto') }
+  ),
+  B('rehearse', 'panel', { label: ST.rehearse, value: 'rehearse', icon: <Timer size={ICON} />, caption: true })
+]
+
+// Gráfico seleccionado: «Editar datos» (en su pestaña y en el menú del botón derecho).
+const CHART_MODE: Mode = {
+  id: 'sChart',
+  label: S.modes.chart,
+  icon: <ChartColumn size={19} />,
+  context: 'chart',
+  names: [S.groups.chartData],
+  groups: [[B('chartData', 'dialog', { label: ST.chartData, value: 'chartData', icon: <Sheet size={ICON} />, caption: true })]]
 }
 
 // ------------------------------------------------------------------ órdenes
@@ -531,7 +578,22 @@ function slideCommands(ctx: FeatureContext): Record<string, (value?: string) => 
       else api.asc_SetLayoutName(clean)
     },
     masterTitle: () => api.asc_IsMasterSlideMode() && api.asc_setTitle(!extra.masterTitle),
-    masterFooters: () => api.asc_IsMasterSlideMode() && api.asc_setFooter(!extra.masterFooters)
+    masterFooters: () => api.asc_IsMasterSlideMode() && api.asc_setFooter(!extra.masterFooters),
+    // 10. Presentar (en lugar de la orden de siempre): con la vista del moderador si hay dos pantallas.
+    present: (from) => void startShow(ctx, from === 'here' ? 'here' : 'start', false),
+    // La vista del moderador desde la diapositiva actual, también con una sola pantalla (para ensayar).
+    presentRehearse: () => void startShow(ctx, 'here', true),
+    presenterUse: () => {
+      setPresenterOn(!presenterOn())
+      extra.presenterUse = presenterOn()
+      ctx.changed()
+    },
+    presenterScreen: (v) => {
+      const id = Number(v)
+      setChosenScreen(v && v !== 'auto' && Number.isSafeInteger(id) ? id : null)
+      extra.presenterScreen = chosenScreen() ?? 'auto'
+      ctx.changed()
+    }
   }
 }
 
@@ -622,6 +684,18 @@ function slideListen(ctx: FeatureContext, on: (name: string, fn: (...args: Api[]
     extra.smartArtNext = undefined
     if (typeof next === 'number') smartArtPreviews(ctx, next)
   })
+  // Presentar: en qué diapositiva va (para la vista del moderador) y cuándo termina.
+  on('asc_onDemonstrationSlideChanged', (n: Api) => slideChanged(ctx, n))
+  on('asc_onEndDemonstration', () => showEnded(ctx))
+  // La vista del moderador: si se usa con dos pantallas, en cuál se presenta y qué pantallas hay.
+  extra.presenterUse = presenterOn()
+  extra.presenterScreen = chosenScreen() ?? 'auto'
+  watchScreens(ctx, (list) => {
+    extra.presenterScreens = list
+    ctx.changed()
+  })
+  // Doble clic en un gráfico: el cuadro de Molino con sus datos (no el editor de gráficos de ONLYOFFICE).
+  takeChartDoubleClick(ctx)
   // Al abrir: lo que enseña la vista y las vistas previas de WordArt.
   let ready = false
   const start = (): void => {
@@ -659,11 +733,12 @@ export const slideFeature: Feature = {
     design: { at: 1, groups: [[COLOR_SCHEMES]], names: [S.groups.colors] },
     // Las animaciones, antes de la galería de siempre (que cambia la de lo seleccionado).
     transitions: { at: 2, groups: [ANIMATIONS], names: [S.groups.animations] },
-    present: { groups: [[B('rehearse', 'panel', { label: ST.rehearse, value: 'rehearse', icon: <Timer size={ICON} />, caption: true })]], names: [S.groups.rehearse] },
+    // Detrás de lo de siempre (presentar, ocultar y notas): si no cabe, en «Más».
+    present: { groups: [PRESENTER], names: [S.groups.presenter] },
     shape: { groups: [TEXT_BOX], names: [S.groups.textBox] },
     image: { at: 0, groups: [IMAGE_CROP, IMAGE_SIZE, IMAGE_PICTURE], names: [S.groups.crop, S.groups.size, S.groups.picture] }
   },
-  modes: [VIEW_MODE],
+  modes: [VIEW_MODE, CHART_MODE],
   ask: (command, _value, session, run) => {
     if (command === 'gridSpacingAsk') {
       return {
@@ -686,6 +761,7 @@ export const slideFeature: Feature = {
   },
   context: (state, _session, run) => {
     const entries: MenuEntry[] = []
+    if (state.objects.includes('chart')) entries.push({ label: S.context.chartData, icon: <Sheet size={15} />, onSelect: () => void run('dialog', 'chartData') })
     if (state.objects.includes('image')) {
       entries.push(
         { label: S.context.replaceImage, icon: <ImageUp size={15} />, onSelect: () => void run('replaceImage') },
@@ -703,11 +779,14 @@ export const slideFeature: Feature = {
     rehearse: { title: S.rehearse.title, render: (props) => <RehearsePanel {...props} /> }
   },
   dialogs: {
-    smartArt: (props) => <SmartArtDialog {...props} />
+    smartArt: (props) => <SmartArtDialog {...props} />,
+    chartData: (props) => <ChartDataDialog {...props} />
   },
   palette: [
     { label: ST.animPanel, group: L.office.modes.transitions, keywords: S.keywords.animPanel, command: 'panel', value: 'animations' },
     { label: ST.rehearse, group: L.office.modes.present, keywords: S.keywords.rehearse, command: 'panel', value: 'rehearse' },
+    { label: ST.presenterView, group: L.office.modes.present, keywords: S.keywords.presenterView, command: 'presentRehearse' },
+    { label: ST.chartData, group: S.modes.chart, keywords: S.keywords.chartData, command: 'dialog', value: 'chartData' },
     { label: ST.smartArt, group: L.office.modes.insert, keywords: S.keywords.smartArt, command: 'dialog', value: 'smartArt' },
     { label: ST.guides, group: S.modes.view, keywords: S.keywords.guides, command: 'guides' },
     { label: ST.master, group: S.modes.view, keywords: S.keywords.master, command: 'master' }

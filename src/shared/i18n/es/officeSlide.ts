@@ -16,10 +16,16 @@ export const officeSlide = {
     guides: 'Guías',
     grid: 'Cuadrícula',
     show: 'Mostrar',
-    master: 'Patrón'
+    master: 'Patrón',
+    presenter: 'Moderador',
+    chartData: 'Datos'
   },
-  modes: { view: 'Vista' },
+  modes: { view: 'Vista', chart: 'Gráfico' },
   tools: {
+    presenterView: 'Vista del moderador',
+    usePresenter: 'Usar la vista del moderador',
+    screen: 'Pantalla',
+    chartData: 'Editar datos',
     video: 'Vídeo',
     audio: 'Audio',
     textDirection: 'Dirección del texto',
@@ -63,7 +69,9 @@ export const officeSlide = {
     textDirection: { normal: 'Horizontal', vert: 'Girar 90°', vert270: 'Girar 270°' },
     rotate: { left: 'Girar 90° a la izquierda', right: 'Girar 90° a la derecha', flipH: 'Voltear en horizontal', flipV: 'Voltear en vertical' },
     gridSpacing: { '0.25': '0,25 cm', '0.5': '0,5 cm', '1': '1 cm', '2': '2 cm' },
-    gridSpacingCustom: 'Otro espaciado…'
+    gridSpacingCustom: 'Otro espaciado…',
+    /** Dónde se ve la presentación (con dos pantallas o más). */
+    screen: { heading: 'Dónde se ve la presentación', auto: 'Automática (la que no es la principal)', single: 'Solo hay una pantalla' }
   },
   /** Las animaciones: sus grupos, sus nombres y cuándo empiezan. */
   anim: {
@@ -156,7 +164,29 @@ export const officeSlide = {
     prev: 'Anterior',
     nextSlide: 'Siguiente',
     present: 'Presentar desde aquí',
-    hint: 'Ensaya con las notas a la vista. La vista del moderador en una segunda pantalla aún no está disponible.'
+    hint: 'Ensaya con las notas a la vista. Para ensayar a pantalla completa, con el tiempo y la siguiente diapositiva, usa «Vista del moderador» (Alt+F5).'
+  },
+  /** La vista del moderador: su ventana (presenter/PresenterApp.tsx). */
+  presenter: {
+    title: 'Vista del moderador',
+    loading: 'Preparando la presentación…',
+    slide: 'Diapositiva {n} de {total}',
+    finished: 'Fin de la presentación',
+    current: 'Diapositiva actual',
+    next: 'Siguiente',
+    end: 'Terminar',
+    prev: 'Anterior',
+    nextSlide: 'Siguiente',
+    notes: 'Notas',
+    noNotes: 'Esta diapositiva no tiene notas.',
+    bigger: 'Letra más grande',
+    smaller: 'Letra más pequeña',
+    elapsed: 'Tiempo',
+    pause: 'Pausa',
+    resume: 'Seguir',
+    reset: 'Reiniciar',
+    clock: 'Hora',
+    keys: 'Flechas, Av Pág o espacio: pasar. Esc: terminar. Un número y Enter: ir a esa diapositiva.'
   },
   smartArt: {
     title: 'Insertar un SmartArt',
@@ -172,6 +202,7 @@ export const officeSlide = {
     renameField: 'Nombre'
   },
   context: {
+    chartData: 'Editar datos…',
     animPanel: 'Animaciones…',
     replaceImage: 'Cambiar imagen…',
     originalSize: 'Tamaño original',
@@ -183,6 +214,8 @@ export const officeSlide = {
     guides: 'guias reglas alinear',
     smartArt: 'smartart diagrama organigrama proceso',
     wordArt: 'wordart texto artistico decorado',
-    master: 'patron maestro diseño plantilla'
+    master: 'patron maestro diseño plantilla',
+    presenterView: 'moderador orador presentador vista segunda pantalla proyector monitor notas',
+    chartData: 'datos grafico serie categoria cifras valores editar'
   }
 }
