@@ -753,4 +753,7 @@ CATALOG: dict[str, str] = {
     "Ese vídeo o audio no se puede usar.": "That video or audio file can’t be used.",
     "Este documento no se puede guardar en ese formato.": "This document can’t be saved in that format.",
     "Exportando a PDF…": "Exporting to PDF…",
+    "Exportando a PDF/A…": "Exporting to PDF/A…",
+    "Comprobando el documento…": "Checking the document…",
+    "No se pudo comprobar el documento.": "Couldn’t check the document.",
 }

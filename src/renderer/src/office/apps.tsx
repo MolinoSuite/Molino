@@ -423,6 +423,8 @@ const COMMON_EXTRA: PaletteEntry[] = [
   { label: T.saveAs, group: G.file, keywords: L.office.keywords.saveAs, command: 'saveAs' },
   { label: T.print, group: G.file, keywords: L.office.keywords.print, command: 'print' },
   { label: T.savePdf, group: G.file, keywords: L.office.keywords.savePdf, command: 'savePdf' },
+  { label: T.savePdfA, group: G.file, keywords: L.office.keywords.savePdfA, command: 'savePdfA' },
+  { label: T.sign, group: G.file, keywords: L.office.keywords.sign, command: 'signAsk' },
   { label: T.undo, group: G.file, keywords: L.office.keywords.undo, command: 'undo' },
   { label: T.redo, group: G.file, keywords: L.office.keywords.redo, command: 'redo' },
   { label: T.zoomIn, group: G.view, keywords: L.office.keywords.zoomIn, command: 'zoomIn' },

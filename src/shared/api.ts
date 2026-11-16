@@ -43,6 +43,8 @@ export type OpenOutcome =
       doc: DocDescriptor
       /** Abierto para imprimir (un documento de Documentos, Hojas o Presentaciones): sale el cuadro de imprimir. */
       print?: boolean
+      /** Abierto para firmarlo (el PDF de un documento de Documentos, Hojas o Presentaciones): en el modo Firmar. */
+      sign?: boolean
     }
   | {
       ok: false

@@ -81,6 +81,7 @@ export const shell = {
       date: 'fecha hoy dia',
       cert: 'firma digital certificado electronico dnie fnmt',
       verify: 'comprobar verificar firmas validas',
+      tramite: 'tramite sede electronica presentar registro administracion listo comprobar validar firma pdfa',
       pages: 'paginas organizar',
       ocr: 'ocr reconocer texto escaneado buscar copiar',
       redact: 'censurar tapar ocultar datos privados borrar',

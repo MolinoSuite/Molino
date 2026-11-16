@@ -93,6 +93,11 @@ export function handleOutcomes(outcomes: OpenOutcome[]): void {
       else app().addDoc(outcome.doc)
       // Un documento de Documentos, Hojas o Presentaciones que se quiere imprimir.
       if (outcome.print) printDoc(outcome.doc.doc)
+      // O firmar: el modo Firmar, con la firma con certificado ya elegida (dibujar el recuadro o firmar sin él).
+      if (outcome.sign) {
+        setMode(outcome.doc.doc, 'sign')
+        setTool(outcome.doc.doc, 'cert-rect')
+      }
     } else if (outcome.token) {
       locked ??= outcome
     } else {

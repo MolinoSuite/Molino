@@ -8,6 +8,7 @@ import { openSearch } from '@/state/search'
 import { CommandPalette, type PaletteItem } from './CommandPalette'
 import { registerDialog } from './Dialogs'
 import { openScan } from './ScanDialog'
+import { openTramite } from '@/modes/sign/tramite'
 
 /**
  * «¿Qué quieres hacer?» en Molino PDF: todas sus funciones (abrir y crear,
@@ -106,6 +107,10 @@ function commands(doc: DocView | undefined, aiOn: boolean): PdfCommand[] {
     add('s-date', S.date, G.sign, K.date, go('sign', 'date'))
     add('s-cert', S.certTip, G.sign, K.cert, go('sign', 'cert-rect'))
     add('s-verify', S.signaturesTip, G.sign, K.verify, go('sign'))
+    add('s-tramite', L.sign.tramite.title, G.sign, K.tramite, () => {
+      setMode(id, 'sign')
+      openTramite(id)
+    })
 
     const P = C.labels
     add('p-rotate', P.rotatePages, G.pages, K.pages, go('pages'))

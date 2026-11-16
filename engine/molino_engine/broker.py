@@ -543,7 +543,8 @@ class Broker:
         grant.scan = method == "scan.add"
         grant.office = method in _OFFICE_X2T
         grant.ai_ops = AI_OPS.get(method, frozenset())
-        if method == "sign.validate" and params.get("online") is True:
+        if method in ("sign.validate", "tramite.check") and params.get("online") is True:
+            # Validar firmas en linea (tambien al comprobar para un tramite): solo la revocacion.
             grant.net_left = MAX_NET_FETCHES
         if method == "sign.sign":
             header = {**header, "params": self._prepare_signing(grant, params)}

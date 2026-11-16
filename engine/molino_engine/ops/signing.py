@@ -553,27 +553,28 @@ class ValidateParams(DocParams):
     online: bool = False
 
 
+def signature_report(ctx: Ctx, session: DocSession, online: bool) -> list[dict[str, Any]]:
+    """Estado de cada firma del documento tal como esta ahora (lo usan sign.validate y tramite.check)."""
+    from ..sign import validation
+
+    placed = {name: (index, rect) for name, index, rect, _signed in _widgets(session)}
+    results = validation.validate_document(
+        session.current_bytes(), session.password, ctx.engine.host, online=online, tick=ctx.check_cancel
+    )
+    if results is None:
+        # El PDF no se deja leer para validarlo: cada firma que se ve queda como "no se pudo validar".
+        results = [validation.unknown_entry(name) for name, _i, _r, signed in _widgets(session) if signed]
+    for entry in results:
+        where = placed.get(entry["field"])
+        if where is not None:
+            index, rect = where
+            entry["page"] = session.page_ids[index]
+            entry["rect"] = Geom(session.doc[index]).rect_d(rect) if _visible(rect) else None
+    return results
+
+
 @method("sign.validate", ValidateParams)
 def sign_validate(ctx: Ctx, p: ValidateParams) -> dict[str, Any]:
     """Estado de cada firma del documento. Sin red salvo que se pida ``online``."""
     session = ctx.engine.session(p.doc)
-
-    def run() -> dict[str, Any]:
-        from ..sign import validation
-
-        placed = {name: (index, rect) for name, index, rect, _signed in _widgets(session)}
-        results = validation.validate_document(
-            session.current_bytes(), session.password, ctx.engine.host, online=p.online, tick=ctx.check_cancel
-        )
-        if results is None:
-            # El PDF no se deja leer para validarlo: cada firma que se ve queda como "no se pudo validar".
-            results = [validation.unknown_entry(name) for name, _i, _r, signed in _widgets(session) if signed]
-        for entry in results:
-            where = placed.get(entry["field"])
-            if where is not None:
-                index, rect = where
-                entry["page"] = session.page_ids[index]
-                entry["rect"] = Geom(session.doc[index]).rect_d(rect) if _visible(rect) else None
-        return {"signatures": results}
-
-    return _guard("sign.validate", run)
+    return _guard("sign.validate", lambda: {"signatures": signature_report(ctx, session, p.online)})

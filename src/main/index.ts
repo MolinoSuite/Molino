@@ -330,7 +330,12 @@ void app.whenReady().then(async () => {
       status: async () => (bridge ? bridge.officeAi() : { on: false, ready: false })
     },
     // Imprimir: cada app con su cuadro de imprimir (officeprint.ts).
-    printer
+    printer,
+    // «Firmar…»: el PDF recién guardado, en Molino PDF y en su modo Firmar (ipc.ts).
+    signInPdf: (path) => {
+      showPdfWindow()
+      void bridge?.signFile(path)
+    }
   })
   officeWindows = editors
   bridge.officeBusy = () => editors.busy

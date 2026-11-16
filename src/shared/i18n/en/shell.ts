@@ -78,6 +78,7 @@ export const shell: typeof source = {
       date: 'date today',
       cert: 'digital signature certificate electronic',
       verify: 'verify check valid signatures',
+      tramite: 'submission submit government website official procedure ready check validate signature pdfa',
       pages: 'pages organize',
       ocr: 'ocr recognize text scanned search copy',
       redact: 'redact hide private data remove',

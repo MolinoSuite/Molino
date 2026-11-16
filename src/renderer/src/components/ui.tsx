@@ -163,7 +163,8 @@ export function MenuButton({
   side,
   tip,
   tipSide,
-  disabled
+  disabled,
+  label
 }: {
   className?: string
   entries: MenuEntry[] | (() => MenuEntry[])
@@ -173,6 +174,8 @@ export function MenuButton({
   tip?: string
   tipSide?: 'top' | 'right' | 'left'
   disabled?: boolean
+  /** Su nombre para el lector de pantalla, si el botón solo lleva un icono. */
+  label?: string
 }) {
   const ref = useRef<HTMLButtonElement>(null)
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
@@ -181,6 +184,7 @@ export function MenuButton({
       <button
         ref={ref}
         className={cn(className, anchor && 'on')}
+        aria-label={label}
         data-tip={anchor ? undefined : tip}
         data-tip-side={tipSide}
         disabled={disabled}

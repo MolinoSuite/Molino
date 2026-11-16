@@ -59,6 +59,7 @@ const ui: OfficeUiApi = {
   saveScript: (script) => ipcRenderer.invoke('office:scriptSave', script),
   removeScript: (id) => ipcRenderer.invoke('office:scriptRemove', id),
   exportDoc: (doc, format) => ipcRenderer.invoke('office:export', { doc, format }),
+  signDoc: (doc, options) => ipcRenderer.invoke('office:sign', { doc, pdfa: options.pdfa === true, here: options.here === true }),
   newDoc: () => ipcRenderer.invoke('office:new'),
   recent: () => ipcRenderer.invoke('office:recent'),
   openRecent: (id) => ipcRenderer.invoke('office:openRecent', id),
