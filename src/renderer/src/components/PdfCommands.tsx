@@ -2,6 +2,7 @@ import { L } from '@/i18n'
 import { viewerOf } from '@/lib/viewerControl'
 import { closeDoc, imagesToPdf, mergeFiles, newBlank, openWithDialog, redo, saveDoc, saveDocAs, setMode, setTool, undo } from '@/state/actions'
 import { type DocView, type Mode, useApp } from '@/state/app'
+import { startFullScreen } from '@/state/fullScreen'
 import { printDoc } from '@/state/print'
 import { openSearch } from '@/state/search'
 import { CommandPalette, type PaletteItem } from './CommandPalette'
@@ -58,6 +59,7 @@ function commands(doc: DocView | undefined, aiOn: boolean): PdfCommand[] {
     add('zoomIn', C.labels.zoomIn, G.view, K.zoom, () => viewerOf(id)?.zoomStep(1))
     add('zoomOut', C.labels.zoomOut, G.view, K.zoom, () => viewerOf(id)?.zoomStep(-1))
     add('fitWidth', C.labels.fitWidth, G.view, K.zoom, () => state.patchDoc(id, { zoom: { kind: 'fit-width', scale: doc.zoom.scale } }))
+    add('fullScreen', C.labels.fullScreen, G.view, K.fullScreen, startFullScreen)
 
     const R = L.shell.rail
     for (const mode of ['view', 'edit', 'annotate', 'form', 'sign', 'pages', 'tools'] as const) {

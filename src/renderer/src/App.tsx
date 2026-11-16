@@ -1,6 +1,7 @@
 import { FolderOpen } from 'lucide-react'
 import { useEffect } from 'react'
 import { DialogHost } from './components/Dialogs'
+import { FullScreen } from './components/FullScreen'
 import { checkRecovery, resetRecoveryCheck } from './components/Recovery'
 // Registra los cuadros de imprimir (se abre con printDoc) y de comentarios.
 import './components/PrintDialog'
@@ -16,6 +17,7 @@ import { L } from './i18n'
 import { cn } from './lib/util'
 import { initApp } from './state/actions'
 import { useActiveDoc, useApp } from './state/app'
+import { stopFullScreen } from './state/fullScreen'
 import { useFileDrop, useGlobalShortcuts } from './state/shortcuts'
 import { followDefaultApp } from './state/defaultApp'
 import { followAi } from './state/ai'
@@ -27,7 +29,13 @@ export function App() {
   const ready = useApp((s) => s.ready)
   const dragging = useApp((s) => s.dragging)
   const isolated = useApp((s) => s.isolated)
+  const fullScreen = useApp((s) => s.fullScreen)
   const active = useActiveDoc()
+
+  // Sin documento (se ha cerrado), no hay nada que presentar.
+  useEffect(() => {
+    if (fullScreen && !active) stopFullScreen()
+  }, [fullScreen, active])
 
   useEffect(() => {
     void initApp()
@@ -66,6 +74,7 @@ export function App() {
           </div>
         </div>
       )}
+      {fullScreen && active && <FullScreen key={active.id} doc={active} />}
       <DialogHost />
       <BusyOverlay />
       <UpdateCard />

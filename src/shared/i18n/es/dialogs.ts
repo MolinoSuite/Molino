@@ -223,6 +223,7 @@ export const dialogs = {
     find: 'Buscar',
     zoom: 'Acercar o alejar',
     fit: 'Ajustar al ancho / 100 %',
+    fullScreen: 'Pantalla completa, para presentar (Esc para salir)',
     deleteSelection: 'Eliminar lo seleccionado',
     moveSelection: 'Mover lo seleccionado',
     escape: 'Soltar la herramienta o la selección'

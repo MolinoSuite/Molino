@@ -220,6 +220,7 @@ export const dialogs: typeof source = {
     find: 'Find',
     zoom: 'Zoom in or out',
     fit: 'Fit width / 100%',
+    fullScreen: 'Full screen, to present (Esc to exit)',
     deleteSelection: 'Delete the selection',
     moveSelection: 'Move the selection',
     escape: 'Exit the tool or clear the selection'

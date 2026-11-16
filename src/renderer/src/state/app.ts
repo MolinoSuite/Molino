@@ -149,6 +149,8 @@ interface AppState {
   dialog: DialogState | null
   busy: BusyState | null
   dragging: boolean
+  /** Pantalla completa: el documento activo, página a página (components/FullScreen.tsx). */
+  fullScreen: boolean
   /** El motor que lee los PDF está aislado (null: aún no se sabe). */
   isolated: boolean | null
 
@@ -159,6 +161,7 @@ interface AppState {
   setDark(dark: boolean): void
   setRecent(recent: RecentFile[]): void
   setDragging(dragging: boolean): void
+  setFullScreen(fullScreen: boolean): void
 
   addDoc(descriptor: DocDescriptor): void
   removeDoc(id: string): void
@@ -196,6 +199,7 @@ export const useApp = create<AppState>()((set, get) => ({
   dialog: null,
   busy: null,
   dragging: false,
+  fullScreen: false,
   isolated: null,
 
   setReady: (settings, recent, fonts) => set({ ready: true, settings, recent, fonts }),
@@ -205,6 +209,7 @@ export const useApp = create<AppState>()((set, get) => ({
   setDark: (dark) => set({ dark }),
   setRecent: (recent) => set({ recent }),
   setDragging: (dragging) => set({ dragging }),
+  setFullScreen: (fullScreen) => set({ fullScreen }),
 
   addDoc: (d) =>
     set((s) => {

@@ -306,6 +306,10 @@ export interface MolinoApi {
   }
   window: {
     setDark(dark: boolean): void
+    /** Pantalla completa de verdad (sin bordes ni barra de tareas), para presentar el documento. */
+    setFullScreen(on: boolean): void
+    /** Avisa cuando la ventana sale de pantalla completa por otro camino. */
+    onFullScreen(listener: (on: boolean) => void): () => void
     onCloseRequest(listener: () => void): () => void
     /** Cierra la ventana sin volver a preguntar. */
     closeNow(): void

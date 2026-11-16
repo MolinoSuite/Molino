@@ -1517,3 +1517,67 @@
   margin: 0 2px;
   background: var(--border);
 }
+
+/* Pantalla completa (components/FullScreen.tsx): el documento sobre negro, página a página. */
+.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: #000;
+  overflow: hidden;
+  user-select: none;
+}
+.fullscreen.idle {
+  cursor: none;
+}
+.fullscreen-page {
+  position: absolute;
+  background: #fff;
+  visibility: hidden;
+}
+.fullscreen-page.shown {
+  visibility: visible;
+}
+.fullscreen-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  translate: -50% 0;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 12px;
+  background: rgb(28 29 32 / 0.88);
+  color: #e5e7eb;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.45);
+  transition: opacity 0.25s;
+}
+.fullscreen.idle .fullscreen-bar {
+  opacity: 0;
+  pointer-events: none;
+}
+.fullscreen-bar .icon-btn {
+  width: 34px;
+  height: 34px;
+  color: inherit;
+}
+.fullscreen-bar .icon-btn:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.12);
+}
+.fullscreen-bar .icon-btn:disabled {
+  opacity: 0.35;
+}
+.fullscreen-bar .sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: rgb(255 255 255 / 0.18);
+}
+.fullscreen-count {
+  min-width: 72px;
+  padding: 0 6px;
+  text-align: center;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}

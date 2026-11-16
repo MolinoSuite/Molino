@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { viewerOf } from '@/lib/viewerControl'
 import { closeDoc, newBlank, openDropped, openWithDialog, redo, saveDoc, saveDocAs, setTool, undo } from './actions'
 import { useApp } from './app'
+import { startFullScreen } from './fullScreen'
 import { printDoc } from './print'
 import { closeSearch, openSearch } from './search'
 
@@ -42,6 +43,7 @@ export function useGlobalShortcuts(): void {
         else handled = false
       } else if (!doc) handled = false
       else if (state.dialog) handled = false
+      else if (key === 'F5' && !mod && !event.altKey) startFullScreen()
       else if (mod && key === 's') void (event.shiftKey ? saveDocAs(doc.id) : saveDoc(doc.id))
       else if (mod && key === 'w') void closeDoc(doc.id)
       else if (mod && key === 'p') void printDoc(doc.id)

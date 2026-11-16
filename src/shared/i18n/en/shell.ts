@@ -30,6 +30,7 @@ export const shell: typeof source = {
       zoomIn: 'Zoom in',
       zoomOut: 'Zoom out',
       fitWidth: 'Fit width',
+      fullScreen: 'Full screen',
       rotatePages: 'Rotate pages',
       deletePages: 'Delete pages',
       insertPages: 'Insert pages',
@@ -57,6 +58,7 @@ export const shell: typeof source = {
       undo: 'undo back',
       redo: 'redo',
       zoom: 'zoom size view',
+      fullScreen: 'full screen present projector slideshow',
       highlight: 'highlight marker colour text',
       underline: 'underline text line',
       strikeout: 'strike strikethrough text',
@@ -176,7 +178,13 @@ export const shell: typeof source = {
     zoomOut: 'Zoom out',
     zoomIn: 'Zoom in',
     fitWidth: 'Fit width',
-    fitPage: 'Fit page'
+    fitPage: 'Fit page',
+    fullScreen: 'Full screen (F5)'
+  },
+  fullScreen: {
+    title: 'Full screen',
+    exit: 'Exit full screen (Esc)',
+    counter: '{n} of {total}'
   },
   sidePanel: {
     outline: 'Bookmarks',

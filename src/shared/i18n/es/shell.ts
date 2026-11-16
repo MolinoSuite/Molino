@@ -33,6 +33,7 @@ export const shell = {
       zoomIn: 'Acercar',
       zoomOut: 'Alejar',
       fitWidth: 'Ajustar al ancho',
+      fullScreen: 'Pantalla completa',
       rotatePages: 'Girar páginas',
       deletePages: 'Eliminar páginas',
       insertPages: 'Insertar páginas',
@@ -60,6 +61,7 @@ export const shell = {
       undo: 'deshacer atras',
       redo: 'rehacer',
       zoom: 'zoom tamano ver',
+      fullScreen: 'pantalla completa presentar proyector exponer diapositivas',
       highlight: 'resaltar marcador fosforito subrayar color texto',
       underline: 'subrayar texto linea',
       strikeout: 'tachar texto',
@@ -179,7 +181,13 @@ export const shell = {
     zoomOut: 'Alejar',
     zoomIn: 'Acercar',
     fitWidth: 'Ajustar al ancho',
-    fitPage: 'Página completa'
+    fitPage: 'Página completa',
+    fullScreen: 'Pantalla completa (F5)'
+  },
+  fullScreen: {
+    title: 'Pantalla completa',
+    exit: 'Salir de pantalla completa (Esc)',
+    counter: '{n} de {total}'
   },
   sidePanel: {
     outline: 'Marcadores',

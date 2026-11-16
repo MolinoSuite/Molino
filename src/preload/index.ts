@@ -149,6 +149,8 @@ const api: MolinoApi = {
   },
   window: {
     setDark: (dark) => ipcRenderer.send('window:setDark', dark),
+    setFullScreen: (on) => ipcRenderer.send('window:setFullScreen', on === true),
+    onFullScreen: (listener) => subscribe<boolean>('window:full-screen', (on) => listener(on === true)),
     onCloseRequest: (listener) => subscribe<void>('window:close-request', () => listener()),
     closeNow: () => ipcRenderer.send('window:closeNow')
   }

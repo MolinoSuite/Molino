@@ -1,9 +1,10 @@
-import { ChevronDown, ChevronUp, Minus, PanelLeft, Plus } from 'lucide-react'
+import { ChevronDown, ChevronUp, Maximize2, Minus, PanelLeft, Plus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { L, fmt } from '@/i18n'
 import { cn } from '@/lib/util'
 import { viewerOf } from '@/lib/viewerControl'
 import { type DocView, useApp, type ZoomKind } from '@/state/app'
+import { startFullScreen } from '@/state/fullScreen'
 import { MenuButton, type MenuEntry } from './ui'
 
 const PRESETS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
@@ -88,6 +89,17 @@ export function Dock({ doc }: { doc: DocView }) {
       </MenuButton>
       <button className="icon-btn" data-tip={L.shell.dock.zoomIn} data-tip-side="top" onClick={() => viewerOf(doc.id)?.zoomStep(1)}>
         <Plus size={15} />
+      </button>
+      <div className="sep" />
+      {/* Para presentar el documento (en un proyector, por ejemplo): página a página, sin nada más. */}
+      <button
+        className="icon-btn dock-fullscreen"
+        aria-label={L.shell.dock.fullScreen}
+        data-tip={L.shell.dock.fullScreen}
+        data-tip-side="top"
+        onClick={startFullScreen}
+      >
+        <Maximize2 size={14} />
       </button>
     </div>
   )

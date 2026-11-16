@@ -246,6 +246,7 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl + F', SC.find],
   [SC.keys.wheel, SC.zoom],
   ['Ctrl + 0 / Ctrl + 1', SC.fit],
+  ['F5', SC.fullScreen],
   [SC.keys.delete, SC.deleteSelection],
   [SC.keys.arrows, SC.moveSelection],
   [SC.keys.escape, SC.escape]

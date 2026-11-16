@@ -78,7 +78,8 @@ export function createWindow(store: Store, version: string): BrowserWindow {
   const remember = (): void => {
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => {
-      if (window.isDestroyed() || window.isMinimized()) return
+      // En pantalla completa no: se perdería si estaba maximizada.
+      if (window.isDestroyed() || window.isMinimized() || window.isFullScreen()) return
       const bounds = window.getNormalBounds()
       store.setWindowBounds({ ...bounds, maximized: window.isMaximized() })
     }, 600)
@@ -100,6 +101,17 @@ export function createWindow(store: Store, version: string): BrowserWindow {
   }
   ipcMain.on('window:setDark', onSetDark)
   window.on('closed', () => ipcMain.removeListener('window:setDark', onSetDark))
+
+  // Pantalla completa para presentar el documento (components/FullScreen.tsx). Si la
+  // ventana sale por otro camino (Windows, otra pantalla…), la interfaz se entera.
+  const onSetFullScreen = (event: Electron.IpcMainEvent, value: unknown): void => {
+    if (!isTrustedSender(event, window.isDestroyed() ? null : window.webContents)) return
+    window.setFullScreen(value === true)
+  }
+  ipcMain.on('window:setFullScreen', onSetFullScreen)
+  window.on('closed', () => ipcMain.removeListener('window:setFullScreen', onSetFullScreen))
+  window.on('enter-full-screen', () => window.webContents.send('window:full-screen', true))
+  window.on('leave-full-screen', () => window.webContents.send('window:full-screen', false))
 
   const devUrl = app.isPackaged ? undefined : process.env.ELECTRON_RENDERER_URL
   void window.loadURL(devUrl ?? `${APP_ORIGIN}/index.html`)
