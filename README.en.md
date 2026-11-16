@@ -35,19 +35,19 @@ Each sail of the windmill is an app. In the Microsoft Store: **Molino PDF**, if 
       <a href="https://molinosuite.org/en/docs/"><img src=".github/marca/documentos.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/en/docs/">Molino Docs</a></h3>
       <p>Letters, reports and any document, Word files included.</p>
-      <img src="https://img.shields.io/badge/-on%20the%20way-7B766B?style=flat-square" alt="On the way">
+      <a href="https://apps.microsoft.com/search?query=Molino%20Suite"><img src="https://img.shields.io/badge/-in%20Molino%20Suite-2A9358?style=flat-square" alt="In Molino Suite"></a>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/en/sheets/"><img src=".github/marca/hojas.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/en/sheets/">Molino Sheets</a></h3>
       <p>Accounts, budgets, lists and tables, Excel files included.</p>
-      <img src="https://img.shields.io/badge/-on%20the%20way-7B766B?style=flat-square" alt="On the way">
+      <a href="https://apps.microsoft.com/search?query=Molino%20Suite"><img src="https://img.shields.io/badge/-in%20Molino%20Suite-2A9358?style=flat-square" alt="In Molino Suite"></a>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/en/slides/"><img src=".github/marca/presentaciones.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/en/slides/">Molino Slides</a></h3>
       <p>For class, for work or for an idea, PowerPoint files included.</p>
-      <img src="https://img.shields.io/badge/-on%20the%20way-7B766B?style=flat-square" alt="On the way">
+      <a href="https://apps.microsoft.com/search?query=Molino%20Suite"><img src="https://img.shields.io/badge/-in%20Molino%20Suite-2A9358?style=flat-square" alt="In Molino Suite"></a>
     </td>
   </tr>
 </table>
@@ -96,8 +96,10 @@ It’s all in the [command-line manual](docs/linea-de-ordenes.md) (in Spanish, w
 
 ## Install
 
-- **Molino PDF**: [in the Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), or with `winget install 9NRTWZFHG67N`. Free, no account and no administrator rights; new versions arrive on their own through the Store.
-- **Molino Suite** (Molino PDF, Docs, Sheets and Slides): coming soon to the Microsoft Store. To hear about it, click **Watch → Custom → Releases** at the top, or give it a ⭐.
+- **Molino Suite** (Molino, Molino PDF, Docs, Sheets and Slides): [in the Microsoft Store](https://apps.microsoft.com/search?query=Molino%20Suite), or with `winget install "Molino Suite"`.
+- **Molino PDF**, if you only need PDF: [in the Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), or with `winget install "Molino PDF"`.
+
+Free, no account and no administrator rights; new versions arrive on their own through the Store. If you have Molino PDF and install Molino Suite, the Suite brings over your settings and replaces it.
 
 For 64-bit Windows 10 and 11. Linux, later on.
 

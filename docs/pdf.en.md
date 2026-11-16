@@ -14,7 +14,7 @@ Read, fill in, sign, edit and organize your PDFs on Windows. Free, no ads, no ac
 </p>
 
 > [!NOTE]
-> **It’s in the [Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N).** Also with `winget install 9NRTWZFHG67N`.
+> **It’s in the [Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N).** Also with `winget install "Molino PDF"`.
 
 ## ✍️ Fill in and sign
 
@@ -71,7 +71,7 @@ For 64-bit Windows 10 and 11, including Windows 11 on Arm laptops. In English an
 1. Open [Molino PDF in the Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N) and click **Get**. You don’t need to be an administrator or have an account.
 2. Done. New versions arrive on their own through the Store.
 
-Also with winget: `winget install 9NRTWZFHG67N`.
+Also with winget: `winget install "Molino PDF"`.
 
 ## 💬 Ideas or something not working?
 

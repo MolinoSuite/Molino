@@ -35,19 +35,19 @@ Cada aspa del molino es una app. En la Microsoft Store: **Molino PDF**, si solo 
       <a href="https://molinosuite.org/documentos/"><img src=".github/marca/documentos.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/documentos/">Molino Documentos</a></h3>
       <p>Cartas, informes y cualquier documento, también los de Word.</p>
-      <img src="https://img.shields.io/badge/-en%20camino-7B766B?style=flat-square" alt="En camino">
+      <a href="https://apps.microsoft.com/search?query=Molino%20Suite"><img src="https://img.shields.io/badge/-en%20Molino%20Suite-2A9358?style=flat-square" alt="En Molino Suite"></a>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/hojas/"><img src=".github/marca/hojas.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/hojas/">Molino Hojas</a></h3>
       <p>Cuentas, presupuestos, listas y tablas, también las de Excel.</p>
-      <img src="https://img.shields.io/badge/-en%20camino-7B766B?style=flat-square" alt="En camino">
+      <a href="https://apps.microsoft.com/search?query=Molino%20Suite"><img src="https://img.shields.io/badge/-en%20Molino%20Suite-2A9358?style=flat-square" alt="En Molino Suite"></a>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/presentaciones/"><img src=".github/marca/presentaciones.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/presentaciones/">Molino Presentaciones</a></h3>
       <p>Para clase, el trabajo o una idea, también las de PowerPoint.</p>
-      <img src="https://img.shields.io/badge/-en%20camino-7B766B?style=flat-square" alt="En camino">
+      <a href="https://apps.microsoft.com/search?query=Molino%20Suite"><img src="https://img.shields.io/badge/-en%20Molino%20Suite-2A9358?style=flat-square" alt="En Molino Suite"></a>
     </td>
   </tr>
 </table>
@@ -96,8 +96,10 @@ Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
 
 ## Instalar
 
-- **Molino PDF**: [en la Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), o con `winget install 9NRTWZFHG67N`. Gratis, sin cuenta y sin permisos de administrador; las versiones nuevas llegan solas por la Store.
-- **Molino Suite** (Molino PDF, Documentos, Hojas y Presentaciones): muy pronto en la Microsoft Store. Para enterarte, pulsa arriba **Watch → Custom → Releases**, o dale una ⭐.
+- **Molino Suite** (Molino, Molino PDF, Documentos, Hojas y Presentaciones): [en la Microsoft Store](https://apps.microsoft.com/search?query=Molino%20Suite), o con `winget install "Molino Suite"`.
+- **Molino PDF**, si solo quieres el PDF: [en la Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), o con `winget install "Molino PDF"`.
+
+Gratis, sin cuenta y sin permisos de administrador; las versiones nuevas llegan solas por la Store. Si tienes Molino PDF e instalas Molino Suite, la Suite se trae tus ajustes y lo sustituye.
 
 Para Windows 10 y 11 de 64 bits. Linux, más adelante.
 
