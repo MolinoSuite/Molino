@@ -115,15 +115,26 @@ function validPassword(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0 && value.length <= 255 && !/[\u0000-\u001f\u007f]/.test(value)
 }
 
-/** Las plantillas para empezar de cada app (resources/templates/<idioma>/). */
-const TEMPLATES: Record<Kind, { id: string; file: { es: string; en: string } }[]> = {
+/**
+ * Las plantillas para empezar de cada app (resources/templates/<idioma>/). Sin
+ * archivo en un idioma, no sale en él (el desistimiento es de la ley de consumo
+ * europea: solo en español). Los grupos de la pantalla de inicio: OfficeStart.tsx.
+ */
+const TEMPLATES: Record<Kind, { id: string; file: { es: string; en: string | null } }[]> = {
   word: [
     { id: 'letter', file: { es: 'carta.docx', en: 'letter.docx' } },
-    { id: 'resume', file: { es: 'curriculum.docx', en: 'resume.docx' } }
+    { id: 'resume', file: { es: 'curriculum.docx', en: 'resume.docx' } },
+    { id: 'request', file: { es: 'solicitud.docx', en: 'request.docx' } },
+    { id: 'authorization', file: { es: 'autorizacion.docx', en: 'authorization.docx' } },
+    { id: 'complaint', file: { es: 'reclamacion.docx', en: 'complaint.docx' } },
+    { id: 'withdrawal', file: { es: 'desistimiento.docx', en: null } },
+    { id: 'cancellation', file: { es: 'baja-servicio.docx', en: 'cancellation.docx' } },
+    { id: 'services', file: { es: 'contrato-servicios.docx', en: 'service-agreement.docx' } }
   ],
   cell: [
     { id: 'invoice', file: { es: 'factura.xlsx', en: 'invoice.xlsx' } },
     { id: 'quote', file: { es: 'presupuesto.xlsx', en: 'quote.xlsx' } },
+    { id: 'ledger', file: { es: 'libro-ingresos-gastos.xlsx', en: 'income-expenses.xlsx' } },
     { id: 'budget', file: { es: 'presupuesto-domestico.xlsx', en: 'household-budget.xlsx' } }
   ],
   slide: [{ id: 'presentation', file: { es: 'presentacion.pptx', en: 'presentation.pptx' } }]
@@ -516,11 +527,13 @@ export class OfficeWindows {
 
   /** Las plantillas para empezar de una app que hay en esta instalación (en el idioma de Molino). */
   templates(kind: Kind): string[] {
-    return TEMPLATES[kind].filter((t) => existsSync(this.templatePath(t))).map((t) => t.id)
+    return TEMPLATES[kind].filter((t) => existsSync(this.templatePath(t) ?? '')).map((t) => t.id)
   }
 
-  private templatePath(template: (typeof TEMPLATES)[Kind][number]): string {
-    return join(this.options.templatesDir, lang === 'en' ? 'en' : 'es', template.file[lang === 'en' ? 'en' : 'es'])
+  /** El archivo de una plantilla en el idioma de Molino (null: no la hay en ese idioma). */
+  private templatePath(template: (typeof TEMPLATES)[Kind][number]): string | null {
+    const file = template.file[lang === 'en' ? 'en' : 'es']
+    return file ? join(this.options.templatesDir, lang === 'en' ? 'en' : 'es', file) : null
   }
 
   /** Un documento nuevo a partir de una plantilla: sin archivo propio (Guardar pregunta dónde). */
@@ -528,7 +541,7 @@ export class OfficeWindows {
     const template = TEMPLATES[kind].find((t) => t.id === id)
     if (!template) return false
     const path = this.templatePath(template)
-    if (!existsSync(path)) return false
+    if (!path || !existsSync(path)) return false
     const name = `${(L.main.office.templates as Record<string, string>)[id] ?? L.main.office.filters[kind]}${extname(path)}`
     return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path }, { priority: 7 }))
   }

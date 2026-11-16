@@ -4,13 +4,32 @@
  * pestaña, como la de Molino PDF. Nuevo, abrir y los recientes de la app.
  */
 import { FileClock, FilePlus2, FileText, FolderOpen, LayoutTemplate, X } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { OfficeKind, OfficeRecent, OfficeRecoverable } from '@shared/officeui'
 import { ICONS } from './icons'
 import { env, fmt, L } from './i18n'
 
 const S = L.office.start
 const relative = new Intl.RelativeTimeFormat(env.locale, { numeric: 'auto' })
+
+type TemplateGroup = keyof typeof L.office.templates.groups
+
+/** Los grupos de plantillas, en este orden (las que no estén en ninguno van al primero). */
+const TEMPLATE_GROUPS: { id: TemplateGroup; items: string[] }[] = [
+  { id: 'basic', items: ['letter', 'resume', 'presentation'] },
+  { id: 'paperwork', items: ['request', 'authorization', 'complaint', 'withdrawal', 'cancellation'] },
+  { id: 'business', items: ['services', 'invoice', 'quote', 'ledger'] },
+  { id: 'home', items: ['budget'] }
+]
+
+/** Las plantillas que hay, por grupos (en el orden en que llegan dentro de cada uno). */
+function groupTemplates(ids: string[]): { id: TemplateGroup; items: string[] }[] {
+  const known = new Set(TEMPLATE_GROUPS.flatMap((g) => g.items))
+  return TEMPLATE_GROUPS.map((g, i) => ({
+    id: g.id,
+    items: ids.filter((id) => g.items.includes(id) || (i === 0 && !known.has(id)))
+  })).filter((g) => g.items.length > 0)
+}
 
 /** Hace cuánto (como en Molino PDF: «hace 5 minutos», «ayer»…). */
 function formatWhen(timestamp: number): string {
@@ -28,6 +47,7 @@ export function OfficeStart({ kind }: { kind: OfficeKind }) {
   const [recent, setRecent] = useState<OfficeRecent[] | null>(null)
   const [unsaved, setUnsaved] = useState<OfficeRecoverable[]>([])
   const [templates, setTemplates] = useState<string[]>([])
+  const groups = useMemo(() => groupTemplates(templates), [templates])
   useEffect(() => {
     void window.molinoOffice.templates().then(setTemplates)
   }, [])
@@ -60,20 +80,30 @@ export function OfficeStart({ kind }: { kind: OfficeKind }) {
         {templates.length > 0 && (
           <section className="office-templates" aria-label={L.office.templates.title}>
             <span className="recent-title">{L.office.templates.title}</span>
-            <div className="office-template-list">
-              {templates.map((id) => {
-                const t = (L.office.templates.items as Record<string, { name: string; desc: string }>)[id]
-                return (
-                  <button key={id} className="office-template" onClick={() => void window.molinoOffice.fromTemplate(id)}>
-                    <LayoutTemplate size={18} />
-                    <span className="grow">
-                      <b>{t?.name ?? id}</b>
-                      <span className="hint">{t?.desc}</span>
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+            {groups.map((group) => (
+              <div
+                key={group.id}
+                className="office-template-group"
+                role={groups.length > 1 ? 'group' : undefined}
+                aria-label={groups.length > 1 ? L.office.templates.groups[group.id] : undefined}
+              >
+                {groups.length > 1 && <span className="office-template-group-title">{L.office.templates.groups[group.id]}</span>}
+                <div className="office-template-list">
+                  {group.items.map((id) => {
+                    const t = (L.office.templates.items as Record<string, { name: string; desc: string }>)[id]
+                    return (
+                      <button key={id} className="office-template" onClick={() => void window.molinoOffice.fromTemplate(id)}>
+                        <LayoutTemplate size={18} />
+                        <span className="grow">
+                          <b>{t?.name ?? id}</b>
+                          <span className="hint">{t?.desc}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
           </section>
         )}
 
