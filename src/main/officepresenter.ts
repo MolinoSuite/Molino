@@ -116,6 +116,8 @@ function cleanState(raw: unknown): PresenterState | null {
 const MAX_OP_NUMBERS = 4_000
 const MAX_STROKE_NUMBERS = 40_000
 const MAX_STROKES = 1_000
+/** Toda la tinta de una diapositiva de una vez («sync»): lo más que se acepta. */
+const MAX_SYNC_NUMBERS = 400_000
 const STROKE_ID = /^[a-z][0-9a-z]{0,23}$/
 const COLORS: ReadonlySet<string> = new Set(INK_COLORS)
 
@@ -182,9 +184,11 @@ function cleanMark(raw: unknown, fromUi: boolean): PresenterMark | null {
     const slide = slideIndex(m.slide, MAX_SLIDES + 1)
     if (slide === null || !Array.isArray(m.strokes) || m.strokes.length > MAX_STROKES) return null
     const strokes: InkStroke[] = []
+    let total = 0
     for (const one of m.strokes) {
       const s = stroke(one)
-      if (!s) return null
+      total += s ? s.points.length : 0
+      if (!s || total > MAX_SYNC_NUMBERS) return null
       strokes.push(s)
     }
     return { kind: 'sync', slide, strokes }

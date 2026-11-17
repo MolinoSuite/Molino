@@ -147,11 +147,11 @@ function lines(key: string, x: number, y: number, w: number, h: number, gap: num
 }
 
 /** Renglones de texto en vertical (de derecha a izquierda, como el texto vertical de Asia oriental). */
-function vlines(key: string, x: number, y: number, w: number, h: number, gap: number, color = FAINT): ReactNode[] {
+function vlines(key: string, x: number, y: number, w: number, h: number, gap: number, color = 'color-mix(in srgb, currentColor 24%, transparent)'): ReactNode[] {
   const out: ReactNode[] = []
   for (let col = 0, left = x + w - 2; left >= x && col < 14; col++, left -= gap) {
     const height = col % 3 === 2 ? h * 0.55 : col % 3 === 1 ? h * 0.85 : h
-    out.push(<rect key={`${key}-${col}`} x={left} y={y} width={1.6} height={Math.max(2, height)} rx={0.8} fill={color} />)
+    out.push(<rect key={`${key}-${col}`} x={Math.round(left)} y={y} width={1.5} height={Math.max(2, height)} rx={0.75} fill={color} />)
   }
   return out
 }
