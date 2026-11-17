@@ -508,9 +508,9 @@
   white-space: nowrap;
 }
 
-/* Avisos de la ventana de inicio (versión nueva, novedades tras actualizar): tarjetas
-   discretas abajo a la derecha, una encima de otra (no tapan el documento). */
-.update-cards {
+/* Aviso de la ventana de inicio (novedades tras actualizar): tarjeta discreta abajo a
+   la derecha (no tapa el documento); si hubiera más, una encima de otra. */
+.notice-cards {
   position: fixed;
   right: 18px;
   bottom: 18px;
@@ -521,7 +521,7 @@
   gap: 10px;
   pointer-events: none;
 }
-.update-card {
+.notice-card {
   pointer-events: auto;
   display: flex;
   align-items: flex-start;
@@ -536,39 +536,24 @@
   box-shadow: var(--shadow-lg);
   animation: rise 220ms var(--ease);
 }
-.update-card .grow {
+.notice-card .grow {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
-.update-card b {
+.notice-card b {
   color: var(--text-1);
   font-size: 13px;
 }
-.update-card .update-icon {
+.notice-card .notice-icon {
   flex: none;
   margin-top: 1px;
   color: var(--accent);
 }
-.update-card.error .update-icon {
-  color: var(--danger);
-}
-.update-actions {
+.notice-actions {
   display: flex;
   gap: 6px;
   margin-top: 6px;
-}
-.update-bar {
-  height: 6px;
-  margin-top: 6px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--accent) 16%, transparent);
-}
-.update-bar > div {
-  height: 100%;
-  background: var(--accent);
-  transition: width 200ms var(--ease);
 }
 
 /* Franja de aviso sobre el documento: firmado o con restricciones. */

@@ -7,22 +7,29 @@ import { edition } from './edition'
 import { lang } from './i18n'
 import { log } from './log'
 import { type Store, VERSION_RE } from './store'
-import { newer } from './updates'
 
 /**
  * Novedades: la página de la web con lo nuevo de cada versión, y el aviso que
- * sale tras actualizar Molino («Molino PDF se ha actualizado»).
+ * sale tras actualizar Molino («Molino PDF se ha actualizado»). Las versiones
+ * nuevas las instala la Microsoft Store; Molino no mira si las hay.
  *
  * La dirección es fija, una por idioma, y el ancla sale del producto y de la
  * versión que está corriendo, con guiones en lugar de puntos: #pdf-0-7-6,
  * #suite-1-0-2. La interfaz nunca la manda: solo pide abrirla. Sin red: el
- * aviso sale de comparar la versión con la última guardada en config.json, así
- * que sale aunque el aviso de versiones nuevas esté desactivado en Ajustes.
+ * aviso sale de comparar la versión con la última guardada en config.json.
  */
 
 const PAGES: Record<Lang, string> = {
   es: 'https://molinosuite.org/novedades/',
   en: 'https://molinosuite.org/en/whats-new/'
+}
+
+/** a > b, con versiones «x.y.z» ya validadas. */
+export function newer(a: string, b: string): boolean {
+  const x = a.split('.').map(Number)
+  const y = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0)
+  return false
 }
 
 /** La página de novedades de esa versión. Si la versión no tiene forma x.y.z, la página sin ancla. */

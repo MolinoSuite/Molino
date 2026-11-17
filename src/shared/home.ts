@@ -1,6 +1,6 @@
 /** «Molino», el inicio común de la suite (src/main/home.ts y renderer/src/home): lo que comparten. */
 import type { OfficeKind } from './officeui'
-import type { UpdateStatus, WhatsNewNotice } from './types'
+import type { WhatsNewNotice } from './types'
 
 export type HomeApp = OfficeKind | 'pdf'
 
@@ -42,13 +42,4 @@ export interface HomeApi {
   openWhatsNew(): Promise<boolean>
   /** «Cerrar» el aviso de novedades: no vuelve a salir hasta la próxima versión. */
   dismissWhatsNew(): void
-  /** Versiones nuevas: el mismo aviso que en Molino PDF (en una sola de las dos ventanas). */
-  updates: {
-    status(): Promise<UpdateStatus>
-    onStatus(listener: (status: UpdateStatus) => void): () => void
-    /** ¿Enseña el inicio el aviso de versión nueva? */
-    card(): Promise<boolean>
-    /** «Actualizar»: Molino en la Microsoft Store. */
-    openStore(): Promise<boolean>
-  }
 }

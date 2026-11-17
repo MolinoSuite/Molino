@@ -78,7 +78,7 @@ Para Windows 10 y 11 de 64 bits. Linux y Mac, más adelante.
 
 ## Privacidad
 
-Sin cuentas, sin anuncios y sin telemetría. Tus documentos no salen de tu equipo: las apps solo se conectan cuando tú lo pides (el sello de tiempo de una firma o la comprobación de un certificado, enviar un comentario, descargar la IA o una fuente libre que le falte a un documento) y para mirar si hay una versión nueva, algo que se desactiva en Ajustes. Cada archivo se abre en un espacio aislado de Windows. Lo tienes todo en la [política de privacidad](https://molinosuite.org/privacidad/).
+Sin cuentas, sin anuncios y sin telemetría. Tus documentos no salen de tu equipo: las apps solo se conectan cuando tú lo pides (el sello de tiempo de una firma o la comprobación de un certificado, enviar un comentario, descargar la IA o una fuente libre que le falte a un documento). Cada archivo se abre en un espacio aislado de Windows. Lo tienes todo en la [política de privacidad](https://molinosuite.org/privacidad/).
 
 ## Apoya Molino
 

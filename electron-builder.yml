@@ -56,7 +56,7 @@ win:
 # Versión de la Microsoft Store (MSIX): npm run dist:store (o, con la app ya
 # compilada, electron-builder --win appx --prepackaged dist\win-unpacked). La
 # Store firma el paquete al publicarlo. Los datos de la app van en la carpeta del
-# paquete y las versiones nuevas llegan por la Store (src/main/appx.ts, updates.ts).
+# paquete y las versiones nuevas llegan por la Store (src/main/appx.ts).
 appx:
   # La identidad del producto en Partner Center (Producto → Administración del
   # producto → Identidad del producto): tiene que coincidir tal cual, o la

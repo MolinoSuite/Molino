@@ -466,7 +466,7 @@ export class OfficeWindows {
     return this.uiSender(event)?.window ?? null
   }
 
-  /** Las ventanas abiertas, para los avisos compartidos (ajustes, IA, versiones nuevas). */
+  /** Las ventanas abiertas, para los avisos compartidos (ajustes, IA). */
   uiContents(): WebContents[] {
     return [...this.windows.values()].filter((w) => !w.window.isDestroyed()).map((w) => w.window.webContents)
   }

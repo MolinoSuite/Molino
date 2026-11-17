@@ -5,7 +5,7 @@ import { basename, dirname, extname, join } from 'node:path'
 import { app, BrowserWindow, clipboard, dialog, ipcMain, shell, type IpcMainEvent, type IpcMainInvokeEvent, type WebContents } from 'electron'
 import { z } from 'zod'
 import type { EngineStatus, ExportOutcome, InsertOutcome, OpenOutcome, PfxHandle, PickedFile, SaveOutcome } from '@shared/api'
-import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult, UpdateStatus } from '@shared/types'
+import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult } from '@shared/types'
 import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
 import type { OfficeApp } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
@@ -18,8 +18,7 @@ import type { PrintService } from './print'
 import { CallId, DocId, PageId, PrintStartSchema } from './printschema'
 import { isTrustedSender } from './security'
 import type { Store } from './store'
-import type { Updates } from './updates'
-import type { NoticeOwner, WhatsNew } from './whatsnew'
+import type { WhatsNew } from './whatsnew'
 import { openDefaultAppSettings, pdfDefaultStatus } from './defaultApp'
 import { feedbackAvailable, sendFeedback } from './feedback'
 import { listScanners, scanPages } from './scanner'
@@ -90,18 +89,15 @@ const ScanJob = z.string().regex(/^j[0-9a-f]{16}$/)
 const ScanPage = z.string().regex(/^s[0-9]{1,4}$/)
 
 /**
- * Lo que comparten todas las apps de Molino (Ajustes, IA, versiones nuevas,
- * comentarios, avisos legales): además de la ventana de Molino PDF, se atiende
- * desde la página de la interfaz de Documentos, Hojas y Presentaciones (nunca
- * desde los editores que llevan dentro; officewin.ts, uiSender).
+ * Lo que comparten todas las apps de Molino (Ajustes, IA, comentarios, avisos
+ * legales): además de la ventana de Molino PDF, se atiende desde la página de
+ * la interfaz de Documentos, Hojas y Presentaciones (nunca desde los editores
+ * que llevan dentro; officewin.ts, uiSender).
  */
 const SHARED_CHANNELS = new Set([
   'settings:get',
   'settings:set',
   'shell:openExternal',
-  'updates:status',
-  'updates:check',
-  'updates:openStore',
   'about:open',
   'about:office',
   'ai:status',
@@ -119,7 +115,7 @@ const SHARED_CHANNELS = new Set([
   'defaultApp:open'
 ])
 /** Y sus avisos, que llegan a todas esas ventanas. */
-const SHARED_EVENTS = new Set(['settings:changed', 'ai:progress', 'ai:changed', 'ai:error', 'updates:status'])
+const SHARED_EVENTS = new Set(['settings:changed', 'ai:progress', 'ai:changed', 'ai:error'])
 
 /** Filtros del diálogo de abrir (es una función: el idioma se fija después de cargar este módulo). */
 const openFilters = (): Electron.FileFilter[] => [
@@ -218,12 +214,9 @@ export class Bridge {
     private readonly engine: EngineClient,
     private readonly store: Store,
     private readonly printer: PrintService,
-    private readonly updates: Updates,
     private readonly ai: AiModels,
     private readonly office: OfficePiece,
-    private readonly whatsNew: WhatsNew,
-    /** Qué ventana enseña el aviso de versión nueva: esta o el inicio de la suite (home.ts). */
-    private readonly updateCard: NoticeOwner
+    private readonly whatsNew: WhatsNew
   ) {
     this.register()
     engine.on('down', () => {
@@ -366,11 +359,6 @@ export class Bridge {
     const status = await this.aiStatus()
     const on = status.tier !== 'off'
     return { on, ready: on && status.cpuOk !== false && status.components.some((c) => c.kind === 'llm' && c.installed) }
-  }
-
-  /** Estado de las versiones nuevas (lo emite updates.ts). */
-  sendUpdate(status: UpdateStatus): void {
-    this.send('updates:status', status)
   }
 
   /** Cierra en el motor los documentos que queden: sus copias de trabajo se borran y no quedan como «recuperables». */
@@ -1233,25 +1221,12 @@ export class Bridge {
       void this.closeEngineDocs().finally(() => this.window?.close())
     })
 
-    // ---- versiones nuevas: la interfaz solo puede pedir estas tres cosas
-    ipcMain.handle('updates:status', (event) =>
-      this.trusted(event, 'updates:status') ? this.updates.current() : { state: 'unavailable' }
-    )
-    ipcMain.on('updates:check', (event) => {
-      if (this.trusted(event, 'updates:check')) this.updates.check(true)
-    })
-    // «Actualizar»: la página de Molino en la Microsoft Store.
-    ipcMain.handle('updates:openStore', (event) =>
-      this.trusted(event, 'updates:openStore') ? this.updates.openStore() : false
-    )
-
-    // ---- los avisos de la ventana de Molino PDF al abrir (whatsnew.ts): solo desde ella,
-    // y cada uno en una sola ventana (si ya lo enseña el inicio de la suite, aquí no)
+    // ---- el aviso de novedades de la ventana de Molino PDF al abrir (whatsnew.ts): solo desde
+    // ella, y en una sola ventana (si ya lo enseña el inicio de la suite, aquí no)
     ipcMain.handle('notices:whatsNew', (event) => (this.trusted(event, 'notices:whatsNew') ? this.whatsNew.claim('pdf') : null))
     ipcMain.on('notices:dismissWhatsNew', (event) => {
       if (this.trusted(event, 'notices:dismissWhatsNew')) this.whatsNew.dismiss()
     })
-    ipcMain.handle('notices:updateCard', (event) => this.trusted(event, 'notices:updateCard') && this.updateCard.claim('pdf'))
 
     // ---- comentarios: el texto va al servicio de comentarios (feedback.ts), acotado aquí
     ipcMain.handle('feedback:available', (event) => this.trusted(event, 'feedback:available') && feedbackAvailable())

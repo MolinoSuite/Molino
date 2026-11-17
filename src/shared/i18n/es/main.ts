@@ -70,10 +70,6 @@ export const main = {
     viaGithub: 'Los comentarios se envían desde GitHub.',
     wait: 'Espera unos segundos antes de enviar otro comentario.'
   },
-  /** Versiones nuevas (updates.ts). */
-  updates: {
-    checkFailed: 'No se pudo comprobar si hay una versión nueva. Revisa la conexión a Internet.'
-  },
   /** Impresión (print.ts). */
   print: {
     cancelled: 'Impresión cancelada.',

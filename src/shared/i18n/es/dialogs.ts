@@ -131,18 +131,6 @@ export const dialogs = {
       all: 'Cerrar todos',
       current: 'Solo el actual'
     },
-    updates: {
-      label: 'Versiones nuevas',
-      check: 'Avisarme al abrir Molino si hay una versión nueva',
-      checkNow: 'Buscar ahora',
-      openStore: 'Actualizar en la Store',
-      store: 'Las versiones nuevas se instalan desde la Microsoft Store; Windows también lo hace solo.',
-      unavailable: 'Esta copia de Molino no mira si hay versiones nuevas.',
-      checking: 'Buscando…',
-      current: 'Tienes la versión más reciente.',
-      available: 'Hay una versión nueva.',
-      availableVersion: 'Hay una versión nueva: {version}.'
-    },
     apps: {
       title: 'Aplicaciones',
       open: 'Abrir',

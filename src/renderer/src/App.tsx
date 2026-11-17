@@ -11,8 +11,8 @@ import './components/CreateDialogs'
 import { StartScreen } from './components/StartScreen'
 import { TitleBar } from './components/TitleBar'
 import { BusyOverlay, Toasts } from './components/Toasts'
-import { UpdateCards } from './components/UpdateCard'
 import { Workspace } from './components/Workspace'
+import { WhatsNewCard } from './components/WhatsNewCard'
 import { L } from './i18n'
 import { cn } from './lib/util'
 import { initApp } from './state/actions'
@@ -23,7 +23,6 @@ import { followDefaultApp } from './state/defaultApp'
 import { followAi } from './state/ai'
 import { installCopy } from './modes/annotate/selection'
 import { followOffice } from './state/office'
-import { followUpdates } from './state/updates'
 
 export function App() {
   const ready = useApp((s) => s.ready)
@@ -41,7 +40,6 @@ export function App() {
     void initApp()
     // Ctrl+C sobre el texto de las páginas: con sus espacios y saltos de línea.
     installCopy()
-    followUpdates()
     followAi()
     followOffice()
     followDefaultApp()
@@ -77,7 +75,7 @@ export function App() {
       {fullScreen && active && <FullScreen key={active.id} doc={active} />}
       <DialogHost />
       <BusyOverlay />
-      <UpdateCards />
+      <WhatsNewCard />
       <Toasts />
     </div>
   )

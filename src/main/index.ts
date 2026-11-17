@@ -22,8 +22,7 @@ import { productName } from './edition'
 import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
 import { Store } from './store'
-import { Updates } from './updates'
-import { NoticeOwner, openedBefore, WhatsNew } from './whatsnew'
+import { openedBefore, WhatsNew } from './whatsnew'
 import { darkFor } from '@shared/appearance'
 import { extraFontFile, findAptos, FONT_STYLES, interFile } from './fonts'
 
@@ -149,7 +148,6 @@ let officeWindows: OfficeWindows | null = null
 let homeWindow: HomeWindow | null = null
 let engine: EngineClient | null = null
 let bridge: Bridge | null = null
-let updates: Updates | null = null
 let mainWindow: BrowserWindow | null = null
 let appStore: Store | null = null
 let officePiece: OfficePiece | null = null
@@ -311,15 +309,10 @@ void app.whenReady().then(async () => {
   engine = new EngineClient(engineLaunch)
   const printer = new PrintService(engine)
   serveApp(join(__dirname, '../renderer'), (url) => printer.respond(url), extraFontFile)
-  // Versiones nuevas: el aviso, en Molino PDF y en el inicio de la suite (en una sola de las dos).
-  updates = new Updates((status) => {
-    bridge?.sendUpdate(status)
-    homeWindow?.sendUpdate(status)
-  })
-  const updateCard = new NoticeOwner()
-  // Novedades: el aviso tras actualizar (sin red; ver whatsnew.ts).
+  // Novedades: el aviso tras actualizar (sin red; ver whatsnew.ts). Las versiones
+  // nuevas las instala la Microsoft Store: Molino no mira si las hay.
   const whatsNew = new WhatsNew(store, usedBefore)
-  bridge = new Bridge(engine, store, printer, updates, aiModels, office, whatsNew, updateCard)
+  bridge = new Bridge(engine, store, printer, aiModels, office, whatsNew)
   // Documentos, Hojas y Presentaciones: sus ventanas, y el motor configurado con
   // la pieza (cada vez que arranca).
   const editors = new OfficeWindows({
@@ -384,9 +377,7 @@ void app.whenReady().then(async () => {
         return removeSeparatePdf()
       }
     },
-    whatsNew,
-    updates: { current: () => updates?.current() ?? { state: 'unavailable' }, openStore: async () => (updates ? updates.openStore() : false) },
-    updateCard
+    whatsNew
   })
   homeWindow = home
   // El tema de cada app (Ajustes → Apariencia en cada una, o el de Windows con «Como Windows»), al momento.
@@ -406,7 +397,7 @@ void app.whenReady().then(async () => {
     }
   }
   bridge.onTheme = () => themeChanged()
-  // Ajustes, IA, versiones nuevas…: lo mismo en Documentos, Hojas y Presentaciones (ipc.ts, SHARED_CHANNELS).
+  // Ajustes, IA…: lo mismo en Documentos, Hojas y Presentaciones (ipc.ts, SHARED_CHANNELS).
   bridge.sharedSender = (event) => editors.uiWindow(event)
   bridge.sharedWindows = () => editors.uiContents()
   nativeTheme.on('updated', () => themeChanged())
@@ -423,11 +414,6 @@ void app.whenReady().then(async () => {
   engine.on('ready', () => void bridge?.configureAi())
   engine.start().catch(() => log.error('el motor no arrancó'))
 
-  // Al poco de abrir, y solo si el usuario no lo ha desactivado: mirar si hay
-  // versión nueva (solo se avisa; se actualiza en la Store).
-  setTimeout(() => {
-    if (store.settings.checkUpdates) updates?.check(false)
-  }, 6000)
   // Molino Suite con Molino PDF instalado aparte (pdfapart.ts): la primera vez, una vez traído
   // todo (ajustes, recientes y firmas al arrancar; la IA aquí), se desinstala solo y el inicio
   // lo cuenta. Si está abierto o Windows no deja, el inicio avisa con un botón para hacerlo.

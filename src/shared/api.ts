@@ -21,7 +21,6 @@ import type {
   RecentFile,
   DefaultAppStatus,
   Settings,
-  UpdateStatus,
   WhatsNewNotice
 } from './types'
 
@@ -258,26 +257,15 @@ export interface MolinoApi {
   clipboard: {
     writeText(text: string): Promise<boolean>
   }
-  /** Versiones nuevas: Molino avisa y se actualiza en la Microsoft Store. */
-  updates: {
-    status(): Promise<UpdateStatus>
-    /** Mirar ahora si hay versión nueva (lo pide el usuario). */
-    check(): void
-    /** Abre la página de Molino en la Microsoft Store, donde se actualiza. */
-    openStore(): Promise<boolean>
-    onStatus(listener: (status: UpdateStatus) => void): () => void
-  }
   /**
-   * Los avisos de esta ventana al abrir (main/whatsnew.ts), cada uno en una sola
-   * ventana: si ya lo enseña el inicio de la suite, aquí no.
+   * El aviso de esta ventana al abrir (main/whatsnew.ts), en una sola ventana: si
+   * ya lo enseña el inicio de la suite, aquí no.
    */
   notices: {
     /** Molino se ha actualizado: a qué versión, o null si no hay que avisar aquí. */
     whatsNew(): Promise<WhatsNewNotice | null>
     /** «Cerrar»: no vuelve a salir hasta la próxima versión («Ver novedades» es about.open('whatsNew')). */
     dismissWhatsNew(): void
-    /** ¿Enseña esta ventana el aviso de versión nueva? */
-    updateCard(): Promise<boolean>
   }
   /** Molino PDF como programa predeterminado para PDF: lo elige siempre el usuario en Configuración de Windows. */
   defaultApp: {
@@ -334,9 +322,9 @@ export interface MolinoApi {
 
 /**
  * Lo que tienen también las ventanas de Documentos, Hojas y Presentaciones
- * (preload/office.ts): ajustes, IA, versiones nuevas, comentarios y avisos.
+ * (preload/office.ts): ajustes, IA, comentarios y avisos.
  */
 export type MolinoShared = Pick<
   MolinoApi,
-  'env' | 'settings' | 'shell' | 'updates' | 'about' | 'ai' | 'office' | 'feedback' | 'defaultApp' | 'engine' | 'cancel' | 'onProgress' | 'print'
+  'env' | 'settings' | 'shell' | 'about' | 'ai' | 'office' | 'feedback' | 'defaultApp' | 'engine' | 'cancel' | 'onProgress' | 'print'
 >

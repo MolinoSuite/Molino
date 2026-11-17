@@ -1,6 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { HomeApi } from '@shared/home'
-import type { UpdateStatus } from '@shared/types'
 
 /**
  * Lo que ve la página de «Molino», el inicio común (main/home.ts): canales
@@ -45,16 +44,6 @@ const api: HomeApi = {
   },
   whatsNew: () => ipcRenderer.invoke('home:whatsNew'),
   openWhatsNew: () => ipcRenderer.invoke('home:openWhatsNew'),
-  dismissWhatsNew: () => ipcRenderer.send('home:dismissWhatsNew'),
-  updates: {
-    status: () => ipcRenderer.invoke('home:updates'),
-    onStatus: (listener) => {
-      const wrapped = (_event: Electron.IpcRendererEvent, status: UpdateStatus): void => listener(status)
-      ipcRenderer.on('home:updates', wrapped)
-      return () => ipcRenderer.removeListener('home:updates', wrapped)
-    },
-    card: () => ipcRenderer.invoke('home:updateCard'),
-    openStore: () => ipcRenderer.invoke('home:openStore')
-  }
+  dismissWhatsNew: () => ipcRenderer.send('home:dismissWhatsNew')
 }
 contextBridge.exposeInMainWorld('molinoHome', api)

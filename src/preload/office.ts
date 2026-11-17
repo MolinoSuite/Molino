@@ -3,7 +3,7 @@ import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
 import type { MolinoShared } from '@shared/api'
 import type { Lang } from '@shared/i18n'
 import type { OfficeAsk, OfficeTabs, OfficeUiApi, PresenterAction, PresenterApi, PresenterMark, PresenterScreen, PresenterState } from '@shared/officeui'
-import type { DocDescriptor, ProgressInfo, Settings, UpdateStatus } from '@shared/types'
+import type { DocDescriptor, ProgressInfo, Settings } from '@shared/types'
 
 /**
  * Lo único que ven las páginas de Documentos, Hojas y Presentaciones de este
@@ -13,7 +13,7 @@ import type { DocDescriptor, ProgressInfo, Settings, UpdateStatus } from '@share
  * - ``molinoOffice``: la interfaz de Molino (pestañas, abrir, documento nuevo).
  *   El proceso principal solo lo atiende desde la página de la interfaz.
  * - ``molino``: solo en la página de la interfaz, lo que comparten todas las
- *   apps de Molino (ajustes, IA, versiones nuevas, comentarios, avisos legales):
+ *   apps de Molino (ajustes, IA, comentarios, avisos legales):
  *   los mismos canales que Molino PDF, que el proceso principal atiende desde
  *   la interfaz de cada app (ipc.ts, SHARED_CHANNELS).
  * - ``molinoHost``: el puente de cada editor (office/bridge.js), que hace de
@@ -192,12 +192,6 @@ if (frameUrl.startsWith('molino://office/__molino__/ui/office.html')) {
       onChanged: (listener) => subscribe<Settings>('settings:changed', listener)
     },
     shell: { openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url) },
-    updates: {
-      status: () => ipcRenderer.invoke('updates:status'),
-      check: () => ipcRenderer.send('updates:check'),
-      openStore: () => ipcRenderer.invoke('updates:openStore'),
-      onStatus: (listener) => subscribe<UpdateStatus>('updates:status', listener)
-    },
     about: {
       open: (what) => ipcRenderer.invoke('about:open', what),
       office: (what) => ipcRenderer.invoke('about:office', what)

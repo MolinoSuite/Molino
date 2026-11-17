@@ -128,18 +128,6 @@ export const dialogs: typeof source = {
       all: 'Close all',
       current: 'Current only'
     },
-    updates: {
-      label: 'New versions',
-      check: 'Let me know when Molino opens if a new version is available',
-      checkNow: 'Check now',
-      openStore: 'Update in the Store',
-      store: 'New versions are installed from the Microsoft Store; Windows also does it on its own.',
-      unavailable: 'This copy of Molino doesn’t check for new versions.',
-      checking: 'Checking…',
-      current: 'You have the latest version.',
-      available: 'A new version is available.',
-      availableVersion: 'A new version is available: {version}.'
-    },
     apps: {
       title: 'Apps',
       open: 'Open',

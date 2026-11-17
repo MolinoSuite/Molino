@@ -207,13 +207,6 @@ export const shell: typeof source = {
   busy: {
     working: 'Working…'
   },
-  update: {
-    available: 'A new version of {app} is available',
-    availableVersion: 'A new version of {app} is available ({version})',
-    hint: 'It updates from the Microsoft Store.',
-    update: 'Update',
-    notNow: 'Not now'
-  },
   whatsNew: {
     title: '{app} has been updated',
     text: 'You now have version {version}. See what’s new.',

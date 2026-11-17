@@ -66,6 +66,9 @@ const ThemeRef = z.string().refine((id) => USER_THEME_ID.test(id) || MOLINO_THEM
 /** Una versión de Molino, x.y.z (la de app.getVersion(); ver whatsnew.ts). */
 export const VERSION_RE = /^\d{1,4}\.\d{1,4}\.\d{1,6}$/
 
+// Las claves que ya no existen se descartan al leer (z.object las quita), sin tocar
+// los demás ajustes: p. ej. checkUpdates, el aviso de versiones nuevas que había hasta
+// Molino PDF 0.7.5 y Molino Suite 1.0.0. Al guardar algo, desaparecen de config.json.
 const SettingsSchema = z.object({
   theme: z.enum(['system', 'light', 'dark']).default('system'),
   accent: z
@@ -79,7 +82,6 @@ const SettingsSchema = z.object({
   timestampUrl: z.string().max(300).refine(isTimestampUrl).default(''),
   signReason: z.string().max(200).default(''),
   signLocation: z.string().max(200).default(''),
-  checkUpdates: z.boolean().default(true),
   dateStyle: z.enum(['short', 'shortTime', 'medium', 'long', 'full', 'iso']).default('short'),
   // Por defecto, un servicio de sello de tiempo conocido: la firma con sello funciona sin configurar nada.
   timestampServer: z.enum(['digicert', 'globalsign', 'sectigo', 'custom']).default('digicert'),

@@ -226,8 +226,6 @@ export interface Settings {
   timestampUrl: string
   signReason: string
   signLocation: string
-  /** Mirar al abrir Molino PDF si hay una versión nueva (solo avisa; descargar e instalar lo decide el usuario). */
-  checkUpdates: boolean
   /** Formato de la herramienta «Fecha de hoy». */
   dateStyle: DateStyle
   /** Servicio de sello de tiempo: uno de los conocidos o `custom` (la dirección de `timestampUrl`). */
@@ -284,14 +282,6 @@ export type TimestampServer = 'digicert' | 'globalsign' | 'sectigo' | 'custom'
 export type SignLevel = 'basic' | 'timestamp' | 'longTerm'
 
 export type DateStyle = 'short' | 'shortTime' | 'medium' | 'long' | 'full' | 'iso'
-
-/** Estado de las versiones nuevas de Molino PDF (ver src/main/updates.ts). */
-export interface UpdateStatus {
-  /** unavailable: esta copia no mira versiones nuevas (sin empaquetar); current: ya es la última. */
-  state: 'unavailable' | 'idle' | 'checking' | 'available' | 'current' | 'error'
-  version?: string
-  message?: string
-}
 
 /** El aviso de novedades tras actualizar (main/whatsnew.ts): qué producto y a qué versión. */
 export interface WhatsNewNotice {

@@ -337,9 +337,7 @@ let quitting = false
 /**
  * Cierra Molino PDF preguntando qué guardar de cada documento; si se cancela en
  * alguno, no se cierra. Con varios abiertos, antes pregunta si cerrarlos
- * todos o solo el actual (y entonces Molino PDF sigue abierto con los demás). Con
- * ``install``, en lugar de cerrar sin más se instala la versión nueva ya
- * descargada (y Molino PDF se vuelve a abrir).
+ * todos o solo el actual (y entonces Molino PDF sigue abierto con los demás).
  */
 export async function requestQuit(): Promise<void> {
   if (quitting) return

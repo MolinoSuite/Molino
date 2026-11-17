@@ -3,7 +3,7 @@ import { type KeyboardEvent, type ReactNode, useState } from 'react'
 import { lookOf } from '@shared/appearance'
 import { MOLINO_THEMES } from '@shared/officeThemes'
 import type { LangSetting } from '@shared/i18n'
-import { APP_ACCENTS, type AppLook, type CloseMany, type DateStyle, type OfficeAppId, type SignLevel, type TimestampServer, type UpdateStatus } from '@shared/types'
+import { APP_ACCENTS, type AppLook, type CloseMany, type DateStyle, type OfficeAppId, type SignLevel, type TimestampServer } from '@shared/types'
 import { fmt, L } from '@/i18n'
 import { type CurrentApp, currentApp, withApp } from '@/lib/currentApp'
 import { DATE_STYLES, formatDateStyle } from '@/lib/dates'
@@ -13,7 +13,6 @@ import { useApp } from '@/state/app'
 import { chooseMolinoAsDefault, useDefaultApp } from '@/state/defaultApp'
 import { useOffice } from '@/state/office'
 import { takeSettingsTab, updateSettings } from '@/state/settings'
-import { useUpdates } from '@/state/updates'
 import { AppsSettings, DictionarySettings } from './AppsSettings'
 import { Checkbox, Dialog, Field, Segmented } from './ui'
 
@@ -112,7 +111,6 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <AuthorSettings />
             {app === 'pdf' ? <DefaultAppSettings /> : <DeveloperSettings app={app} />}
             {app !== 'pdf' && <NewDocumentTheme app={app} />}
-            <UpdatesSettings />
           </>
         )}
         {tab === 'apps' && <AppsSettings />}
@@ -394,45 +392,6 @@ function CloseManySettings() {
         ]}
         onChange={(value) => void updateSettings({ closeMany: value })}
       />
-    </Field>
-  )
-}
-
-const UPDATE_TEXT: Partial<Record<UpdateStatus['state'], string>> = {
-  unavailable: L.dialogs.settings.updates.unavailable,
-  checking: L.dialogs.settings.updates.checking,
-  current: L.dialogs.settings.updates.current
-}
-
-function UpdatesSettings() {
-  const settings = useApp((s) => s.settings)
-  const status = useUpdates((s) => s.status)
-  const T = L.dialogs.settings.updates
-  const text =
-    status.state === 'available'
-      ? status.version && status.version !== '?'
-        ? fmt(T.availableVersion, { version: status.version })
-        : T.available
-      : status.state === 'error'
-        ? (status.message ?? '')
-        : (UPDATE_TEXT[status.state] ?? '')
-  const busy = ['unavailable', 'checking'].includes(status.state)
-  return (
-    <Field label={T.label} hint={T.store}>
-      <Checkbox checked={settings.checkUpdates} onChange={(checkUpdates) => void updateSettings({ checkUpdates })}>
-        {T.check}
-      </Checkbox>
-      <div className="row">
-        <button className="btn sm" disabled={busy} onClick={() => window.molino.updates.check()}>
-          {T.checkNow}
-        </button>
-        {status.state === 'available' && (
-          <button className="btn sm primary" onClick={() => void window.molino.updates.openStore()}>
-            {T.openStore}
-          </button>
-        )}
-        {text && <span className="hint">{text}</span>}
-      </div>
     </Field>
   )
 }

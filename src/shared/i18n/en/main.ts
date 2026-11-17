@@ -64,9 +64,6 @@ export const main: typeof source = {
     viaGithub: 'Feedback is sent through GitHub.',
     wait: 'Wait a few seconds before sending more feedback.'
   },
-  updates: {
-    checkFailed: 'Couldn’t check for a new version. Check your internet connection.'
-  },
   print: {
     cancelled: 'Printing canceled.',
     printerGone: 'That printer is no longer available. Choose another one.',

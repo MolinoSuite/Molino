@@ -210,13 +210,6 @@ export const shell = {
   busy: {
     working: 'Trabajando…'
   },
-  update: {
-    available: 'Hay una versión nueva de {app}',
-    availableVersion: 'Hay una versión nueva de {app} ({version})',
-    hint: 'Se actualiza desde la Microsoft Store.',
-    update: 'Actualizar',
-    notNow: 'Ahora no'
-  },
   // Tras actualizar Molino, una vez (main/whatsnew.ts). {app}: Molino PDF o Molino Suite.
   whatsNew: {
     title: '{app} se ha actualizado',

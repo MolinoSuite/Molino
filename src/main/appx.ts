@@ -14,7 +14,7 @@ import { dirname, join } from 'node:path'
  * (``%LOCALAPPDATA%\Packages\<familia>\LocalState``): es una carpeta de verdad,
  * igual para todos los procesos, y Windows la borra al desinstalar.
  *
- * Las versiones nuevas llegan por la Store (updates.ts no busca nada) y las
+ * Las versiones nuevas llegan por la Store (Molino no mira si las hay) y las
  * asociaciones de archivos van en el manifiesto del paquete
  * (build/appx-manifest).
  */

@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
 import type { EngineStatus, MolinoApi } from '@shared/api'
 import { LOCALE_RE, type Lang } from '@shared/i18n'
-import type { ProgressInfo, Settings, UpdateStatus } from '@shared/types'
+import type { ProgressInfo, Settings } from '@shared/types'
 
 /**
  * Único punto de contacto entre la interfaz y el resto de la aplicación.
@@ -113,12 +113,6 @@ const api: MolinoApi = {
   clipboard: {
     writeText: (text) => ipcRenderer.invoke('clipboard:writeText', text)
   },
-  updates: {
-    status: () => ipcRenderer.invoke('updates:status'),
-    check: () => ipcRenderer.send('updates:check'),
-    openStore: () => ipcRenderer.invoke('updates:openStore'),
-    onStatus: (listener) => subscribe<UpdateStatus>('updates:status', listener)
-  },
   about: {
     open: (what) => ipcRenderer.invoke('about:open', what),
     office: (what) => ipcRenderer.invoke('about:office', what)
@@ -145,8 +139,7 @@ const api: MolinoApi = {
   },
   notices: {
     whatsNew: () => ipcRenderer.invoke('notices:whatsNew'),
-    dismissWhatsNew: () => ipcRenderer.send('notices:dismissWhatsNew'),
-    updateCard: () => ipcRenderer.invoke('notices:updateCard')
+    dismissWhatsNew: () => ipcRenderer.send('notices:dismissWhatsNew')
   },
   defaultApp: {
     status: () => ipcRenderer.invoke('defaultApp:status'),

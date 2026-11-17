@@ -122,7 +122,6 @@ export const DEFAULT_SETTINGS: Settings = {
   timestampUrl: '',
   signReason: '',
   signLocation: '',
-  checkUpdates: true,
   dateStyle: 'short',
   timestampServer: 'digicert',
   signLevel: 'timestamp',
