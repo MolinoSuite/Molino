@@ -10,11 +10,11 @@ import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/of
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { AI_TASKS, AiPanel, type AiTask } from './AiPanel'
-import { aiMode, APPS, HIGHLIGHT, paletteEntries, TEXT_COLOR, type Tool } from './apps'
+import { aiMode, APPS, colorToolOf, type ColorToolDef, HIGHLIGHT, paletteEntries, TEXT_COLOR, type Tool } from './apps'
 import { FEATURES } from './features'
 import { SheetTabs } from './SheetTabs'
 import { ToolBar } from './Toolbar'
-import { ColorTool } from './ui/pickers'
+import { applyColor, ColorAsk, ColorTool } from './ui/pickers'
 import { closeAllPops } from './ui/pop'
 import { FindBar, FunctionDialog, PromptDialog, type PromptSpec, StatsDialog, SymbolsDialog } from './dialogs'
 import { type ContextInfo, type EditorNotice, EditorSession, type EditorState } from './engine'
@@ -126,6 +126,8 @@ export function OfficeApp() {
   const [fileMenu, setFileMenu] = useState<DOMRect | null>(null)
   const [find, setFind] = useState<{ replace: boolean } | null>(null)
   const [dialog, setDialog] = useState<OfficeDialog | null>(null)
+  // El desplegable de color abierto desde «¿Qué quieres hacer?» («Color del texto…»).
+  const [colorAsk, setColorAsk] = useState<ColorToolDef | null>(null)
   const [aiTask, setAiTask] = useState<AiTask>(AI_TASKS[kind][0])
   const [menu, setMenu] = useState<{ doc: string; info: ContextInfo } | null>(null)
   const [notice, setNotice] = useState<EditorNotice | null>(null)
@@ -242,6 +244,16 @@ export function OfficeApp() {
       }
       if (Object.hasOwn(windowCommands, command)) return (windowCommands[command](), true)
       if (!active?.ready) return false
+      // Los colores desde «¿Qué quieres hacer?»: su desplegable («Color del texto…») o un color con nombre («Color del texto: Rojo»).
+      if (command === 'colorAsk' || command === 'colorSet') {
+        const at = (value ?? '').indexOf(':')
+        const tool = colorToolOf(app, command === 'colorAsk' ? (value ?? '') : (value ?? '').slice(0, Math.max(0, at)))
+        if (!tool) return false
+        if (command === 'colorAsk') return (setColorAsk(tool), true)
+        const color = (value ?? '').slice(at + 1)
+        if (color && !/^#[0-9a-f]{6}$/i.test(color)) return false
+        return applyColor(tool, color, (c, v) => active.run(c, v))
+      }
       // Lo que pregunta algo antes (buscar, vínculo, símbolo, función…): un cuadro de Molino.
       if (command === 'find' || command === 'replace') {
         setFind({ replace: command === 'replace' })
@@ -353,7 +365,7 @@ export function OfficeApp() {
       if (host) return tabs?.active ? (host(tabs.active, active, value), true) : false
       return active.run(command, value)
     },
-    [active, tabs?.active, activeHasFile, kind, togglePanel]
+    [active, tabs?.active, activeHasFile, kind, togglePanel, app]
   )
   // Lo que piden los editores (EditorSession.onRequest): siempre con la orden de ahora.
   const runRef = useRef(run)
@@ -679,6 +691,7 @@ export function OfficeApp() {
       <Toasts />
       {fontsFor && <FontsDialog doc={fontsFor} onClose={() => setFontsFor(null)} />}
       {dialog?.type === 'prompt' && <PromptDialog spec={dialog.spec} onClose={closeDialog} />}
+      {colorAsk && state?.ready && <ColorAsk key={colorAsk.key} tool={colorAsk} state={state} run={run} onClose={() => setColorAsk(null)} />}
       {menu && active && menu.doc === tabs?.active && state && (
         <Menu
           anchor={{ x: menu.info.x, y: menu.info.y }}

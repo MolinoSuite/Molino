@@ -309,6 +309,39 @@ const UNDERLINE = B('underline', 'underline', { icon: <Underline size={ICON} />,
 const STRIKE = B('strike', 'strike', { icon: <Strikethrough size={ICON} />, active: (s) => s.strike })
 /** El color del texto y el resaltado (también en la barra de lo seleccionado). */
 export const TEXT_COLOR: Tool = { type: 'color', key: 'color', icon: <Baseline size={ICON} />, swatch: (s) => s.color, none: true, defaultColor: '#c4505a' }
+/** Una herramienta de color (texto, resaltado, relleno, contorno, fondo…). */
+export type ColorToolDef = Extract<Tool, { type: 'color' }>
+
+/** Lo que dice su botón «sin color» (el texto: «Automático»). */
+export function noneLabelOf(tool: ColorToolDef): string {
+  if (tool.key === 'color') return L.office.colorPicker.automatic
+  if (tool.key === 'highlight') return L.office.noHighlight
+  if (tool.key === 'shapeLine') return L.office.noLine
+  return L.office.noFill
+}
+
+/**
+ * Los colores con nombre de «¿Qué quieres hacer?» («poner el texto en rojo»): los
+ * estándar de Office; ``mark``, el del resaltado de Word que más se le parece (el
+ * resaltado solo admite unos pocos).
+ */
+const NAMED_COLORS: { id: keyof typeof L.office.colorNames; hex: string; mark?: string }[] = [
+  { id: 'red', hex: '#ff0000', mark: '#ff0000' },
+  { id: 'darkRed', hex: '#c00000', mark: '#800000' },
+  { id: 'orange', hex: '#ffc000' },
+  { id: 'yellow', hex: '#ffff00', mark: '#ffff00' },
+  { id: 'lightGreen', hex: '#92d050', mark: '#00ff00' },
+  { id: 'green', hex: '#00b050', mark: '#008000' },
+  { id: 'lightBlue', hex: '#00b0f0', mark: '#00ffff' },
+  { id: 'blue', hex: '#0070c0', mark: '#0000ff' },
+  { id: 'darkBlue', hex: '#002060', mark: '#000080' },
+  { id: 'purple', hex: '#7030a0', mark: '#800080' },
+  { id: 'pink', hex: '#ff66cc', mark: '#ff00ff' },
+  { id: 'gray', hex: '#808080', mark: '#808080' },
+  { id: 'black', hex: '#000000', mark: '#000000' },
+  { id: 'white', hex: '#ffffff' }
+]
+
 /** Los colores de resaltado de Word. */
 const HIGHLIGHTS = ['#ffff00', '#00ff00', '#00ffff', '#ff00ff', '#0000ff', '#ff0000', '#000080', '#008080', '#008000', '#800080', '#800000', '#808000', '#808080', '#c0c0c0', '#000000']
 export const HIGHLIGHT: Tool = { type: 'color', key: 'highlight', icon: <Highlighter size={ICON} />, swatch: (s) => s.highlight, none: true, swatches: HIGHLIGHTS, defaultColor: '#ffff00' }
@@ -1190,6 +1223,12 @@ function nameOf(tool: { key: string; label?: string }): string {
   return tool.label ?? (T as Record<string, string>)[tool.key] ?? tool.key
 }
 
+/** Una herramienta de color de la app, por su nombre (para «¿Qué quieres hacer?»). */
+export function colorToolOf(app: AppConfig, key: string): ColorToolDef | null {
+  for (const mode of app.modes) for (const group of mode.groups) for (const tool of group) if (tool.type === 'color' && tool.key === key) return tool
+  return null
+}
+
 /** Todas las órdenes del buscador de una app: sus herramientas (sin repetir), las de la cabecera y las demás. */
 export function paletteEntries(app: AppConfig): PaletteEntry[] {
   const seen = new Set<string>()
@@ -1216,6 +1255,18 @@ export function paletteEntries(app: AppConfig): PaletteEntry[] {
               value: option.value
             })
           }
+          continue
+        }
+        if (tool.type === 'color') {
+          // Un color: su selector («Color del texto…», el desplegable de la barra) y cada color con nombre («Color del texto: Rojo»).
+          const name = nameOf(tool)
+          const keywords = (L.office.keywords as Record<string, string>)[tool.key] ?? ''
+          add({ label: `${name}…`, group: mode.label, keywords, command: 'colorAsk', value: tool.key })
+          for (const color of NAMED_COLORS) {
+            const hex = tool.swatches ? (color.mark && tool.swatches.includes(color.mark) ? color.mark : null) : color.hex
+            if (hex) add({ label: `${name}: ${L.office.colorNames[color.id]}`, group: mode.label, keywords, command: 'colorSet', value: `${tool.key}:${hex}` })
+          }
+          if (tool.none) add({ label: `${name}: ${noneLabelOf(tool)}`, group: mode.label, keywords: `${keywords} ${L.office.keywords.noColor}`, command: 'colorSet', value: `${tool.key}:` })
           continue
         }
         if (tool.type !== 'button') continue

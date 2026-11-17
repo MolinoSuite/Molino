@@ -65,7 +65,8 @@ export function CommandPalette<T extends PaletteItem>({ entries, app, onChoose, 
         </div>
         <ul role="listbox" ref={list}>
           {found.map((entry, i) => (
-            <li key={entry.key} role="option" aria-selected={i === index} className={cn(i === index && 'on')} onMouseEnter={() => setIndex(i)} onClick={() => choose(entry)}>
+            // Solo si el ratón se mueve: si la lista aparece debajo del puntero quieto, Enter sigue eligiendo la primera.
+            <li key={entry.key} role="option" aria-selected={i === index} className={cn(i === index && 'on')} onMouseMove={() => i !== index && setIndex(i)} onClick={() => choose(entry)}>
               <span>{entry.label}</span>
               <span className="hint">{entry.group}</span>
             </li>

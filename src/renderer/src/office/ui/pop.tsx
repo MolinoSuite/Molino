@@ -86,7 +86,7 @@ export function Pop({
   role?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [place, setPlace] = useState<{ left: number; top: number; maxHeight: number } | null>(null)
+  const [place, setPlace] = useState<{ left: number; top: number; maxHeight: number; scroll: boolean } | null>(null)
   useOnlyOne(true, onClose, () => ref.current)
 
   const layout = useCallback(
@@ -148,7 +148,7 @@ export function Pop({
       role={role}
       aria-label={label}
       data-depth={depth.current}
-      style={{ left: place?.left ?? 0, top: place?.top ?? 0, maxHeight: place?.maxHeight, visibility: place ? 'visible' : 'hidden' }}
+      style={{ left: place?.left ?? 0, top: place?.top ?? 0, maxHeight: place?.maxHeight, overflowY: place?.scroll ? 'auto' : 'hidden', visibility: place ? 'visible' : 'hidden' }}
     >
       {children}
     </div>,

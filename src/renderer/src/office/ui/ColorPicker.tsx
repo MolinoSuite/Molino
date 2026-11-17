@@ -44,7 +44,8 @@ function recentColors(): string[] {
     return []
   }
 }
-function remember(color: string): void {
+/** Un color usado: sale el primero en «Usados hace poco». */
+export function rememberColor(color: string): void {
   try {
     const list = [color, ...recentColors().filter((c) => c !== color)].slice(0, MAX_RECENT)
     localStorage.setItem(RECENT_KEY, JSON.stringify(list))
@@ -71,7 +72,7 @@ export function ColorPicker({
   const C = L.office.colorPicker
   const [custom, setCustom] = useState(current && /^#[0-9a-f]{6}$/i.test(current) ? current : '#2867d1')
   const pick = (color: string): void => {
-    if (color) remember(color.toLowerCase())
+    if (color) rememberColor(color.toLowerCase())
     onPick(color)
   }
   const chip = (color: string, title?: string) => (
@@ -115,7 +116,7 @@ export function ColorPicker({
       )}
       {!swatches && (
         <div className="office-color-custom">
-          <label className="office-color-native" data-tip={C.more}>
+          <label className="office-color-native" data-tip={C.more} data-tip-side="top">
             <Pipette size={14} />
             <input type="color" aria-label={C.more} value={custom} onChange={(e) => setCustom(e.target.value)} />
           </label>

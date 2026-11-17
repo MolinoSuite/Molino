@@ -94,6 +94,17 @@ const SYNONYMS: string[][] = [
   ['grande', 'mayor', 'aumentar', 'agrandar', 'bigger', 'larger', 'increase', 'grow'],
   ['pequena', 'pequeno', 'menor', 'disminuir', 'reducir', 'smaller', 'decrease'],
   ['color', 'colorear', 'colour'],
+  // Los colores con nombre («poner el texto en rojo», «letra roja»).
+  ['rojo', 'roja', 'red'],
+  ['amarillo', 'amarilla', 'yellow'],
+  ['naranja', 'anaranjado', 'anaranjada', 'orange'],
+  ['morado', 'morada', 'violeta', 'lila', 'purpura', 'purple', 'violet'],
+  ['rosa', 'rosado', 'rosada', 'fucsia', 'pink'],
+  ['negro', 'negra', 'black'],
+  ['blanco', 'blanca', 'white'],
+  ['gris', 'gray', 'grey'],
+  ['oscuro', 'oscura', 'dark'],
+  ['claro', 'clara', 'light'],
   ['vineta', 'punto', 'bullet', 'bulleted', 'point', 'dot'],
   ['numeracion', 'numerada', 'numerado', 'enumerar', 'numbering', 'numbered'],
   ['alinear', 'alineacion', 'align', 'alignment'],
@@ -292,11 +303,13 @@ const synonymsOf = (synonyms: Synonyms, word: string): Related | undefined =>
 function closeness(form: string, formStem: string, own: boolean, t: Token): number {
   if (t.word === form || t.single === form) return 1
   if (formStem.length >= 4 && formStem === t.stem) return 0.85
+  // Lo demás, solo con la propia palabra (con los sinónimos saldría de todo: «marcador» no es «marca»).
+  if (!own) return 0
   // Lo que se está escribiendo («tab» → tabla) o una forma más corta («firmar» → firma).
   if (form.length >= 3 && t.word.startsWith(form)) return 0.75
   if (t.word.length >= 4 && form.startsWith(t.word) && form.length - t.word.length <= 3) return 0.7
-  // Una falta (solo la propia palabra: con los sinónimos, saldría de todo).
-  if (own && typos(form) > 0 && t.word.length >= 4 && distance(form, t.word, typos(form)) <= typos(form)) return 0.55
+  // Una falta.
+  if (typos(form) > 0 && t.word.length >= 4 && distance(form, t.word, typos(form)) <= typos(form)) return 0.55
   return 0
 }
 
