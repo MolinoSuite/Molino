@@ -246,6 +246,10 @@ export interface MenuOption {
   hint?: string
   /** Una acción (Personalizar…, Quitar…): va debajo de las miniaturas. */
   action?: boolean
+  /** Su nombre en «¿Qué quieres hacer?», si no es «Menú: opción». */
+  palette?: string
+  /** Más palabras con las que se encuentra en «¿Qué quieres hacer?» (además de las del menú). */
+  keywords?: string
 }
 
 export interface Mode {
@@ -418,7 +422,12 @@ function reviewMode(track: boolean): Mode {
   }
 }
 
+const K = L.office.keywords
+const SK = L.shell.commands.keywords
+const F = L.office.file
 const COMMON_EXTRA: PaletteEntry[] = [
+  { label: F.new, group: G.file, keywords: K.newDoc, command: 'newDoc' },
+  { label: F.open, group: G.file, keywords: K.openDoc, command: 'openDoc' },
   { label: T.save, group: G.file, keywords: L.office.keywords.save, command: 'save' },
   { label: T.saveAs, group: G.file, keywords: L.office.keywords.saveAs, command: 'saveAs' },
   { label: T.print, group: G.file, keywords: L.office.keywords.print, command: 'print' },
@@ -427,8 +436,15 @@ const COMMON_EXTRA: PaletteEntry[] = [
   { label: T.sign, group: G.file, keywords: L.office.keywords.sign, command: 'signAsk' },
   { label: T.undo, group: G.file, keywords: L.office.keywords.undo, command: 'undo' },
   { label: T.redo, group: G.file, keywords: L.office.keywords.redo, command: 'redo' },
+  { label: F.password, group: G.file, keywords: K.password, command: 'passwordAsk' },
+  { label: F.properties, group: G.file, keywords: K.properties, command: 'propertiesAsk' },
+  { label: F.showInFolder, group: G.file, keywords: SK.showInFolder, command: 'showInFolder' },
   { label: T.zoomIn, group: G.view, keywords: L.office.keywords.zoomIn, command: 'zoomIn' },
-  { label: T.zoomOut, group: G.view, keywords: L.office.keywords.zoomOut, command: 'zoomOut' }
+  { label: T.zoomOut, group: G.view, keywords: L.office.keywords.zoomOut, command: 'zoomOut' },
+  { label: F.settings, group: G.help, keywords: SK.settings, command: 'settings' },
+  { label: F.shortcuts, group: G.help, keywords: SK.shortcuts, command: 'shortcuts' },
+  { label: F.feedback, group: G.help, keywords: SK.feedback, command: 'feedback' },
+  { label: F.about, group: G.help, keywords: SK.about, command: 'about' }
 ]
 
 /** Tabla: de los tamaños de siempre, o a medida. */
@@ -441,7 +457,7 @@ function tableMenu(caption = true): Tool {
         const [c, r] = size.split('x').map(Number)
         return { value: size, label: `${c} × ${r}`, preview: <TableGrid cols={c} rows={r} /> }
       }),
-      { value: '', label: L.office.tableMenu.custom, command: 'tableAsk', action: true, icon: <SlidersHorizontal size={15} /> }
+      { value: '', label: L.office.tableMenu.custom, command: 'tableAsk', action: true, icon: <SlidersHorizontal size={15} />, palette: `${L.office.tableMenu.title}…` }
     ],
     <Table size={ICON} />,
     { caption, tiles: 3 }
@@ -604,7 +620,10 @@ const word: AppConfig = {
   ],
   extra: [
     ...Object.entries(L.office.styles).map(([style, label]) => ({ label, group: G.style, keywords: L.office.keywords.style, command: 'style', value: style })),
-    { label: T.wordCount, group: M.review, keywords: L.office.keywords.wordCount, command: 'wordCount' }
+    { label: T.wordCount, group: M.review, keywords: L.office.keywords.wordCount, command: 'wordCount' },
+    { label: F.exportTxt, group: G.file, keywords: K.exportTxt, command: 'exportAs', value: 'txt' },
+    { label: F.exportHtml, group: G.file, keywords: K.exportHtml, command: 'exportAs', value: 'html' },
+    { label: F.exportEpub, group: G.file, keywords: K.exportEpub, command: 'exportAs', value: 'epub' }
   ]
 }
 
@@ -710,7 +729,14 @@ const TABLE_COLORS: Record<string, [string, boolean]> = {
   TableStyleLight9: ['#2867d1', true],
   TableStyleLight1: ['#545b69', true]
 }
-const FORMAT_TABLE = MENU('formatTable', 'formatTable', tiles(O.formatTable, (v) => <TableStyleGlyph color={TABLE_COLORS[v]?.[0] ?? '#2867d1'} light={TABLE_COLORS[v]?.[1]} />), <Table2 size={ICON} />, { tiles: 3 })
+/** Dar formato como tabla; el primero (el de siempre) es también «Insertar una tabla» en el buscador, como en Excel. */
+const FORMAT_TABLE = MENU(
+  'formatTable',
+  'formatTable',
+  tiles(O.formatTable, (v) => <TableStyleGlyph color={TABLE_COLORS[v]?.[0] ?? '#2867d1'} light={TABLE_COLORS[v]?.[1]} />).map((o, i) => (i === 0 ? { ...o, palette: L.office.tableMenu.title } : o)),
+  <Table2 size={ICON} />,
+  { tiles: 3 }
+)
 /** Hojas: los menús de «Celdas» (insertar, eliminar, formato), como en Excel. */
 const CELLS: Tool[] = [
   MENU('cellsInsert', 'rows', Object.entries(O.cellsInsert).map(([command, label]) => ({ value: '', label, command, icon: command === 'rows' ? <BetweenHorizontalStart size={15} /> : <BetweenVerticalStart size={15} /> })), <BetweenHorizontalStart size={ICON} />),
@@ -779,8 +805,8 @@ const FREEZE = MENU(
   'freezePanes',
   [
     { value: 'panes', label: O.freeze.panes, icon: <Snowflake size={15} /> },
-    { value: 'row', label: O.freeze.row, icon: <PanelTop size={15} /> },
-    { value: 'col', label: O.freeze.col, icon: <PanelRight size={15} style={{ transform: 'scaleX(-1)' }} /> },
+    { value: 'row', label: O.freeze.row, icon: <PanelTop size={15} />, keywords: L.office.keywords.freezeRow },
+    { value: 'col', label: O.freeze.col, icon: <PanelRight size={15} style={{ transform: 'scaleX(-1)' }} />, keywords: L.office.keywords.freezeCol },
     { value: 'none', label: O.freeze.none, icon: <X size={15} />, action: true }
   ],
   <Snowflake size={ICON} />,
@@ -1044,7 +1070,8 @@ const slide: AppConfig = {
   extra: [
     { label: T.bullets, group: G.format, keywords: L.office.keywords.bullets, command: 'bullets' },
     { label: T.numbers, group: G.format, keywords: L.office.keywords.numbers, command: 'numbers' },
-    { label: T.fit, group: G.view, keywords: L.office.keywords.fit, command: 'fit' }
+    { label: T.fit, group: G.view, keywords: L.office.keywords.fit, command: 'fit' },
+    { label: F.exportPpsx, group: G.file, keywords: K.exportPpsx, command: 'exportAs', value: 'ppsx' }
   ]
 }
 
@@ -1181,7 +1208,13 @@ export function paletteEntries(app: AppConfig): PaletteEntry[] {
           if (typeof tool.options === 'function') continue
           for (const option of tool.options) {
             if (option.heading) continue
-            add({ label: `${nameOf(tool)}: ${option.label}`, group: mode.label, keywords: '', command: option.command ?? tool.command, value: option.value })
+            add({
+              label: option.palette ?? `${nameOf(tool)}: ${option.label}`,
+              group: mode.label,
+              keywords: [(L.office.keywords as Record<string, string>)[tool.key] ?? '', option.keywords ?? ''].join(' ').trim(),
+              command: option.command ?? tool.command,
+              value: option.value
+            })
           }
           continue
         }

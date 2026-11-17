@@ -8,7 +8,7 @@ export const shell: typeof source = {
   },
   commands: {
     button: 'What do you want to do?',
-    placeholder: 'Type what you want to do: “create a table”, “add a photo”…',
+    placeholder: 'Type what you want to do',
     empty: 'Nothing found. Try other words.',
     groups: {
       file: 'File',

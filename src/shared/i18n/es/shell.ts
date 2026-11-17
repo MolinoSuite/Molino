@@ -11,7 +11,7 @@ export const shell = {
   },
   commands: {
     button: '¿Qué quieres hacer?',
-    placeholder: 'Escribe lo que quieres hacer: «crear una tabla», «poner una foto»…',
+    placeholder: 'Escribe lo que quieres hacer',
     empty: 'No encuentro nada con eso. Prueba con otras palabras.',
     groups: {
       file: 'Archivo',

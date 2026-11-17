@@ -1,12 +1,15 @@
-import { type ReactNode, type RefObject, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { naturalSize, placeNear } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
 /**
  * Los desplegables de Documentos, Hojas y Presentaciones (menús visuales,
  * colores, letras, estilos…), todos con el mismo aspecto y comportamiento:
- * se cierran al pulsar fuera, con Esc o al cambiar de ventana, y al abrir uno
- * se cierra el que estuviera abierto (salvo el que lo contiene: «Más»).
+ * se cierran al pulsar fuera (también en el documento: el editor avisa, engine.ts),
+ * con Esc, al cambiar de ventana o de pestaña, y al abrir uno se cierra el que
+ * estuviera abierto (salvo el que lo contiene: «Más»). Miden lo que necesita su
+ * contenido y, si la ventana es baja, lo que quepa (con barra de desplazamiento).
  */
 
 /** Lo último que se pulsó: desde dónde se abre un desplegable. */
@@ -56,8 +59,10 @@ export function closeAllPops(): void {
 
 /**
  * Un desplegable anclado a un botón: en una capa encima de todo, siempre
- * dentro de la ventana (si no cabe debajo, encima). ``trigger``: el botón que
- * lo abre (pulsarlo no cuenta como «fuera»: ese botón lo cierra él mismo).
+ * dentro de la ventana (si no cabe debajo, encima; si tampoco, en el lado con
+ * más sitio y con la altura que quepa). ``trigger``: el botón que lo abre
+ * (pulsarlo no cuenta como «fuera»: ese botón lo cierra él mismo); si la
+ * ventana cambia de tamaño, se vuelve a colocar junto a él.
  */
 export function Pop({
   anchor,
@@ -81,20 +86,17 @@ export function Pop({
   role?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [place, setPlace] = useState<{ left: number; top: number } | null>(null)
+  const [place, setPlace] = useState<{ left: number; top: number; maxHeight: number } | null>(null)
   useOnlyOne(true, onClose, () => ref.current)
 
-  useLayoutEffect(() => {
-    const element = ref.current
-    if (!element) return
-    const box = element.getBoundingClientRect()
-    let left = align === 'end' ? anchor.right - box.width : align === 'center' ? anchor.left + anchor.width / 2 - box.width / 2 : anchor.left
-    let top = side === 'top' ? anchor.top - box.height - 6 : anchor.bottom + 6
-    left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8))
-    if (side === 'bottom' && top + box.height > window.innerHeight - 8) top = Math.max(8, anchor.top - box.height - 6)
-    if (side === 'top' && top < 8) top = Math.min(anchor.bottom + 6, window.innerHeight - box.height - 8)
-    setPlace({ left, top: Math.max(8, top) })
-  }, [anchor, align, side])
+  const layout = useCallback(
+    (rect: DOMRect): void => {
+      const element = ref.current
+      if (element) setPlace(placeNear(rect, naturalSize(element), { align, side }))
+    },
+    [align, side]
+  )
+  useLayoutEffect(() => layout(anchor), [anchor, layout])
 
   useEffect(() => {
     const onDown = (event: PointerEvent): void => {
@@ -119,17 +121,24 @@ export function Pop({
     const onBlur = (): void => {
       if (Date.now() - openedAt > 400) onClose()
     }
+    // Con otro tamaño de ventana, junto al botón donde esté ahora (si ya no está, se cierra).
+    const onResize = (): void => {
+      const button = trigger?.current
+      const rect = button?.isConnected ? button.getBoundingClientRect() : null
+      if (rect && rect.width > 0) layout(rect)
+      else onClose()
+    }
     window.addEventListener('pointerdown', onDown, true)
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('blur', onBlur)
-    window.addEventListener('resize', onClose)
+    window.addEventListener('resize', onResize)
     return () => {
       window.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('blur', onBlur)
-      window.removeEventListener('resize', onClose)
+      window.removeEventListener('resize', onResize)
     }
-  }, [onClose, trigger])
+  }, [onClose, trigger, layout])
 
   const depth = useRef(opened.size)
   return createPortal(
@@ -139,7 +148,7 @@ export function Pop({
       role={role}
       aria-label={label}
       data-depth={depth.current}
-      style={{ left: place?.left ?? 0, top: place?.top ?? 0, visibility: place ? 'visible' : 'hidden' }}
+      style={{ left: place?.left ?? 0, top: place?.top ?? 0, maxHeight: place?.maxHeight, visibility: place ? 'visible' : 'hidden' }}
     >
       {children}
     </div>,

@@ -357,6 +357,7 @@ export class EditorSession {
         this.api = api
         this.listen()
         this.watchSelection(w)
+        this.watchPresses(w, tab)
       }
       // El «load» de la pestaña llega cuando ya ha cargado también el editor
       // que lleva dentro: entonces ya no hay «load» que esperar.
@@ -2224,6 +2225,34 @@ export class EditorSession {
     w.addEventListener('pointerdown', hide, true)
     w.addEventListener('keydown', hide, true)
     w.addEventListener('wheel', hide, { capture: true, passive: true })
+  }
+
+  /**
+   * Pulsar en el documento o Esc dentro de él: lo que esté abierto en la capa
+   * de Molino (menús, desplegables de la barra, «Más») se cierra, como al pulsar
+   * fuera. El documento va en otro marco: sus pulsaciones no llegan a la ventana
+   * de Molino, así que se repiten allí sobre el marco de la pestaña.
+   */
+  private watchPresses(w: Window, tab: HTMLIFrameElement): void {
+    const opened = (): boolean => Boolean(document.querySelector('.office-popover, .menu'))
+    w.addEventListener(
+      'pointerdown',
+      () => {
+        if (opened()) tab.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+      },
+      true
+    )
+    w.addEventListener(
+      'keydown',
+      (event: KeyboardEvent) => {
+        if (event.key !== 'Escape' || !opened()) return
+        // Esc cierra lo abierto, y nada más (el editor no lo recibe: no quita la selección).
+        event.preventDefault()
+        event.stopPropagation()
+        tab.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      },
+      true
+    )
   }
 
   /** Un punto de la ventana del editor, en la de Molino (sumando los marcos que hay por medio). */

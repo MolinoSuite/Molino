@@ -1,4 +1,4 @@
-import { Plus, X } from 'lucide-react'
+import { BetweenHorizontalEnd, BetweenVerticalEnd, Columns3, Rows3 } from 'lucide-react'
 import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Dialog } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -40,11 +40,32 @@ interface Column {
   name: string
 }
 
+/** La casilla activa: la fila (una categoría, o «head», la de los nombres de las series) y la columna (una serie, o «cat», la de las categorías). */
+interface Active {
+  row: number | 'head'
+  col: number | 'cat'
+}
+
+/** La letra de una columna, como en una hoja de cálculo: A, B… Z, AA, AB… */
+function letter(index: number): string {
+  let n = index + 1
+  let out = ''
+  while (n > 0) {
+    const r = (n - 1) % 26
+    out = String.fromCharCode(65 + r) + out
+    n = Math.floor((n - 1) / 26)
+  }
+  return out
+}
+
 /**
- * «Datos del gráfico» (Documentos y Presentaciones): una tabla para escribir
- * las cifras y los nombres de las series (columnas) y de las categorías
- * (filas), con Aceptar y Cancelar. Lo escribe en el gráfico con la API de
- * documentos (data.ts): queda guardado en el .docx o el .pptx.
+ * «Datos del gráfico» (Documentos y Presentaciones): como la hoja de datos de
+ * un gráfico en Office. Arriba, una barra fija con lo que se hace con filas y
+ * series (añadir y quitar la de la casilla activa); debajo, la tabla como una
+ * hoja de cálculo, con las letras de las columnas y los números de las filas
+ * (los de la casilla activa, con el color de la app). Fila 1: los nombres de
+ * las series; columna A: las categorías. Aceptar lo escribe en el gráfico con
+ * la API de documentos (data.ts): queda guardado en el .docx o el .pptx.
  */
 export function ChartDataDialog({ session, close: closeDialog }: DialogProps) {
   const ctx = session.featureContext()
@@ -67,6 +88,7 @@ export function ChartDataDialog({ session, close: closeDialog }: DialogProps) {
     data?.series.forEach((_, s) => data.categories.forEach((_c, r) => (out[`${r}:${s}`] = show(data.values[s][r]))))
     return out
   })
+  const [active, setActive] = useState<Active | null>(null)
   const table = useRef<HTMLTableElement>(null)
 
   const cell = (row: Column, column: Column): string => cells[`${row.key}:${column.key}`] ?? ''
@@ -85,13 +107,36 @@ export function ChartDataDialog({ session, close: closeDialog }: DialogProps) {
   // Filas añadidas o quitadas, o series nuevas: el gráfico se volverá a crear (data.ts).
   const reshaped = data ? rows.length !== data.categories.length || rows.some((r, i) => r.from !== i) || series.some((s) => s.from === null) : false
 
+  /** Lleva el teclado a una casilla (después de pintarla, si es nueva). */
+  const focusCell = (row: number | 'head', col: number | 'cat'): void => {
+    requestAnimationFrame(() => table.current?.querySelector<HTMLInputElement>(`input[data-row="${row}"][data-col="${col}"]`)?.focus())
+  }
   const addSeries = (): void => {
     const key = nextKey.current++
     setSeries((list) => [...list, { key, from: null, name: fmt(D.newSeries, { n: list.length + 1 }) }])
+    focusCell('head', key)
   }
   const addRow = (): void => {
     const key = nextKey.current++
     setRows((list) => [...list, { key, from: null, name: data?.scatter ? show(list.length + 1) : fmt(D.newCategory, { n: list.length + 1 }) }])
+    focusCell(key, 'cat')
+  }
+  // Quitar: la fila o la serie de la casilla activa (y la casilla pasa a la de al lado).
+  const activeRow = active && active.row !== 'head' ? rows.find((r) => r.key === active.row) : undefined
+  const activeSeries = active && active.col !== 'cat' ? series.find((s) => s.key === active.col) : undefined
+  const removeRow = (): void => {
+    if (!activeRow || rows.length <= 1) return
+    const at = rows.indexOf(activeRow)
+    const next = rows[at + 1] ?? rows[at - 1]
+    setRows((list) => list.filter((r) => r.key !== activeRow.key))
+    if (active) focusCell(next.key, active.col)
+  }
+  const removeSeries = (): void => {
+    if (!activeSeries || series.length <= 1) return
+    const at = series.indexOf(activeSeries)
+    const next = series[at + 1] ?? series[at - 1]
+    setSeries((list) => list.filter((s) => s.key !== activeSeries.key))
+    if (active) focusCell(active.row, next.key)
   }
 
   const accept = (): void => {
@@ -142,6 +187,17 @@ export function ChartDataDialog({ session, close: closeDialog }: DialogProps) {
     )
   }
 
+  /** Una casilla: su sitio (para la casilla activa y el teclado) y lo de siempre. */
+  const at = (row: number | 'head', col: number | 'cat') => ({
+    'data-row': row,
+    'data-col': col,
+    onFocus: () => setActive({ row, col }),
+    onKeyDown: move
+  })
+  const isActive = (row: number | 'head', col: number | 'cat'): boolean => active?.row === row && active.col === col
+  const removeRowTip = activeRow ? fmt(D.removeCategory, { name: activeRow.name }) : undefined
+  const removeSeriesTip = activeSeries ? fmt(D.removeSeries, { name: activeSeries.name }) : undefined
+
   return (
     <Dialog
       title={D.title}
@@ -161,14 +217,45 @@ export function ChartDataDialog({ session, close: closeDialog }: DialogProps) {
     >
       <div className="chart-data-dialog">
         <p className="hint">{data.scatter ? D.introScatter : D.intro}</p>
-        <div className="chart-data-wrap">
-          <table className="chart-data" ref={table}>
-            <thead>
-              <tr>
-                <th className="chart-data-corner">{data.scatter ? D.x : D.category}</th>
-                {series.map((s, j) => (
-                  <th key={s.key}>
-                    <div className="chart-data-head">
+        <div className="chart-data-sheet">
+          {/* La barra de la hoja de datos: fija arriba, como la cinta de Excel. Pulsarla no quita la casilla activa. */}
+          <div className="chart-data-ribbon" role="toolbar" aria-label={D.tools} onMouseDown={(e) => e.preventDefault()}>
+            <button className="tool" disabled={rows.length >= MAX_CATEGORIES} onClick={addRow}>
+              <BetweenHorizontalEnd size={16} />
+              <span>{data.scatter ? D.addPoint : D.addCategory}</span>
+            </button>
+            <button className="tool" disabled={!activeRow || rows.length <= 1} data-tip={removeRowTip} onClick={removeRow}>
+              <Rows3 size={16} />
+              <span>{data.scatter ? D.removePointShort : D.removeCategoryShort}</span>
+            </button>
+            <span className="chart-data-ribbon-sep" />
+            <button className="tool" disabled={series.length >= MAX_SERIES} onClick={addSeries}>
+              <BetweenVerticalEnd size={16} />
+              <span>{D.addSeries}</span>
+            </button>
+            <button className="tool" disabled={!activeSeries || series.length <= 1} data-tip={removeSeriesTip} onClick={removeSeries}>
+              <Columns3 size={16} />
+              <span>{D.removeSeriesShort}</span>
+            </button>
+          </div>
+          <div className="chart-data-wrap">
+            <table className="chart-data" ref={table}>
+              <thead>
+                <tr className="chart-data-letters">
+                  <th className="chart-data-num" aria-hidden="true" />
+                  {[null, ...series].map((s, j) => (
+                    <th key={s?.key ?? 'cat'} className={cn(active?.col === (s?.key ?? 'cat') && 'on')} aria-hidden="true">
+                      {letter(j)}
+                    </th>
+                  ))}
+                </tr>
+                <tr className="chart-data-names">
+                  <th className={cn('chart-data-num', active?.row === 'head' && 'on')} aria-hidden="true">
+                    1
+                  </th>
+                  <th className="chart-data-corner">{data.scatter ? D.x : D.category}</th>
+                  {series.map((s, j) => (
+                    <th key={s.key} className={cn(isActive('head', s.key) && 'active')}>
                       <input
                         value={s.name}
                         maxLength={255}
@@ -177,86 +264,54 @@ export function ChartDataDialog({ session, close: closeDialog }: DialogProps) {
                           const name = e.target.value
                           setSeries((list) => list.map((c) => (c.key === s.key ? { ...c, name } : c)))
                         }}
-                        onKeyDown={move}
+                        {...at('head', s.key)}
                       />
-                      <button
-                        className="icon-btn sm"
-                        aria-label={fmt(D.removeSeries, { name: s.name })}
-                        data-tip={fmt(D.removeSeries, { name: s.name })}
-                        disabled={series.length <= 1}
-                        onClick={() => setSeries((list) => list.filter((c) => c.key !== s.key))}
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-                  </th>
-                ))}
-                <th className="chart-data-add">
-                  <button className="icon-btn sm" aria-label={D.addSeries} data-tip={D.addSeries} disabled={series.length >= MAX_SERIES} onClick={addSeries}>
-                    <Plus size={15} />
-                  </button>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={r.key}>
-                  <th scope="row">
-                    <input
-                      className={cn(data.scatter && bad(r.name) && 'invalid')}
-                      value={r.name}
-                      maxLength={255}
-                      inputMode={data.scatter ? 'decimal' : undefined}
-                      aria-label={fmt(D.categoryName, { n: i + 1 })}
-                      onChange={(e) => {
-                        const name = e.target.value
-                        setRows((list) => list.map((c) => (c.key === r.key ? { ...c, name } : c)))
-                      }}
-                      onKeyDown={move}
-                    />
-                  </th>
-                  {series.map((s) => (
-                    <td key={s.key}>
-                      <input
-                        className={cn(bad(cell(r, s)) && 'invalid')}
-                        value={cell(r, s)}
-                        maxLength={40}
-                        inputMode="decimal"
-                        aria-label={fmt(D.value, { series: s.name, category: r.name })}
-                        aria-invalid={bad(cell(r, s))}
-                        onChange={(e) => {
-                          const text = e.target.value
-                          setCells((all) => ({ ...all, [`${r.key}:${s.key}`]: text }))
-                        }}
-                        onKeyDown={move}
-                      />
-                    </td>
+                    </th>
                   ))}
-                  <td className="chart-data-add">
-                    <button
-                      className="icon-btn sm"
-                      aria-label={fmt(D.removeCategory, { name: r.name })}
-                      data-tip={fmt(D.removeCategory, { name: r.name })}
-                      disabled={rows.length <= 1}
-                      onClick={() => setRows((list) => list.filter((c) => c.key !== r.key))}
-                    >
-                      <X size={13} />
-                    </button>
-                  </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div className="chart-data-actions">
-          <button className="btn sm" disabled={rows.length >= MAX_CATEGORIES} onClick={addRow}>
-            <Plus size={14} />
-            {data.scatter ? D.addPoint : D.addCategory}
-          </button>
-          <button className="btn sm" disabled={series.length >= MAX_SERIES} onClick={addSeries}>
-            <Plus size={14} />
-            {D.addSeries}
-          </button>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.key}>
+                    <th className={cn('chart-data-num', active?.row === r.key && 'on')} aria-hidden="true">
+                      {i + 2}
+                    </th>
+                    <th scope="row" className={cn(isActive(r.key, 'cat') && 'active')}>
+                      <input
+                        className={cn(data.scatter && bad(r.name) && 'invalid')}
+                        value={r.name}
+                        maxLength={255}
+                        inputMode={data.scatter ? 'decimal' : undefined}
+                        aria-label={fmt(D.categoryName, { n: i + 1 })}
+                        onChange={(e) => {
+                          const name = e.target.value
+                          setRows((list) => list.map((c) => (c.key === r.key ? { ...c, name } : c)))
+                        }}
+                        {...at(r.key, 'cat')}
+                      />
+                    </th>
+                    {series.map((s) => (
+                      <td key={s.key} className={cn(isActive(r.key, s.key) && 'active')}>
+                        <input
+                          className={cn(bad(cell(r, s)) && 'invalid')}
+                          value={cell(r, s)}
+                          maxLength={40}
+                          inputMode="decimal"
+                          aria-label={fmt(D.value, { series: s.name, category: r.name })}
+                          aria-invalid={bad(cell(r, s))}
+                          onChange={(e) => {
+                            const text = e.target.value
+                            setCells((all) => ({ ...all, [`${r.key}:${s.key}`]: text }))
+                          }}
+                          {...at(r.key, s.key)}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
         {invalid && <p className="chart-data-note error">{D.invalid}</p>}
         {reshaped && <p className="chart-data-note">{D.rebuild}</p>}
