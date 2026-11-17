@@ -24,7 +24,8 @@ const C = L.shell.commands
 const G = C.groups
 const K = C.keywords
 
-function commands(doc: DocView | undefined, aiOn: boolean): PdfCommand[] {
+/** Las órdenes de Molino PDF ahora (con el documento abierto, las suyas; también las usan las pruebas del buscador). */
+export function pdfCommands(doc: DocView | undefined, aiOn: boolean): PdfCommand[] {
   const state = useApp.getState()
   const out: PdfCommand[] = []
   const add = (key: string, label: string, group: string, keywords: string, run: () => void): void => {
@@ -157,7 +158,7 @@ function PdfPalette() {
   const close = useApp((s) => s.closeDialog)
   const doc = useApp((s) => (s.active ? s.docs[s.active] : undefined))
   const aiOn = useApp((s) => s.settings.aiTier !== 'off')
-  return <CommandPalette entries={commands(doc, aiOn)} onChoose={(entry) => entry.run()} onClose={close} />
+  return <CommandPalette entries={pdfCommands(doc, aiOn)} app="pdf" onChoose={(entry) => entry.run()} onClose={close} />
 }
 
 registerDialog('commands', PdfPalette)

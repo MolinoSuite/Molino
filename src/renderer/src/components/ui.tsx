@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { type ReactNode, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/cn'
 
@@ -66,9 +66,63 @@ export type MenuEntry =
   | { heading: string }
   | 'sep'
 
+/** Lo que abre un menú: su rectángulo, un punto de la pantalla o cómo leer su rectángulo ahora (si la ventana cambia de tamaño). */
+export type MenuAnchor = DOMRect | { x: number; y: number } | (() => DOMRect | null)
+
+/** El margen con el borde de la ventana y la separación con lo que abre el menú. */
+const EDGE = 8
+const GAP = 6
+
+/**
+ * Dónde va un menú o un desplegable junto a lo que lo abre: debajo (o encima,
+ * si se pide) si cabe entero; si no, en el lado con más sitio y con la altura
+ * que quepa (entonces, con barra de desplazamiento). Nunca tapa lo que lo abre,
+ * salvo un punto (el menú del botón derecho), que se mueve para caber entero.
+ * ``size``: lo que mide con todo su contenido.
+ */
+export function placeNear(
+  anchor: DOMRect,
+  size: { width: number; height: number },
+  { align = 'start', side = 'bottom', point = false }: { align?: 'start' | 'center' | 'end'; side?: 'bottom' | 'top'; point?: boolean } = {}
+): { left: number; top: number; maxHeight: number } {
+  const gap = point ? 2 : GAP
+  const below = window.innerHeight - anchor.bottom - gap - EDGE
+  const above = anchor.top - gap - EDGE
+  let where = side
+  if (where === 'bottom' && size.height > below && above > below) where = 'top'
+  else if (where === 'top' && size.height > above && below > above) where = 'bottom'
+  const room = where === 'bottom' ? below : above
+  let maxHeight = Math.max(0, Math.min(size.height, room))
+  let top = where === 'bottom' ? anchor.bottom + gap : anchor.top - gap - maxHeight
+  // Un punto, o casi sin sitio a ningún lado: entero si cabe en la ventana, aunque tape lo que lo abre.
+  if ((point && size.height > room) || maxHeight < Math.min(size.height, 160)) {
+    maxHeight = Math.min(size.height, window.innerHeight - 2 * EDGE)
+    top = Math.max(EDGE, Math.min(where === 'bottom' ? anchor.bottom + gap : anchor.top - gap - maxHeight, window.innerHeight - EDGE - maxHeight))
+  }
+  let left = align === 'end' ? anchor.right - size.width : align === 'center' ? anchor.left + anchor.width / 2 - size.width / 2 : anchor.left
+  left = Math.max(EDGE, Math.min(left, window.innerWidth - size.width - EDGE))
+  return { left, top, maxHeight }
+}
+
+/**
+ * Lo que mide un elemento con todo su contenido (sin el límite de alto que
+ * tenga puesto). Su tamaño de verdad, no el de pantalla: mientras aparece, la
+ * animación lo encoge un poco.
+ */
+export function naturalSize(element: HTMLElement): { width: number; height: number } {
+  const before = element.style.maxHeight
+  element.style.maxHeight = 'none'
+  // Un píxel más: las medidas se redondean y, si se queda corto, sale una barra para medio píxel.
+  const size = { width: element.offsetWidth, height: element.offsetHeight + 1 }
+  element.style.maxHeight = before
+  return size
+}
+
+const rectOf = (anchor: MenuAnchor): DOMRect | null => (typeof anchor === 'function' ? anchor() : 'width' in anchor ? anchor : new DOMRect(anchor.x, anchor.y, 0, 0))
+
 interface MenuProps {
-  /** Rectángulo del elemento que abre el menú, o un punto de la pantalla. */
-  anchor: DOMRect | { x: number; y: number }
+  /** Rectángulo del elemento que abre el menú, un punto de la pantalla o cómo leer el rectángulo ahora. */
+  anchor: MenuAnchor
   align?: 'start' | 'end'
   side?: 'bottom' | 'top'
   entries: MenuEntry[]
@@ -76,23 +130,29 @@ interface MenuProps {
   minWidth?: number
 }
 
+/**
+ * Un menú: mide lo que necesita su contenido y sale entero si cabe; si la
+ * ventana es baja, con la altura que quepa y barra de desplazamiento. Si la
+ * ventana cambia de tamaño, se vuelve a colocar (y a medir).
+ */
 export function Menu({ anchor, align = 'start', side = 'bottom', entries, onClose, minWidth }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState<{ left: number; top: number } | null>(null)
+  const [position, setPosition] = useState<{ left: number; top: number; maxHeight: number } | null>(null)
+  const anchorRef = useRef(anchor)
+  anchorRef.current = anchor
+
+  const place = useCallback((): boolean => {
+    const element = ref.current
+    const rect = rectOf(anchorRef.current)
+    if (!element || !rect) return false
+    const point = typeof anchorRef.current !== 'function' && !('width' in anchorRef.current)
+    setPosition(placeNear(rect, naturalSize(element), { align, side, point }))
+    return true
+  }, [align, side])
 
   useLayoutEffect(() => {
-    const element = ref.current
-    if (!element) return
-    const box = element.getBoundingClientRect()
-    const rect = 'width' in anchor ? anchor : new DOMRect(anchor.x, anchor.y, 0, 0)
-    let left = align === 'end' ? rect.right - box.width : rect.left
-    let top = side === 'top' ? rect.top - box.height - 6 : rect.bottom + 6
-    // Siempre dentro de la ventana.
-    left = Math.max(8, Math.min(left, window.innerWidth - box.width - 8))
-    if (top + box.height > window.innerHeight - 8) top = Math.max(8, rect.top - box.height - 6)
-    if (top < 8) top = 8
-    setPosition({ left, top })
-  }, [anchor, align, side])
+    place()
+  }, [anchor, place, entries.length])
 
   useEffect(() => {
     const onDown = (event: PointerEvent): void => {
@@ -104,24 +164,28 @@ export function Menu({ anchor, align = 'start', side = 'bottom', entries, onClos
         onClose()
       }
     }
+    // Con otro tamaño de ventana, otro sitio y otra altura (si lo que lo abre ya no está, se cierra).
+    const onResize = (): void => {
+      if (!place()) onClose()
+    }
     window.addEventListener('pointerdown', onDown, true)
     window.addEventListener('keydown', onKey, true)
     window.addEventListener('blur', onClose)
-    window.addEventListener('resize', onClose)
+    window.addEventListener('resize', onResize)
     return () => {
       window.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('keydown', onKey, true)
       window.removeEventListener('blur', onClose)
-      window.removeEventListener('resize', onClose)
+      window.removeEventListener('resize', onResize)
     }
-  }, [onClose])
+  }, [onClose, place])
 
   return createPortal(
     <div
       ref={ref}
       className="menu"
       role="menu"
-      style={{ left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? 'visible' : 'hidden', minWidth }}
+      style={{ left: position?.left ?? 0, top: position?.top ?? 0, maxHeight: position?.maxHeight, visibility: position ? 'visible' : 'hidden', minWidth }}
     >
       {entries.map((entry, index) => {
         if (entry === 'sep') return <div key={index} className="menu-sep" />
@@ -179,6 +243,8 @@ export function MenuButton({
 }) {
   const ref = useRef<HTMLButtonElement>(null)
   const [anchor, setAnchor] = useState<DOMRect | null>(null)
+  // El menú se coloca junto al botón donde esté ahora (también si la ventana cambia de tamaño).
+  const anchorNow = useCallback(() => (ref.current?.isConnected ? ref.current.getBoundingClientRect() : null), [])
   return (
     <>
       <button
@@ -194,7 +260,7 @@ export function MenuButton({
       </button>
       {anchor && (
         <Menu
-          anchor={anchor}
+          anchor={anchorNow}
           align={align}
           side={side}
           entries={typeof entries === 'function' ? entries() : entries}

@@ -1,4 +1,5 @@
-/* «Datos del gráfico» (ChartDataDialog.tsx): una tabla para escribir las cifras. */
+/* «Datos del gráfico» (ChartDataDialog.tsx): como la hoja de datos de un gráfico
+   en Office. Una barra fija arriba y, debajo, la tabla como una hoja de cálculo. */
 
 .chart-data-dialog {
   display: flex;
@@ -9,16 +10,50 @@
 .chart-data-dialog > .hint {
   margin: 0;
 }
-.chart-data-wrap {
-  max-width: 100%;
-  max-height: min(52vh, 480px);
-  overflow: auto;
+.chart-data-sheet {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-surface);
 }
+
+/* La barra: fija, con iconos y textos cortos (como la cinta de Excel). */
+.chart-data-ribbon {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subtle);
+}
+.chart-data-ribbon .tool {
+  height: 30px;
+  padding: 0 9px 0 7px;
+  gap: 6px;
+}
+.chart-data-ribbon .tool > svg {
+  flex: none;
+}
+.chart-data-ribbon-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+/* La tabla: una hoja de cálculo limpia (letras arriba, números a la izquierda). */
+.chart-data-wrap {
+  max-width: 100%;
+  max-height: min(48vh, 440px);
+  overflow: auto;
+}
 .chart-data {
-  width: 100%;
+  min-width: 100%;
   border-collapse: separate;
   border-spacing: 0;
   font-size: 13px;
@@ -33,34 +68,78 @@
 }
 .chart-data thead th {
   position: sticky;
-  top: 0;
   z-index: 2;
   background: var(--bg-subtle);
-  font-weight: 600;
 }
-.chart-data tbody th {
+/* Las letras de las columnas y los números de las filas. */
+.chart-data .chart-data-letters th {
+  top: 0;
+  height: 24px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+}
+.chart-data .chart-data-names th {
+  top: 25px;
+}
+.chart-data .chart-data-num {
   position: sticky;
   left: 0;
   z-index: 1;
+  width: 38px;
+  min-width: 38px;
   background: var(--bg-subtle);
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.chart-data thead .chart-data-num {
+  z-index: 4;
+}
+/* Los de la casilla activa, con el color de la app (como en Excel). */
+.chart-data .chart-data-letters th.on {
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+.chart-data .chart-data-num.on {
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+  box-shadow: inset -2px 0 0 var(--accent);
+}
+/* Fila 1 (nombres de las series) y columna A (categorías): en negrita, como unos títulos. */
+.chart-data .chart-data-names th:not(.chart-data-num) {
+  background: var(--bg-surface);
+  font-weight: 600;
+}
+.chart-data tbody th[scope='row'] {
+  position: sticky;
+  left: 38px;
+  z-index: 1;
+  background: var(--bg-surface);
 }
 .chart-data thead th.chart-data-corner {
-  left: 0;
+  left: 38px;
   z-index: 3;
-  min-width: 120px;
-  padding: 0 10px;
-  color: var(--text-2);
+  min-width: 128px;
+  padding: 0 8px;
+  color: var(--text-3);
   font-size: 12px;
+  font-weight: 600;
 }
 .chart-data input {
   display: block;
   box-sizing: border-box;
   width: 100%;
-  min-width: 72px;
-  height: 32px;
+  min-width: 80px;
+  height: 30px;
   padding: 0 8px;
   border: 0;
   border-radius: 0;
+  outline: 0;
   background: transparent;
   color: var(--text);
   font: inherit;
@@ -70,37 +149,24 @@
   font-variant-numeric: tabular-nums;
 }
 .chart-data tbody th input {
-  min-width: 120px;
+  min-width: 128px;
 }
 .chart-data thead th input {
-  min-width: 88px;
+  min-width: 96px;
+  font-weight: 600;
 }
+.chart-data tbody th input {
+  font-weight: 600;
+}
+/* La casilla activa: su borde con el color de la app. */
+.chart-data .active input,
 .chart-data input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
+  box-shadow: inset 0 0 0 2px var(--accent);
   background: var(--bg-surface);
 }
 .chart-data input.invalid {
   background: var(--danger-soft);
   color: var(--danger);
-}
-.chart-data-head {
-  display: flex;
-  align-items: center;
-  padding-right: 2px;
-}
-.chart-data-head input {
-  font-weight: 600;
-}
-.chart-data .chart-data-add {
-  width: 34px;
-  padding: 0 2px;
-  border-right: 0;
-  text-align: center;
-}
-.chart-data-actions {
-  display: flex;
-  gap: 8px;
 }
 .chart-data-note {
   margin: 0;

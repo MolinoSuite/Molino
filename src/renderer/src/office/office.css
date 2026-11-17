@@ -1439,9 +1439,39 @@ body,
   flex: none;
   opacity: 0.6;
 }
+/* Los iconos de la barra nunca se encogen (con la flechita al lado, tampoco). */
+.office-toolbar .tool > svg,
+.tool.has-caret > svg {
+  flex: none;
+}
+/* Botones con desplegable: el icono del mismo tamaño y con el mismo margen que
+   en los demás botones, y la flechita a su derecha, en un botón más ancho. */
+.tool.icon.has-caret,
+.office-toolbar .tool.icon.has-caret {
+  width: auto;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 0 5px 0 7px;
+}
+.tool.has-caret:not(.icon) {
+  padding-right: 7px;
+}
+.tool.has-caret:not(.icon) > .tool-caret {
+  margin-left: -3px;
+}
 .office-fontpop {
+  display: flex;
+  flex-direction: column;
   width: 264px;
   padding: 6px;
+}
+/* En una ventana baja, la lista se acorta (el buscador se queda a la vista). */
+.office-fontpop .office-search {
+  flex: none;
+}
+.office-fontpop .office-fonts,
+.office-sizepop .office-sizes {
+  min-height: 0;
 }
 .office-search {
   display: flex;
@@ -1521,6 +1551,8 @@ body,
   padding: 0;
 }
 .office-sizepop {
+  display: flex;
+  flex-direction: column;
   width: 92px;
   padding: 4px;
 }

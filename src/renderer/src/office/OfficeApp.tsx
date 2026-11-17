@@ -5,7 +5,7 @@
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
 import { Archive, Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Signature, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -15,6 +15,7 @@ import { FEATURES } from './features'
 import { SheetTabs } from './SheetTabs'
 import { ToolBar } from './Toolbar'
 import { ColorTool } from './ui/pickers'
+import { closeAllPops } from './ui/pop'
 import { FindBar, FunctionDialog, PromptDialog, type PromptSpec, StatsDialog, SymbolsDialog } from './dialogs'
 import { type ContextInfo, type EditorNotice, EditorSession, type EditorState } from './engine'
 import { env, fmt, L } from './i18n'
@@ -229,6 +230,17 @@ export function OfficeApp() {
         setTimeout(() => document.getElementById('office-comment-input')?.focus(), 50)
         return true
       }
+      // Lo del menú de la app que no toca el documento (también desde «¿Qué quieres hacer?»).
+      const windowCommands: Record<string, () => void> = {
+        newDoc: () => void window.molinoOffice.newDoc(),
+        openDoc: () => void window.molinoOffice.openDialog(),
+        settings: () => setSettingsOpen(true),
+        shortcuts: () => setShortcutsOpen(true),
+        feedback: () => setFeedbackOpen(true),
+        about: () => setAbout(true),
+        showInFolder: () => void (tabs?.active && activeHasFile && window.molinoOffice.showInFolder(tabs.active))
+      }
+      if (Object.hasOwn(windowCommands, command)) return (windowCommands[command](), true)
       if (!active?.ready) return false
       // Lo que pregunta algo antes (buscar, vínculo, símbolo, función…): un cuadro de Molino.
       if (command === 'find' || command === 'replace') {
@@ -408,7 +420,11 @@ export function OfficeApp() {
   const plainMode = app.modes.find((m) => m.id === mode && !m.context)
   if (plainMode) lastPlain.current = plainMode.id
   const currentMode = modes.find((m) => m.id === mode) ?? modes.find((m) => m.id === lastPlain.current) ?? modes[0]
+  // Al cambiar de pestaña de la barra o de documento, se cierra lo que estuviera abierto («Más», un desplegable…).
+  useEffect(() => closeAllPops(), [currentMode.id, tabs?.active])
   const activeTab = tabs?.tabs.find((t) => t.doc === tabs.active)
+  // Las órdenes de «¿Qué quieres hacer?» (las mismas mientras la ventana está abierta).
+  const paletteList = useMemo(() => paletteEntries(app).map((e) => ({ ...e, key: `${e.command}:${e.value ?? ''}` })), [app])
   // Sin documentos: la pantalla de inicio de la app (o «Abriendo…» si viene uno).
   const empty = !tabs || tabs.tabs.length === 0
 
@@ -487,9 +503,6 @@ export function OfficeApp() {
             onClick={() => run('print')}
           >
             <Printer size={16} />
-          </button>
-          <button className="icon-btn sm" aria-label={T.actions.signTip} data-tip={T.actions.signTip} disabled={!state?.ready} onClick={() => run('signAsk')}>
-            <Signature size={16} />
           </button>
           {app.header.map((b, i) => {
             const button = (
@@ -619,7 +632,8 @@ export function OfficeApp() {
 
       {palette && (
         <CommandPalette
-          entries={paletteEntries(app).map((e) => ({ ...e, key: `${e.command}:${e.value ?? ''}` }))}
+          entries={paletteList}
+          app={kind}
           onChoose={(e) => run(e.command, e.value)}
           onClose={() => {
             setPalette(false)

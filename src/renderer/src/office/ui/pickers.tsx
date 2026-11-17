@@ -56,7 +56,7 @@ export function VisualMenu({
     <>
       <button
         ref={pop.button}
-        className={cn('tool', !caption && 'icon', pop.anchor && 'on')}
+        className={cn('tool has-caret', !caption && 'icon', pop.anchor && 'on')}
         aria-label={label}
         data-tip={caption || pop.anchor ? undefined : label}
         aria-haspopup="menu"

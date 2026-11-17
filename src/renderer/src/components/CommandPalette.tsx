@@ -1,14 +1,14 @@
 import { Search } from 'lucide-react'
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { L } from '@/i18n'
-import { searchCommands, type SearchEntry } from '@/lib/commandSearch'
+import { type SearchApp, searchCommands, type SearchEntry } from '@/lib/commandSearch'
 import { cn } from '@/lib/util'
 
 /**
  * «¿Qué quieres hacer?»: el mismo buscador de órdenes en todas las apps de
  * Molino. Cada app da su lista (Molino PDF: PdfCommands.tsx; Documentos, Hojas
- * y Presentaciones: office/apps.tsx); el buscador entiende frases y sinónimos
- * (lib/commandSearch.ts).
+ * y Presentaciones: office/apps.tsx); el buscador entiende frases, sinónimos
+ * (también los de cada app) y pequeñas faltas (lib/commandSearch.ts).
  */
 
 export interface PaletteItem extends SearchEntry {
@@ -18,11 +18,11 @@ export interface PaletteItem extends SearchEntry {
 
 const MAX_SHOWN = 60
 
-export function CommandPalette<T extends PaletteItem>({ entries, onChoose, onClose }: { entries: T[]; onChoose: (entry: T) => void; onClose: () => void }) {
+export function CommandPalette<T extends PaletteItem>({ entries, app, onChoose, onClose }: { entries: T[]; app: SearchApp; onChoose: (entry: T) => void; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [index, setIndex] = useState(0)
   const list = useRef<HTMLUListElement>(null)
-  const found = useMemo(() => searchCommands(entries, query).slice(0, MAX_SHOWN), [entries, query])
+  const found = useMemo(() => searchCommands(entries, query, app).slice(0, MAX_SHOWN), [entries, query, app])
 
   useEffect(() => {
     list.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
