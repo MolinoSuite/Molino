@@ -95,7 +95,7 @@ Docs, Sheets and Slides are based on ONLYOFFICE software by Ascensio System SIA 
 
 <br>
 
-The `molino` command converts, merges, signs, fills in and prints documents without opening any window, from PowerShell, a `.bat` file or Windows Task Scheduler. In Docs, Sheets and Slides you can save your own scripts (the **Advanced** tab, turned on in Settings); macros inside documents never run. It’s all in the [command-line manual](docs/linea-de-ordenes.md) (in Spanish, with an [English summary](docs/linea-de-ordenes.md#english-summary)).
+The `molino` command converts, merges, signs, fills in and prints documents without opening any window, from PowerShell, a `.bat` file or Windows Task Scheduler. In Docs, Sheets and Slides you can save your own scripts (the **Advanced** tab, turned on in Settings); macros inside documents never run. It’s all in the [command-line manual](https://molinosuite.org/en/command-line/).
 
 </details>
 

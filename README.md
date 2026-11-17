@@ -95,7 +95,7 @@ Documentos, Hojas y Presentaciones se basan en el software ONLYOFFICE de Ascensi
 
 <br>
 
-El comando `molino` convierte, une, firma, rellena e imprime documentos sin abrir ninguna ventana, desde PowerShell, un `.bat` o el Programador de tareas de Windows. En Documentos, Hojas y Presentaciones puedes guardar tus propios scripts (pestaña **Avanzado**, que se activa en Ajustes); las macros que traen los documentos nunca se ejecutan. Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
+El comando `molino` convierte, une, firma, rellena e imprime documentos sin abrir ninguna ventana, desde PowerShell, un `.bat` o el Programador de tareas de Windows. En Documentos, Hojas y Presentaciones puedes guardar tus propios scripts (pestaña **Avanzado**, que se activa en Ajustes); las macros que traen los documentos nunca se ejecutan. Todo está en el [manual de la línea de órdenes](https://molinosuite.org/linea-de-ordenes/).
 
 </details>
 
