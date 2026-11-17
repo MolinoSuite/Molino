@@ -1,6 +1,7 @@
 import { BookA, FileText, LayoutGrid, Palette, Settings2, Signature, Sparkles } from 'lucide-react'
 import { type KeyboardEvent, type ReactNode, useState } from 'react'
 import { lookOf } from '@shared/appearance'
+import { MOLINO_THEMES } from '@shared/officeThemes'
 import type { LangSetting } from '@shared/i18n'
 import { APP_ACCENTS, type AppLook, type CloseMany, type DateStyle, type OfficeAppId, type SignLevel, type TimestampServer, type UpdateStatus } from '@shared/types'
 import { fmt, L } from '@/i18n'
@@ -110,6 +111,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <LanguageSettings />
             <AuthorSettings />
             {app === 'pdf' ? <DefaultAppSettings /> : <DeveloperSettings app={app} />}
+            {app !== 'pdf' && <NewDocumentTheme app={app} />}
             <UpdatesSettings />
           </>
         )}
@@ -204,6 +206,49 @@ function DeveloperSettings({ app }: { app: OfficeAppId }) {
       >
         {slide ? T.showSlide : T.show}
       </Checkbox>
+    </Field>
+  )
+}
+
+/**
+ * Documentos, Hojas y Presentaciones: el tema con el que empiezan los documentos
+ * nuevos en blanco de esta app (uno de Molino o uno propio; ver features/themes/).
+ */
+function NewDocumentTheme({ app }: { app: OfficeAppId }) {
+  const own = useApp((s) => s.settings.officeThemes)
+  const chosen = useApp((s) => s.settings.officeDefaultTheme?.[app] ?? '')
+  const T = L.officeThemes
+  const valid = chosen === '' || MOLINO_THEMES.some((t) => t.id === chosen) || own.some((t) => t.id === chosen)
+  return (
+    <Field label={T.settings.label} hint={T.settings.hint[app]}>
+      <select
+        className="input"
+        value={valid ? chosen : ''}
+        onChange={(event) => {
+          const next = { ...useApp.getState().settings.officeDefaultTheme }
+          if (event.target.value) next[app] = event.target.value
+          else delete next[app]
+          void updateSettings({ officeDefaultTheme: next })
+        }}
+      >
+        <option value="">{T.settings.none}</option>
+        <optgroup label={T.menu.molino}>
+          {MOLINO_THEMES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {(T.builtIn as Record<string, string>)[t.id] ?? t.name}
+            </option>
+          ))}
+        </optgroup>
+        {own.length > 0 && (
+          <optgroup label={T.menu.mine}>
+            {own.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </optgroup>
+        )}
+      </select>
     </Field>
   )
 }

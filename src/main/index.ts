@@ -14,6 +14,7 @@ import { firstPdfNotice, markRetireTried, removeSeparatePdf, separatePdfImported
 import { bundledPieceDir, OfficePiece } from './office'
 import type { HomeApp } from '@shared/home'
 import type { OfficeKind } from '@shared/officeui'
+import { findTheme } from '@shared/officeThemes'
 import { requestedApp } from './officeapps'
 import { isOfficeFile, OfficeWindows } from './officewin'
 import { isStoreApp, storeAppUserModelId, storeDataDir, SUITE_FAMILY } from './appx'
@@ -336,6 +337,12 @@ void app.whenReady().then(async () => {
     signInPdf: (path) => {
       showPdfWindow()
       void bridge?.signFile(path)
+    },
+    // El tema de los documentos nuevos de cada app (Ajustes; los de Molino, con su nombre en el idioma de Molino).
+    defaultTheme: (kind) => {
+      const settings = store.settings
+      const theme = findTheme(settings.officeDefaultTheme?.[kind], settings.officeThemes)
+      return theme ? { ...theme, name: (L.officeThemes.builtIn as Record<string, string>)[theme.id] ?? theme.name } : null
     }
   })
   officeWindows = editors

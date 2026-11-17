@@ -4,6 +4,7 @@ import { basename, dirname, join } from 'node:path'
 import { safeStorage } from 'electron'
 import { z } from 'zod'
 import type { SavedSignature } from '@shared/api'
+import { MAX_USER_THEMES, MOLINO_THEME_ID, THEME_COLOR_KEYS, THEME_FONT_MAX, THEME_NAME_MAX, THEME_SIZE, THEME_SPACE, THEME_STYLE_KEYS, USER_THEME_ID } from '@shared/officeThemes'
 import { APP_ACCENTS, DEFAULT_ACCENT, type RecentFile, type Settings } from '@shared/types'
 import { log } from './log'
 
@@ -37,6 +38,31 @@ const LookSchema = z.object({
   accent: z.string().regex(/^#[0-9a-fA-F]{6}$/)
 })
 
+/** Un color #rrggbb. */
+const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/)
+/** Un nombre de fuente: letras, números, espacios y poco más (nada de control ni de comillas). */
+const FontName = z.string().min(1).max(THEME_FONT_MAX).regex(/^[\p{L}\p{N}][\p{L}\p{N} ._&+-]*$/u)
+const ThemeStyle = z.object({
+  font: z.enum(['heading', 'body']),
+  size: z.number().min(THEME_SIZE.min).max(THEME_SIZE.max),
+  color: z.enum(THEME_COLOR_KEYS),
+  bold: z.boolean(),
+  italic: z.boolean(),
+  before: z.number().min(THEME_SPACE.min).max(THEME_SPACE.max),
+  after: z.number().min(THEME_SPACE.min).max(THEME_SPACE.max)
+})
+/** Un tema de documento del usuario (Documentos, Hojas y Presentaciones; ver shared/officeThemes.ts). */
+const OfficeThemeSchema = z.object({
+  id: z.string().regex(USER_THEME_ID),
+  name: z.string().min(1).max(THEME_NAME_MAX).regex(/^[^\u0000-\u001f\u007f]+$/),
+  fonts: z.object({ heading: FontName, body: FontName }),
+  size: z.number().min(THEME_SIZE.min).max(THEME_SIZE.max),
+  colors: z.object(Object.fromEntries(THEME_COLOR_KEYS.map((k) => [k, HexColor])) as Record<(typeof THEME_COLOR_KEYS)[number], typeof HexColor>),
+  styles: z.object(Object.fromEntries(THEME_STYLE_KEYS.map((k) => [k, ThemeStyle])) as Record<(typeof THEME_STYLE_KEYS)[number], typeof ThemeStyle>)
+})
+/** El tema de los documentos nuevos de cada app: uno de Molino o uno del usuario. */
+const ThemeRef = z.string().refine((id) => USER_THEME_ID.test(id) || MOLINO_THEME_ID.test(id))
+
 const SettingsSchema = z.object({
   theme: z.enum(['system', 'light', 'dark']).default('system'),
   accent: z
@@ -66,7 +92,14 @@ const SettingsSchema = z.object({
   developer: z.array(z.enum(['word', 'cell', 'slide'])).max(3).default([]),
   // IA local: apagada hasta que el usuario la activa y descarga los modelos.
   aiTier: z.enum(['off', 'basic', 'advanced']).default('off'),
-  aiGpu: z.boolean().default(true)
+  aiGpu: z.boolean().default(true),
+  // Temas de documento propios (compartidos por las tres apps de oficina) y el de los documentos nuevos de cada una.
+  officeThemes: z
+    .array(OfficeThemeSchema)
+    .max(MAX_USER_THEMES)
+    .refine((list) => new Set(list.map((t) => t.id)).size === list.length)
+    .default([]),
+  officeDefaultTheme: z.object({ word: ThemeRef.optional(), cell: ThemeRef.optional(), slide: ThemeRef.optional() }).default({})
 })
 
 const BoundsSchema = z.object({
@@ -132,6 +165,25 @@ const MAX_SIGNATURES = 12
 const MAX_SIGNATURE_BYTES = 2_000_000
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
+/** Quita de los ajustes leídos del disco los temas que no valen (y el predeterminado que no vale). */
+function sanitizeThemes(settings: Record<string, unknown>): void {
+  if (settings.officeThemes !== undefined) {
+    const seen = new Set<string>()
+    const list = Array.isArray(settings.officeThemes) ? settings.officeThemes : []
+    settings.officeThemes = list
+      .flatMap((raw) => {
+        const parsed = OfficeThemeSchema.safeParse(raw)
+        if (!parsed.success || seen.has(parsed.data.id)) return []
+        seen.add(parsed.data.id)
+        return [parsed.data]
+      })
+      .slice(0, MAX_USER_THEMES)
+  }
+  if (settings.officeDefaultTheme !== undefined && !SettingsSchema.shape.officeDefaultTheme.safeParse(settings.officeDefaultTheme).success) {
+    delete settings.officeDefaultTheme
+  }
+}
+
 /** Escritura atómica: un corte de luz a mitad no deja el archivo a medias. */
 function writeAtomic(file: string, data: string | Buffer): void {
   mkdirSync(dirname(file), { recursive: true })
@@ -175,6 +227,8 @@ export class Store {
           const theme = raw.settings.theme
           raw.settings.appearance = Object.fromEntries((['word', 'cell', 'slide'] as const).map((app) => [app, { theme, accent: APP_ACCENTS[app] }]))
         }
+        // Un tema propio que no vale (o el predeterminado) se pierde solo él, no todos los ajustes.
+        if (raw?.settings) sanitizeThemes(raw.settings)
         const parsed = ConfigSchema.safeParse(raw)
         if (parsed.success) return parsed.data
         log.warn('ajustes no válidos; se usan los valores por defecto')

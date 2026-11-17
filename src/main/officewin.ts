@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
 import { crc32, deflateSync } from 'node:zlib'
 import { basename, dirname, extname, join, normalize, parse, resolve, sep } from 'node:path'
@@ -10,10 +10,12 @@ import { setOfficeSession } from './security'
 import { log } from './log'
 import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
 import type { OfficeAsk, OfficeMergeMode, OfficeOtherDocument, OfficeTabs } from '@shared/officeui'
+import type { OfficeTheme } from '@shared/officeThemes'
 import { installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
 import { cleanFontIndex, fontAllowed, ownFontsDir } from './officefonts'
 import { configureOffice } from './officeconfig'
+import { themedTemplate } from './officethemes'
 import { OfficePresenter } from './officepresenter'
 import { OfficePrint } from './officeprint'
 import type { PrintService } from './print'
@@ -205,6 +207,8 @@ const MAX_IMAGE = 50 * 1024 * 1024
 const DOC_ID = /^o[0-9a-f]{16}$/
 /** PDF temporales para imprimir (se borran al arrancar). */
 const PRINT_DIR = join(app.getPath('temp'), 'Molino-imprimir')
+/** Las plantillas vacías con el tema predeterminado, un momento (se borran al abrirlas y al arrancar). */
+const NEW_DIR = join(app.getPath('temp'), 'Molino-nuevos')
 /** Lo que Molino pide al editor vale este tiempo (si no llega a guardar, no se queda colgado para la próxima vez). */
 const INTENT_MS = 60_000
 const MEDIA_NAME = /^[A-Za-z0-9_-]{1,64}\.(png|jpe?g|gif|bmp|tiff?|svg|webp|emf|wmf|wdp|mp4|m4v|mov|webm|mp3|wav|m4a|ogg)$/i
@@ -373,6 +377,8 @@ export interface OfficeOptions {
   }
   /** Abre un PDF recién guardado en Molino PDF, en el modo Firmar (index.ts e ipc.ts). */
   signInPdf(path: string): void
+  /** El tema de los documentos nuevos de una app (Ajustes; null: el de siempre). */
+  defaultTheme(kind: Kind): OfficeTheme | null
 }
 
 /**
@@ -415,6 +421,7 @@ export class OfficeWindows {
 
   constructor(private readonly options: OfficeOptions) {
     rmSync(PRINT_DIR, { recursive: true, force: true, maxRetries: 2 })
+    rmSync(NEW_DIR, { recursive: true, force: true, maxRetries: 2 })
     this.engine = options.engine
     this.piece = options.piece
     this.firstConfigured = new Promise((done) => {
@@ -592,13 +599,41 @@ export class OfficeWindows {
 
   /**
    * Documento nuevo de una app: desde la plantilla vacía de Molino (con Inter,
-   * su letra predeterminada) o, si no está, desde la de la pieza.
+   * su letra predeterminada) o, si no está, desde la de la pieza. Con un tema
+   * predeterminado (Ajustes), desde una copia de la plantilla con el tema puesto
+   * (officethemes.ts), que se borra en cuanto el motor la ha leído.
    */
   async create(kind: Kind): Promise<boolean> {
     const name = `${L.main.office.filters[kind]}${DEFAULT_SUFFIX[kind]}`
     const blank = join(this.options.templatesDir, lang === 'en' ? 'en' : 'es', `${lang === 'en' ? 'blank' : 'nuevo'}${DEFAULT_SUFFIX[kind]}`)
-    if (existsSync(blank)) return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path: blank }, { priority: 7 }))
-    return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.new', { kind }, { priority: 7 }))
+    if (!existsSync(blank)) return this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.new', { kind }, { priority: 7 }))
+    const themed = await this.themedBlank(kind, blank)
+    try {
+      return await this.load(kind, name, null, () => this.engine.request<{ doc?: unknown; kind?: unknown }>('office.open', { path: themed ?? blank }, { priority: 7 }))
+    } finally {
+      if (themed) rmSync(dirname(themed), { recursive: true, force: true, maxRetries: 2 })
+    }
+  }
+
+  /** Una copia de la plantilla vacía con el tema predeterminado de la app (null: sin tema o no se pudo). */
+  private async themedBlank(kind: Kind, blank: string): Promise<string | null> {
+    const theme = this.options.defaultTheme(kind)
+    if (!theme) return null
+    try {
+      const data = themedTemplate(await readFile(blank), kind, theme)
+      if (!data) {
+        log.warn('oficina: la plantilla vacía no tiene la forma esperada; el documento nuevo, sin tema')
+        return null
+      }
+      const folder = join(NEW_DIR, randomBytes(6).toString('hex'))
+      mkdirSync(folder, { recursive: true })
+      const path = join(folder, basename(blank))
+      writeFileSync(path, data, { flag: 'wx' })
+      return path
+    } catch {
+      log.warn('oficina: no se pudo preparar el documento nuevo con su tema')
+      return null
+    }
   }
 
   /** Las plantillas para empezar de una app que hay en esta instalación (en el idioma de Molino). */
