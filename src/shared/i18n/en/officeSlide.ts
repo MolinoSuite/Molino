@@ -185,7 +185,39 @@ export const officeSlide: typeof source = {
     resume: 'Resume',
     reset: 'Reset',
     clock: 'Clock',
-    keys: 'Arrows, Page Down or Space: move on. Esc: end. A number and Enter: go to that slide.'
+    keys: 'Arrows, Page Down or Space: move on. Esc: end. A number and Enter: go to that slide. B: black; W: white; E: erase ink.'
+  },
+  /**
+   * What is drawn over the slide show (presenter/InkTools.tsx): in presenter
+   * view and in the slide show itself (slide/ShowLayer.tsx).
+   */
+  ink: {
+    label: 'Slide show tools',
+    laser: 'Laser',
+    laserTip: 'Laser pointer (Ctrl+L)',
+    pen: 'Pen',
+    penTip: 'Pen (Ctrl+P)',
+    highlighter: 'Highlighter',
+    highlighterTip: 'Highlighter (Ctrl+I)',
+    eraser: 'Eraser',
+    eraserTip: 'Eraser: removes the strokes you touch (Ctrl+E)',
+    clear: 'Erase',
+    clearTip: 'Erase all ink on this slide (E)',
+    color: 'Ink color and thickness',
+    colors: { red: 'Red', yellow: 'Yellow', green: 'Green', blue: 'Blue', black: 'Black', white: 'White' },
+    widths: { '1': 'Thin', '2': 'Medium', '3': 'Thick' },
+    black: 'Black',
+    blackTip: 'Black screen (B or period)',
+    white: 'White',
+    whiteTip: 'White screen (W or comma)',
+    arrow: 'Normal pointer',
+    clearAll: 'Erase the ink on this slide',
+    covered: { black: 'Black screen', white: 'White screen' },
+    coveredHint: 'The audience can’t see the slide. Press any key to go back.',
+    menu: 'More options',
+    end: 'End show',
+    prev: 'Previous slide',
+    next: 'Next slide'
   },
   smartArt: {
     title: 'Insert a SmartArt',

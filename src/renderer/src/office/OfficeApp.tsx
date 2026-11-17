@@ -5,7 +5,7 @@
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
 import { Archive, Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Signature, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -587,6 +587,7 @@ export function OfficeApp() {
               </div>
             )}
             {state?.ready && <OfficeDock kind={kind} state={state} run={run} words={words} />}
+            {FEATURES[kind].map((f, i) => (f.stage ? <Fragment key={i}>{f.stage({ presenting })}</Fragment> : null))}
           </main>
           {app.sheetTabs && state?.ready && (
             <div className="office-sheetbar">

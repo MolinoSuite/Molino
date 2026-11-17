@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, screen, type IpcMainEvent, type IpcMainInvokeEvent, type NativeImage, type Rectangle, type Session } from 'electron'
-import type { PresenterAction, PresenterScreen, PresenterState } from '@shared/officeui'
+import { INK_COLORS, type InkOp, type InkStroke, type PresenterAction, type PresenterMark, type PresenterScreen, type PresenterState } from '@shared/officeui'
 import { fmt, L } from './i18n'
 
 /**
@@ -16,7 +16,9 @@ import { fmt, L } from './i18n'
  * Presentaciones le manda, por aquí, las imágenes de la diapositiva que se ve y
  * de la siguiente, sus notas y en cuál va (``office:presenterState``), y ella
  * pide pasar de diapositiva o terminar (``presenter:command``), que llega a esa
- * interfaz. Cada mensaje se atiende solo de quien debe mandarlo: la interfaz de
+ * interfaz. Lo que se dibuja encima de la presentación (tinta, puntero láser,
+ * pantalla en negro o en blanco) va y viene entre las dos por
+ * ``presenter:mark`` y ``office:presenterMark``, comprobado aquí (cleanMark). Cada mensaje se atiende solo de quien debe mandarlo: la interfaz de
  * esa ventana para su documento, y la página de la vista del moderador desde su
  * ventana. La vista del moderador se cierra al terminar la presentación, al
  * cerrar el documento o su ventana; y cerrarla termina la presentación.
@@ -106,6 +108,88 @@ function cleanState(raw: unknown): PresenterState | null {
     current: image(s.current),
     next
   }
+}
+
+// ------------------------------------------------------------ tinta y láser
+
+/** Lo más que se acepta de un trazo y de una diapositiva (cada número es una coordenada). */
+const MAX_OP_NUMBERS = 4_000
+const MAX_STROKE_NUMBERS = 40_000
+const MAX_STROKES = 1_000
+const STROKE_ID = /^[a-z][0-9a-z]{0,23}$/
+const COLORS: ReadonlySet<string> = new Set(INK_COLORS)
+
+/** Una coordenada en proporción de la diapositiva (de 0 a 1). */
+const unit = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n) && n >= 0 && n <= 1
+
+/** Una lista de puntos (x0, y0, x1, y1…), todos de 0 a 1, de pares y sin pasarse; null si no vale. */
+function points(raw: unknown, max: number): number[] | null {
+  if (!Array.isArray(raw) || raw.length % 2 !== 0 || raw.length > max) return null
+  for (const n of raw) if (!unit(n)) return null
+  // Con cuatro decimales basta (y lo que se reenvía es una copia hecha aquí).
+  return raw.map((n: number) => Math.round(n * 10_000) / 10_000)
+}
+
+function stroke(raw: unknown): InkStroke | null {
+  if (!raw || typeof raw !== 'object') return null
+  const s = raw as Record<string, unknown>
+  const list = points(s.points, MAX_STROKE_NUMBERS)
+  if (typeof s.id !== 'string' || !STROKE_ID.test(s.id) || (s.tool !== 'pen' && s.tool !== 'highlighter')) return null
+  if (typeof s.color !== 'string' || !COLORS.has(s.color) || (s.width !== 1 && s.width !== 2 && s.width !== 3) || !list) return null
+  return { id: s.id, tool: s.tool, color: s.color as InkStroke['color'], width: s.width, points: list }
+}
+
+function inkOp(raw: unknown): InkOp | null {
+  if (!raw || typeof raw !== 'object') return null
+  const o = raw as Record<string, unknown>
+  const slide = slideIndex(o.slide, MAX_SLIDES + 1)
+  if (slide === null) return null
+  if (o.op === 'begin') {
+    const s = stroke(o.stroke)
+    return s && s.points.length <= MAX_OP_NUMBERS ? { op: 'begin', slide, stroke: s } : null
+  }
+  if (o.op === 'add') {
+    const list = points(o.points, MAX_OP_NUMBERS)
+    return typeof o.id === 'string' && STROKE_ID.test(o.id) && list ? { op: 'add', slide, id: o.id, points: list } : null
+  }
+  if (o.op === 'erase') {
+    const ids = Array.isArray(o.ids) && o.ids.length <= MAX_STROKES ? o.ids : null
+    return ids && ids.every((id) => typeof id === 'string' && STROKE_ID.test(id)) ? { op: 'erase', slide, ids: ids as string[] } : null
+  }
+  if (o.op === 'clear') return { op: 'clear', slide }
+  return null
+}
+
+/**
+ * Tinta, láser o pantalla en negro, comprobado (null si no vale): coordenadas de
+ * 0 a 1, colores de la lista, grosores y tamaños con límite. ``sync`` (toda la
+ * tinta de una diapositiva) solo vale de la ventana de la presentación.
+ */
+function cleanMark(raw: unknown, fromUi: boolean): PresenterMark | null {
+  if (!raw || typeof raw !== 'object') return null
+  const m = raw as Record<string, unknown>
+  if (m.kind === 'ink') {
+    const op = inkOp(m.op)
+    return op ? { kind: 'ink', op } : null
+  }
+  if (m.kind === 'laser') {
+    if (m.at === null) return { kind: 'laser', at: null }
+    const at = m.at && typeof m.at === 'object' ? (m.at as Record<string, unknown>) : null
+    return at && unit(at.x) && unit(at.y) ? { kind: 'laser', at: { x: at.x, y: at.y } } : null
+  }
+  if (m.kind === 'screen') return m.screen === 'black' || m.screen === 'white' || m.screen === null ? { kind: 'screen', screen: m.screen } : null
+  if (m.kind === 'sync' && fromUi) {
+    const slide = slideIndex(m.slide, MAX_SLIDES + 1)
+    if (slide === null || !Array.isArray(m.strokes) || m.strokes.length > MAX_STROKES) return null
+    const strokes: InkStroke[] = []
+    for (const one of m.strokes) {
+      const s = stroke(one)
+      if (!s) return null
+      strokes.push(s)
+    }
+    return { kind: 'sync', slide, strokes }
+  }
+  return null
 }
 
 export class OfficePresenter {
@@ -367,11 +451,28 @@ export class OfficePresenter {
       const show = this.fromUi(event, raw)
       if (show) this.finish(show.owner)
     })
+    // Tinta, láser y pantalla en negro de la ventana de la presentación, a la vista del moderador.
+    ipcMain.on('office:presenterMark', (event, raw: unknown) => {
+      const { doc, mark } = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+      const show = this.fromUi(event, doc)
+      const clean = show ? cleanMark(mark, true) : null
+      if (!show || !clean || !show.presenter || show.presenter.isDestroyed()) return
+      show.presenter.webContents.send('presenter:mark', clean)
+    })
 
     // ---- la vista del moderador
     ipcMain.on('presenter:ready', (event) => {
       const show = this.fromPresenter(event)
       if (show?.state) event.sender.send('presenter:state', show.state)
+      // Lo que ya hay dibujado (y si está en negro): lo manda la ventana de la presentación.
+      if (show && !show.owner.isDestroyed()) show.owner.webContents.send('office:presenterReady', show.doc)
+    })
+    // Tinta, láser y pantalla en negro de la vista del moderador, a la presentación.
+    ipcMain.on('presenter:mark', (event, raw: unknown) => {
+      const show = this.fromPresenter(event)
+      const clean = show ? cleanMark(raw, false) : null
+      if (!show || !clean || show.owner.isDestroyed()) return
+      show.owner.webContents.send('office:presenterMark', { doc: show.doc, mark: clean })
     })
     ipcMain.on('presenter:command', (event, raw: unknown) => {
       const show = this.fromPresenter(event)

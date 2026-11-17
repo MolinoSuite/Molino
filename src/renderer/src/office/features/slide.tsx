@@ -65,6 +65,7 @@ import { readLayoutArt } from './slide/layouts'
 import { EFFECT_BY_KEY, EFFECTS, EffectGlyph, GROUPS, TRIGGERS } from './slide/effects'
 import { chosenScreen, presenterOn, setChosenScreen, setPresenterOn, showEnded, slideChanged, startShow, watchScreens } from './slide/presenter'
 import { RehearsePanel } from './slide/RehearsePanel'
+import { ShowLayer } from './slide/ShowLayer'
 import { SmartArtDialog, smartArtPreviews } from './slide/SmartArtDialog'
 import type { Api, Feature, FeatureContext } from './types'
 import './slide/slide.css'
@@ -863,6 +864,8 @@ export const slideFeature: Feature = {
     smartArt: (props) => <SmartArtDialog {...props} />,
     chartData: (props) => <ChartDataDialog {...props} />
   },
+  // Al presentar: la tinta, el láser y la pantalla en negro encima de la presentación.
+  stage: ({ presenting }) => <ShowLayer presenting={presenting} />,
   palette: [
     { label: ST.animPanel, group: L.office.modes.transitions, keywords: S.keywords.animPanel, command: 'panel', value: 'animations' },
     { label: ST.rehearse, group: L.office.modes.present, keywords: S.keywords.rehearse, command: 'panel', value: 'rehearse' },

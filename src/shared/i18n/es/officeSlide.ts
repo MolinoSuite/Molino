@@ -188,7 +188,39 @@ export const officeSlide = {
     resume: 'Seguir',
     reset: 'Reiniciar',
     clock: 'Hora',
-    keys: 'Flechas, Av Pág o espacio: pasar. Esc: terminar. Un número y Enter: ir a esa diapositiva.'
+    keys: 'Flechas, Av Pág o espacio: pasar. Esc: terminar. Un número y Enter: ir a esa diapositiva. B: negro; W: blanco; E: borrar la tinta.'
+  },
+  /**
+   * Lo que se dibuja encima de la presentación (presenter/InkTools.tsx): en la
+   * vista del moderador y en la propia presentación (slide/ShowLayer.tsx).
+   */
+  ink: {
+    label: 'Herramientas de la presentación',
+    laser: 'Láser',
+    laserTip: 'Puntero láser (Ctrl+L)',
+    pen: 'Bolígrafo',
+    penTip: 'Bolígrafo (Ctrl+P)',
+    highlighter: 'Rotulador',
+    highlighterTip: 'Rotulador de resaltado (Ctrl+I)',
+    eraser: 'Borrador',
+    eraserTip: 'Borrador: quita los trazos que toques (Ctrl+E)',
+    clear: 'Borrar',
+    clearTip: 'Borrar toda la tinta de esta diapositiva (E)',
+    color: 'Color y grosor de la tinta',
+    colors: { red: 'Rojo', yellow: 'Amarillo', green: 'Verde', blue: 'Azul', black: 'Negro', white: 'Blanco' },
+    widths: { '1': 'Fino', '2': 'Medio', '3': 'Grueso' },
+    black: 'Negro',
+    blackTip: 'Pantalla en negro (B o punto)',
+    white: 'Blanco',
+    whiteTip: 'Pantalla en blanco (W o coma)',
+    arrow: 'Puntero normal',
+    clearAll: 'Borrar la tinta de esta diapositiva',
+    covered: { black: 'Pantalla en negro', white: 'Pantalla en blanco' },
+    coveredHint: 'El público no ve la diapositiva. Pulsa cualquier tecla para volver.',
+    menu: 'Más opciones',
+    end: 'Terminar la presentación',
+    prev: 'Diapositiva anterior',
+    next: 'Diapositiva siguiente'
   },
   smartArt: {
     title: 'Insertar un SmartArt',

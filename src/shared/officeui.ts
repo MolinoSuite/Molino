@@ -126,12 +126,49 @@ export interface PresenterState {
 /** Lo que pide la vista del moderador a la presentación. */
 export type PresenterAction = 'next' | 'prev' | 'first' | 'last' | 'goto' | 'end'
 
+/** Los colores de la tinta (bolígrafo y rotulador): solo estos (officepresenter.ts lo comprueba). */
+export const INK_COLORS = ['red', 'yellow', 'green', 'blue', 'black', 'white'] as const
+export type InkColor = (typeof INK_COLORS)[number]
+/** Las herramientas que dibujan: el bolígrafo y el rotulador de resaltar. */
+export type InkTool = 'pen' | 'highlighter'
+/** Un trazo: sus puntos en proporción de la diapositiva (x0, y0, x1, y1…, de 0 a 1) y su grosor (1 a 3). */
+export interface InkStroke {
+  id: string
+  tool: InkTool
+  color: InkColor
+  width: 1 | 2 | 3
+  points: number[]
+}
+/** Un cambio en la tinta de una diapositiva (desde 0; la del final: el número de diapositivas). */
+export type InkOp =
+  | { op: 'begin'; slide: number; stroke: InkStroke }
+  | { op: 'add'; slide: number; id: string; points: number[] }
+  | { op: 'erase'; slide: number; ids: string[] }
+  | { op: 'clear'; slide: number }
+
+/**
+ * Lo que se dibuja encima de la presentación (no se guarda en el archivo): la
+ * tinta, el puntero láser (null: no está) y la pantalla en negro o en blanco
+ * (null: se ve la presentación). Va de la vista del moderador a la ventana de la
+ * presentación y al revés; ``sync``, toda la tinta de la diapositiva que se ve,
+ * solo de la ventana de la presentación a la vista del moderador.
+ */
+export type PresenterMark =
+  | { kind: 'ink'; op: InkOp }
+  | { kind: 'laser'; at: { x: number; y: number } | null }
+  | { kind: 'screen'; screen: 'black' | 'white' | null }
+  | { kind: 'sync'; slide: number; strokes: InkStroke[] }
+
 /** La vista del moderador (su página, presenter.html; preload/office.ts). */
 export interface PresenterApi {
   /** La página ya escucha: que le llegue lo último. */
   ready(): void
   command(action: PresenterAction, slide?: number): void
   onState(listener: (state: PresenterState) => void): () => void
+  /** Tinta, láser o pantalla en negro, hacia la presentación. */
+  mark(mark: PresenterMark): void
+  /** Lo que llega de la presentación (también lo hecho allí). */
+  onMark(listener: (mark: PresenterMark) => void): () => void
 }
 
 export interface OfficeUiApi {
@@ -231,6 +268,12 @@ export interface OfficeUiApi {
     end(doc: string): void
     /** Lo que pide la vista del moderador. */
     onCommand(listener: (command: { doc: string; action: PresenterAction; slide?: number }) => void): () => void
+    /** Tinta, láser o pantalla en negro, hacia la vista del moderador. */
+    mark(doc: string, mark: PresenterMark): void
+    /** Lo que llega de la vista del moderador. */
+    onMark(listener: (event: { doc: string; mark: PresenterMark }) => void): () => void
+    /** La vista del moderador se ha abierto (o se ha vuelto a cargar): que le llegue lo que hay dibujado. */
+    onReady(listener: (doc: string) => void): () => void
   }
   /** La IA local de Molino (la de Ajustes → IA), sobre los documentos de esta ventana. */
   ai: {
