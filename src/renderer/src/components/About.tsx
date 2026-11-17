@@ -1,6 +1,8 @@
+import { Gift } from 'lucide-react'
 import { fmt, L, locale } from '@/i18n'
 import { currentApp, withApp } from '@/lib/currentApp'
 import { useOffice } from '@/state/office'
+import { openWhatsNew } from '@/state/updates'
 import documentsIcon from '@/home/icons/documentos.svg'
 import sheetsIcon from '@/home/icons/hojas.svg'
 import slidesIcon from '@/home/icons/presentaciones.svg'
@@ -14,6 +16,8 @@ const OFFICE_ICONS = { word: documentsIcon, cell: sheetsIcon, slide: slidesIcon 
  * mostrar en una aplicación con interfaz: titular, software libre sin
  * garantía, y cómo ver la licencia y obtener el código. Las apps de oficina
  * dicen además que usan los editores de ONLYOFFICE modificados (§7).
+ * «Novedades» abre la página de lo nuevo de esta versión en la web (la
+ * dirección la arma el proceso principal, main/whatsnew.ts).
  */
 export function AboutDialog({ onClose }: { onClose: () => void }) {
   const app = currentApp()
@@ -46,6 +50,10 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
             <span>{T.taglines[app]}</span>
             {date && <span>{fmt(T.built, { date })}</span>}
             {isOffice && piece && <span>{fmt(T.officeVersion, { version: piece })}</span>}
+            <button className="btn sm about-news" onClick={openWhatsNew}>
+              <Gift size={14} />
+              {T.whatsNew}
+            </button>
           </div>
         </div>
         <p>Copyright © 2026 CuevasTech.</p>

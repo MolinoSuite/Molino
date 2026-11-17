@@ -21,7 +21,8 @@ import type {
   RecentFile,
   DefaultAppStatus,
   Settings,
-  UpdateStatus
+  UpdateStatus,
+  WhatsNewNotice
 } from './types'
 
 export interface EngineReply<T> {
@@ -266,6 +267,18 @@ export interface MolinoApi {
     openStore(): Promise<boolean>
     onStatus(listener: (status: UpdateStatus) => void): () => void
   }
+  /**
+   * Los avisos de esta ventana al abrir (main/whatsnew.ts), cada uno en una sola
+   * ventana: si ya lo enseña el inicio de la suite, aquí no.
+   */
+  notices: {
+    /** Molino se ha actualizado: a qué versión, o null si no hay que avisar aquí. */
+    whatsNew(): Promise<WhatsNewNotice | null>
+    /** «Cerrar»: no vuelve a salir hasta la próxima versión («Ver novedades» es about.open('whatsNew')). */
+    dismissWhatsNew(): void
+    /** ¿Enseña esta ventana el aviso de versión nueva? */
+    updateCard(): Promise<boolean>
+  }
   /** Molino PDF como programa predeterminado para PDF: lo elige siempre el usuario en Configuración de Windows. */
   defaultApp: {
     status(): Promise<DefaultAppStatus>
@@ -274,7 +287,8 @@ export interface MolinoApi {
   }
   /** Información legal y de la aplicación (licencia, código fuente, componentes de terceros). */
   about: {
-    open(what: 'license' | 'notices' | 'source' | 'issues' | 'sponsors'): Promise<boolean>
+    /** «whatsNew»: la página de novedades de esta versión, en el idioma de Molino (el proceso principal arma la dirección). */
+    open(what: 'license' | 'notices' | 'source' | 'issues' | 'sponsors' | 'whatsNew'): Promise<boolean>
     /** Los avisos legales del motor de oficina (si está añadido). */
     office(what: OfficeLegal): Promise<Envelope<boolean>>
   }

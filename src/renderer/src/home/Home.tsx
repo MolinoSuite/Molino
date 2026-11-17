@@ -3,9 +3,11 @@
  * nuevo» y los recientes de todas las apps, con buscador. Sigue la maqueta
  * «Inicio» de la suite; las plantillas llegarán cuando las haya.
  */
-import { CircleAlert, FolderOpen, Info, Search, X } from 'lucide-react'
+import { CircleAlert, FolderOpen, Gift, Info, Search, Sparkles, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { HomeApp, HomeRecent } from '@shared/home'
+import type { UpdateStatus, WhatsNewNotice } from '@shared/types'
+import { NoticeCard } from '@/components/NoticeCard'
 import documentsIcon from './icons/documentos.svg'
 import sheetsIcon from './icons/hojas.svg'
 import molinoIcon from './icons/molino.svg'
@@ -32,6 +34,76 @@ function formatWhen(timestamp: number): string {
   const days = Math.round(hours / 24)
   if (Math.abs(days) < 30) return relative.format(days, 'day')
   return new Date(timestamp).toLocaleDateString(env.locale, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/**
+ * Los avisos al abrir, como en Molino PDF (components/UpdateCard.tsx): Molino se
+ * ha actualizado (novedades) y hay versión nueva. Cada uno sale en una sola
+ * ventana: si ya lo enseña Molino PDF, aquí no (main/whatsnew.ts).
+ */
+function HomeCards({ suite }: { suite: boolean }) {
+  const [news, setNews] = useState<WhatsNewNotice | null>(null)
+  useEffect(() => {
+    void window.molinoHome.whatsNew().then(setNews, () => undefined)
+  }, [])
+
+  const [status, setStatus] = useState<UpdateStatus>({ state: 'unavailable' })
+  const [mine, setMine] = useState(false)
+  // «Ahora no»: la versión que se deja para más tarde en esta sesión.
+  const [later, setLater] = useState<string | null>(null)
+  useEffect(() => {
+    void window.molinoHome.updates.status().then(setStatus, () => undefined)
+    return window.molinoHome.updates.onStatus(setStatus)
+  }, [])
+  const available = status.state === 'available'
+  useEffect(() => {
+    if (!available || mine) return
+    let alive = true
+    void window.molinoHome.updates.card().then(
+      (yes) => alive && setMine(yes === true),
+      () => undefined
+    )
+    return () => {
+      alive = false
+    }
+  }, [available, mine])
+
+  const app = suite ? 'Molino Suite' : 'Molino PDF'
+  const version = status.version && status.version !== '?' ? status.version : ''
+  const update = available && mine && later !== (status.version ?? null)
+  return (
+    <div className="update-cards">
+      {news && (
+        <NoticeCard
+          className="whats-new"
+          icon={Gift}
+          title={fmt(L.shell.whatsNew.title, { app: news.product === 'suite' ? 'Molino Suite' : 'Molino PDF' })}
+          text={fmt(L.shell.whatsNew.text, { version: news.version })}
+          action={L.shell.whatsNew.open}
+          onAction={() => {
+            setNews(null)
+            void window.molinoHome.openWhatsNew()
+          }}
+          dismiss={L.common.close}
+          onDismiss={() => {
+            setNews(null)
+            window.molinoHome.dismissWhatsNew()
+          }}
+        />
+      )}
+      {update && (
+        <NoticeCard
+          icon={Sparkles}
+          title={version ? fmt(L.shell.update.availableVersion, { app, version }) : fmt(L.shell.update.available, { app })}
+          text={L.shell.update.hint}
+          action={L.shell.update.update}
+          onAction={() => void window.molinoHome.updates.openStore()}
+          dismiss={L.shell.update.notNow}
+          onDismiss={() => setLater(status.version ?? null)}
+        />
+      )}
+    </div>
+  )
 }
 
 export function Home() {
@@ -211,6 +283,7 @@ export function Home() {
           </div>
         </main>
       </div>
+      <HomeCards suite={Boolean(apps?.word)} />
       {notice && (
         <div className="toasts" role="status" aria-live="polite">
           <div className="toast info">

@@ -214,6 +214,11 @@ export const shell: typeof source = {
     update: 'Update',
     notNow: 'Not now'
   },
+  whatsNew: {
+    title: '{app} has been updated',
+    text: 'You now have version {version}. See what’s new.',
+    open: 'See what’s new'
+  },
   recovery: {
     title: 'Recover documents',
     discardAll: 'Discard all',

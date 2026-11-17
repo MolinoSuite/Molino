@@ -180,7 +180,8 @@ export const dialogs = {
     officeSource: 'Código del motor',
     officeTrademark: 'ONLYOFFICE es una marca de Ascensio System SIA. Molino no está afiliado a Ascensio System SIA ni cuenta con su respaldo.',
     support: 'Molino es gratis y lo seguirá siendo. Si te resulta útil, puedes invitarme a un café en GitHub Sponsors.',
-    coffee: 'Invítame a un café'
+    coffee: 'Invítame a un café',
+    whatsNew: 'Novedades'
   },
   properties: {
     title: 'Propiedades del documento',

@@ -11,7 +11,7 @@ import './components/CreateDialogs'
 import { StartScreen } from './components/StartScreen'
 import { TitleBar } from './components/TitleBar'
 import { BusyOverlay, Toasts } from './components/Toasts'
-import { UpdateCard } from './components/UpdateCard'
+import { UpdateCards } from './components/UpdateCard'
 import { Workspace } from './components/Workspace'
 import { L } from './i18n'
 import { cn } from './lib/util'
@@ -77,7 +77,7 @@ export function App() {
       {fullScreen && active && <FullScreen key={active.id} doc={active} />}
       <DialogHost />
       <BusyOverlay />
-      <UpdateCard />
+      <UpdateCards />
       <Toasts />
     </div>
   )

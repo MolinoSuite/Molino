@@ -3,11 +3,13 @@ import { basename, dirname, join } from 'node:path'
 import { app, BrowserWindow, dialog, ipcMain, type IpcMainEvent, type IpcMainInvokeEvent } from 'electron'
 import type { HomeApp, HomeRecent } from '@shared/home'
 import type { OfficeKind } from '@shared/officeui'
+import type { UpdateStatus } from '@shared/types'
 import { fmt, L, lang, locale } from './i18n'
 import { IMAGE_EXTENSIONS } from './ipc'
 import { homeDetails, iconPath, OFFICE_KINDS, officeKindOf, OPENS } from './officeapps'
 import { APP_ORIGIN } from './security'
 import type { Store } from './store'
+import type { NoticeOwner, WhatsNew } from './whatsnew'
 
 /**
  * «Molino», el inicio común de la suite (paso 6 de PLAN-SUITE): todas las
@@ -31,6 +33,12 @@ export interface HomeOptions {
   dark(): boolean
   /** Molino PDF instalado aparte (pdfapart.ts). */
   pdfApart: { installed(): boolean; imported(): boolean; retired(): boolean; remove(): Promise<'removed' | 'running' | 'settings'> }
+  /** El aviso de novedades tras actualizar (whatsnew.ts). */
+  whatsNew: WhatsNew
+  /** Versiones nuevas (updates.ts): su estado y «Actualizar». */
+  updates: { current(): UpdateStatus; openStore(): Promise<boolean> }
+  /** Qué ventana enseña el aviso de versión nueva: el inicio o Molino PDF (ipc.ts). */
+  updateCard: NoticeOwner
 }
 
 export class HomeWindow {
@@ -101,6 +109,12 @@ export class HomeWindow {
     contents?.send('home:changed')
   }
 
+  /** El estado de las versiones nuevas ha cambiado (updates.ts): el inicio también avisa. */
+  sendUpdate(status: UpdateStatus): void {
+    const contents = this.window && !this.window.isDestroyed() ? this.window.webContents : null
+    contents?.send('home:updates', status)
+  }
+
   /** Solo la página del inicio, en su ventana. */
   private trusted(event: IpcMainEvent | IpcMainInvokeEvent): BrowserWindow | null {
     const window = this.window
@@ -153,6 +167,16 @@ export class HomeWindow {
         removing = false
       }
     })
+    // Los avisos al abrir: novedades tras actualizar y versión nueva, cada uno en una
+    // sola ventana (si ya lo enseña Molino PDF, aquí no). Las direcciones, fijas (whatsnew.ts, updates.ts).
+    ipcMain.handle('home:whatsNew', (event) => (this.trusted(event) ? this.options.whatsNew.claim('home') : null))
+    ipcMain.handle('home:openWhatsNew', async (event) => (this.trusted(event) ? this.options.whatsNew.open() : false))
+    ipcMain.on('home:dismissWhatsNew', (event) => {
+      if (this.trusted(event)) this.options.whatsNew.dismiss()
+    })
+    ipcMain.handle('home:updates', (event): UpdateStatus => (this.trusted(event) ? this.options.updates.current() : { state: 'unavailable' }))
+    ipcMain.handle('home:updateCard', (event) => this.trusted(event) !== null && this.options.updateCard.claim('home'))
+    ipcMain.handle('home:openStore', async (event) => (this.trusted(event) ? this.options.updates.openStore() : false))
     ipcMain.handle('home:recent', (event) => (this.trusted(event) ? this.recentList() : []))
     ipcMain.handle('home:forgetRecent', (event, raw: unknown) => {
       if (!this.trusted(event)) return []

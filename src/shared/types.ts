@@ -293,6 +293,12 @@ export interface UpdateStatus {
   message?: string
 }
 
+/** El aviso de novedades tras actualizar (main/whatsnew.ts): qué producto y a qué versión. */
+export interface WhatsNewNotice {
+  product: 'pdf' | 'suite'
+  version: string
+}
+
 export interface RecentFile {
   id: string
   name: string

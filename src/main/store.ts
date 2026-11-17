@@ -63,6 +63,9 @@ const OfficeThemeSchema = z.object({
 /** El tema de los documentos nuevos de cada app: uno de Molino o uno del usuario. */
 const ThemeRef = z.string().refine((id) => USER_THEME_ID.test(id) || MOLINO_THEME_ID.test(id))
 
+/** Una versión de Molino, x.y.z (la de app.getVersion(); ver whatsnew.ts). */
+export const VERSION_RE = /^\d{1,4}\.\d{1,4}\.\d{1,6}$/
+
 const SettingsSchema = z.object({
   theme: z.enum(['system', 'light', 'dark']).default('system'),
   accent: z
@@ -142,7 +145,10 @@ const ConfigSchema = z.object({
   // Diccionario personal del corrector de Documentos, Hojas y Presentaciones.
   // (Si algo no encaja, se pierde solo la lista, no los demás ajustes.)
   userWords: z.array(z.string().min(1).max(64)).max(MAX_USER_WORDS).default([]).catch([]),
-  officeScripts: z.array(OfficeScript).max(MAX_SCRIPTS).default([]).catch([])
+  officeScripts: z.array(OfficeScript).max(MAX_SCRIPTS).default([]).catch([]),
+  // La última versión cuyo aviso de novedades ya no hay que enseñar (whatsnew.ts). Si no
+  // vale, se pierde solo ella (cuenta como una versión que aún no la guardaba).
+  seenVersion: z.string().regex(VERSION_RE).optional().catch(undefined)
 })
 
 type Config = z.infer<typeof ConfigSchema>
@@ -382,6 +388,19 @@ export class Store {
 
   forgetOfficeRecent(id: string): void {
     this.config.officeRecent = this.config.officeRecent.filter((entry) => entry.id !== id)
+    this.persist()
+  }
+
+  // ---------------------------------------------------------- novedades
+
+  /** La última versión cuyo aviso de novedades ya no hay que enseñar (whatsnew.ts). */
+  get seenVersion(): string | undefined {
+    return this.config.seenVersion
+  }
+
+  setSeenVersion(version: string): void {
+    if (!VERSION_RE.test(version) || this.config.seenVersion === version) return
+    this.config.seenVersion = version
     this.persist()
   }
 

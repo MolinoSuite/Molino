@@ -143,6 +143,11 @@ const api: MolinoApi = {
     available: () => ipcRenderer.invoke('feedback:available'),
     send: (kind, message) => ipcRenderer.invoke('feedback:send', { kind, message })
   },
+  notices: {
+    whatsNew: () => ipcRenderer.invoke('notices:whatsNew'),
+    dismissWhatsNew: () => ipcRenderer.send('notices:dismissWhatsNew'),
+    updateCard: () => ipcRenderer.invoke('notices:updateCard')
+  },
   defaultApp: {
     status: () => ipcRenderer.invoke('defaultApp:status'),
     open: () => ipcRenderer.invoke('defaultApp:open')

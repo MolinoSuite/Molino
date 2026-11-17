@@ -177,7 +177,8 @@ export const dialogs: typeof source = {
     officeSource: 'Engine source code',
     officeTrademark: 'ONLYOFFICE is a trademark of Ascensio System SIA. Molino is not affiliated with or endorsed by Ascensio System SIA.',
     support: 'Molino is free and always will be. If you find it useful, you can buy me a coffee on GitHub Sponsors.',
-    coffee: 'Buy me a coffee'
+    coffee: 'Buy me a coffee',
+    whatsNew: 'What’s new'
   },
   properties: {
     title: 'Document properties',

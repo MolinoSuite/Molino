@@ -217,6 +217,12 @@ export const shell = {
     update: 'Actualizar',
     notNow: 'Ahora no'
   },
+  // Tras actualizar Molino, una vez (main/whatsnew.ts). {app}: Molino PDF o Molino Suite.
+  whatsNew: {
+    title: '{app} se ha actualizado',
+    text: 'Ya tienes la versión {version}. Mira qué hay de nuevo.',
+    open: 'Ver novedades'
+  },
   recovery: {
     title: 'Recuperar documentos',
     discardAll: 'Descartar todos',

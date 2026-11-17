@@ -19,6 +19,7 @@ import { CallId, DocId, PageId, PrintStartSchema } from './printschema'
 import { isTrustedSender } from './security'
 import type { Store } from './store'
 import type { Updates } from './updates'
+import type { NoticeOwner, WhatsNew } from './whatsnew'
 import { openDefaultAppSettings, pdfDefaultStatus } from './defaultApp'
 import { feedbackAvailable, sendFeedback } from './feedback'
 import { listScanners, scanPages } from './scanner'
@@ -219,7 +220,10 @@ export class Bridge {
     private readonly printer: PrintService,
     private readonly updates: Updates,
     private readonly ai: AiModels,
-    private readonly office: OfficePiece
+    private readonly office: OfficePiece,
+    private readonly whatsNew: WhatsNew,
+    /** Qué ventana enseña el aviso de versión nueva: esta o el inicio de la suite (home.ts). */
+    private readonly updateCard: NoticeOwner
   ) {
     this.register()
     engine.on('down', () => {
@@ -1241,6 +1245,14 @@ export class Bridge {
       this.trusted(event, 'updates:openStore') ? this.updates.openStore() : false
     )
 
+    // ---- los avisos de la ventana de Molino PDF al abrir (whatsnew.ts): solo desde ella,
+    // y cada uno en una sola ventana (si ya lo enseña el inicio de la suite, aquí no)
+    ipcMain.handle('notices:whatsNew', (event) => (this.trusted(event, 'notices:whatsNew') ? this.whatsNew.claim('pdf') : null))
+    ipcMain.on('notices:dismissWhatsNew', (event) => {
+      if (this.trusted(event, 'notices:dismissWhatsNew')) this.whatsNew.dismiss()
+    })
+    ipcMain.handle('notices:updateCard', (event) => this.trusted(event, 'notices:updateCard') && this.updateCard.claim('pdf'))
+
     // ---- comentarios: el texto va al servicio de comentarios (feedback.ts), acotado aquí
     ipcMain.handle('feedback:available', (event) => this.trusted(event, 'feedback:available') && feedbackAvailable())
     this.handle(
@@ -1260,9 +1272,11 @@ export class Bridge {
       this.trusted(event, 'defaultApp:open') ? openDefaultAppSettings() : false
     )
 
-    // ---- acerca de: licencia, componentes de terceros y código fuente (rutas y
-    // dirección fijas, nunca recibidas de la interfaz)
-    this.handle('about:open', z.enum(['license', 'notices', 'source', 'issues', 'sponsors']), async (what) => {
+    // ---- acerca de: licencia, componentes de terceros, código fuente y novedades
+    // (rutas y direcciones fijas, nunca recibidas de la interfaz)
+    this.handle('about:open', z.enum(['license', 'notices', 'source', 'issues', 'sponsors', 'whatsNew']), async (what) => {
+      // La página de novedades de esta versión (whatsnew.ts arma la dirección); con eso, su aviso ya está visto.
+      if (what === 'whatsNew') return this.whatsNew.open()
       if (what === 'source' || what === 'issues' || what === 'sponsors') {
         await shell.openExternal(what === 'issues' ? `${SOURCE_URL}/issues` : what === 'sponsors' ? SPONSORS_URL : SOURCE_URL)
         return true

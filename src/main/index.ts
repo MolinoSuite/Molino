@@ -23,6 +23,7 @@ import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
 import { Store } from './store'
 import { Updates } from './updates'
+import { NoticeOwner, openedBefore, WhatsNew } from './whatsnew'
 import { darkFor } from '@shared/appearance'
 import { extraFontFile, findAptos, FONT_STYLES, interFile } from './fonts'
 
@@ -86,6 +87,10 @@ const firstInstance = cliArgs ? false : app.requestSingleInstanceLock()
 if (!cliArgs && !firstInstance) {
   app.quit()
 }
+
+// ¿Se había abierto antes? (para el aviso de novedades, whatsnew.ts). Antes del
+// paso de datos de abajo y de que el registro de esta vez lo escriba.
+const usedBefore = firstInstance ? openedBefore(app.getPath('userData')) : false
 
 // La primera vez, lo que el usuario tenía en Molino PDF (si esto es Molino Suite)
 // o en Folio (ver migrate.ts). Tiene que ser aquí, antes de app.ready: después
@@ -306,8 +311,15 @@ void app.whenReady().then(async () => {
   engine = new EngineClient(engineLaunch)
   const printer = new PrintService(engine)
   serveApp(join(__dirname, '../renderer'), (url) => printer.respond(url), extraFontFile)
-  updates = new Updates((status) => bridge?.sendUpdate(status))
-  bridge = new Bridge(engine, store, printer, updates, aiModels, office)
+  // Versiones nuevas: el aviso, en Molino PDF y en el inicio de la suite (en una sola de las dos).
+  updates = new Updates((status) => {
+    bridge?.sendUpdate(status)
+    homeWindow?.sendUpdate(status)
+  })
+  const updateCard = new NoticeOwner()
+  // Novedades: el aviso tras actualizar (sin red; ver whatsnew.ts).
+  const whatsNew = new WhatsNew(store, usedBefore)
+  bridge = new Bridge(engine, store, printer, updates, aiModels, office, whatsNew, updateCard)
   // Documentos, Hojas y Presentaciones: sus ventanas, y el motor configurado con
   // la pieza (cada vez que arranca).
   const editors = new OfficeWindows({
@@ -371,7 +383,10 @@ void app.whenReady().then(async () => {
         await bridge?.adoptLegacyAi()
         return removeSeparatePdf()
       }
-    }
+    },
+    whatsNew,
+    updates: { current: () => updates?.current() ?? { state: 'unavailable' }, openStore: async () => (updates ? updates.openStore() : false) },
+    updateCard
   })
   homeWindow = home
   // El tema de cada app (Ajustes → Apariencia en cada una, o el de Windows con «Como Windows»), al momento.
