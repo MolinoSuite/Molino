@@ -169,14 +169,21 @@ export function Menu({ anchor, align = 'start', side = 'bottom', entries, onClos
     const onResize = (): void => {
       if (!place()) onClose()
     }
+    // Otra ventana: se cierra. El teclado que pasa a un documento (un editor que lo coge al
+    // cargar) no: un clic en el documento ya lo cierra (el editor lo avisa, office/engine.ts).
+    const onBlur = (): void => {
+      setTimeout(() => {
+        if (document.activeElement?.tagName !== 'IFRAME') onClose()
+      }, 0)
+    }
     window.addEventListener('pointerdown', onDown, true)
     window.addEventListener('keydown', onKey, true)
-    window.addEventListener('blur', onClose)
+    window.addEventListener('blur', onBlur)
     window.addEventListener('resize', onResize)
     return () => {
       window.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('keydown', onKey, true)
-      window.removeEventListener('blur', onClose)
+      window.removeEventListener('blur', onBlur)
       window.removeEventListener('resize', onResize)
     }
   }, [onClose, place])

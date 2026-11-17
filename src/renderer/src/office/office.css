@@ -21,6 +21,8 @@ body,
 .office {
   height: 100%;
   display: grid;
+  /* Una columna que nunca pasa del ancho de la ventana (muchas pestañas no la ensanchan). */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--titlebar-h) minmax(0, 1fr);
   background: var(--bg-surface);
   color: var(--text);
@@ -39,6 +41,7 @@ body,
 }
 .office-actions {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 6px;
 }

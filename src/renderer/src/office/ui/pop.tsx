@@ -115,11 +115,14 @@ export function Pop({
         onClose()
       }
     }
-    // Pulsar en el documento (otro marco) quita el foco a la ventana: eso también es «fuera».
-    // Justo al abrirse no: el editor puede recuperar el foco de lo que se hizo antes.
+    // Pasar a otra ventana también es «fuera». Que el teclado pase al documento, no (el
+    // editor lo coge al cargar o tras una orden): un clic en él ya lo cierra (engine.ts lo
+    // avisa). Y justo al abrirse, tampoco.
     const openedAt = Date.now()
     const onBlur = (): void => {
-      if (Date.now() - openedAt > 400) onClose()
+      setTimeout(() => {
+        if (Date.now() - openedAt > 400 && document.activeElement?.tagName !== 'IFRAME') onClose()
+      }, 0)
     }
     // Con otro tamaño de ventana, junto al botón donde esté ahora (si ya no está, se cierra).
     const onResize = (): void => {

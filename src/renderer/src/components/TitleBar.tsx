@@ -39,6 +39,7 @@ import { openSearch } from '@/state/search'
 import { CommandSearchButton } from './CommandPalette'
 import { openCommands } from './PdfCommands'
 import { openScan } from './ScanDialog'
+import { TabStrip } from './TabStrip'
 import { Logo, MenuButton, type MenuEntry } from './ui'
 
 export function TitleBar() {
@@ -91,7 +92,7 @@ export function TitleBar() {
         <Logo size={21} />
         <ChevronDown size={11} />
       </MenuButton>
-      <div className="tabs">
+      <TabStrip tabs={order.filter((id) => docs[id]).map((id) => ({ id, name: docs[id].state.name }))} active={active?.id ?? null} onActivate={setActive}>
         {order.map((id) => {
           const doc = docs[id]
           if (!doc) return null
@@ -99,6 +100,8 @@ export function TitleBar() {
             <div
               key={id}
               className={cn('tab', id === active?.id && 'on')}
+              role="tab"
+              aria-selected={id === active?.id}
               title={doc.state.path ?? doc.state.name}
               onPointerDown={(event) => {
                 if (event.button === 1) {
@@ -120,7 +123,7 @@ export function TitleBar() {
             </div>
           )
         })}
-      </div>
+      </TabStrip>
       <MenuButton className="icon-btn sm" entries={createMenu} tip={L.shell.titleBar.openOrCreate}>
         <Plus size={16} />
       </MenuButton>

@@ -22,6 +22,7 @@ import { env, fmt, L } from './i18n'
 import { ICONS } from './icons'
 import { FontsDialog, FontsNotice } from './MissingFonts'
 import { CommandPalette, CommandSearchButton } from '@/components/CommandPalette'
+import { TabStrip } from '@/components/TabStrip'
 import { AboutDialog } from '@/components/About'
 import { FeedbackDialog } from '@/components/FeedbackDialog'
 import { type PrintableDoc, PrintDialogView } from '@/components/Print'
@@ -472,19 +473,19 @@ export function OfficeApp() {
             })}
           />
         )}
-        <div className="tabs" role="tablist" aria-label={T.tabs.label}>
+        <TabStrip tabs={tabs?.tabs.map((t) => ({ id: t.doc, name: t.name })) ?? []} active={tabs?.active ?? null} onActivate={(doc) => void window.molinoOffice.activate(doc)} label={T.tabs.label}>
           {tabs?.tabs.map((tab) => (
             <div key={tab.doc} className={cn('tab', tab.doc === tabs.active && 'on')} role="tab" aria-selected={tab.doc === tabs.active} title={tab.name}>
               <button className="tab-name" onClick={() => void window.molinoOffice.activate(tab.doc)}>
                 {tab.name}
               </button>
               {tab.modified && <span className="tab-dot" aria-label={T.tabs.unsaved} />}
-              <button className="tab-close" aria-label={T.tabs.close} data-tip={T.tabs.close} onClick={() => void window.molinoOffice.closeTab(tab.doc)}>
+              <button className="tab-close" aria-label={T.tabs.close} onClick={() => void window.molinoOffice.closeTab(tab.doc)}>
                 <X size={13} />
               </button>
             </div>
           ))}
-        </div>
+        </TabStrip>
         <button className="icon-btn sm" aria-label={T.tabs.new[kind]} data-tip={T.tabs.new[kind]} onClick={() => void window.molinoOffice.newDoc()}>
           <Plus size={16} />
         </button>
