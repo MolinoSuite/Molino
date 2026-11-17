@@ -792,8 +792,10 @@ function OfficeDock({ kind, state, run, words }: { kind: string; state: EditorSt
   const go = (n: number): void => {
     if (n >= 1 && n <= state.pages) run('goToPage', String(n))
   }
+  // Presentaciones: centrada sobre la diapositiva y por encima de las notas y de la tira (features/slide.tsx).
+  const at = kind === 'slide' ? (state.extra.dockAt as { left: number; bottom: number } | undefined) : undefined
   return (
-    <div className={cn('dock office-dock', kind, kind === 'slide' && state.notes && 'notes')}>
+    <div className={cn('dock office-dock', kind, kind === 'slide' && state.notes && 'notes')} style={at ? { left: at.left, bottom: at.bottom } : undefined}>
       {paged ? (
         <>
           <button className="icon-btn" aria-label={D.previous} data-tip={D.previous} data-tip-side="top" disabled={state.page <= 1} onClick={() => go(state.page - 1)}>

@@ -50,6 +50,34 @@
   height: 14px;
 }
 
+/* «Diapositiva nueva» y su flecha (los diseños), juntas: un botón partido, como el de PowerPoint. */
+.slide-split {
+  display: none;
+}
+.office-toolbar .tool:has(+ .tool > .slide-split) {
+  padding-right: 6px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.office-toolbar .tool.icon:has(> .slide-split) {
+  width: 18px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--border) 70%, transparent);
+}
+.office-toolbar .tool.icon:has(> .slide-split) .tool-caret {
+  opacity: 0.75;
+}
+
+/* Las miniaturas de los diseños (slide/layouts.tsx): la diapositiva en pequeño con sus huecos. */
+.slide-layout-glyph {
+  display: block;
+  color: var(--text);
+}
+.office-tile.on .slide-layout-glyph {
+  color: var(--accent-fg);
+}
+
 /* Texto girado 270°: de abajo arriba. */
 .glyph-text.vertical.slide-vert270 {
   transform: rotate(180deg);

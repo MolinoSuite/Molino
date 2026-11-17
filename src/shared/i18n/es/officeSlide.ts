@@ -22,6 +22,8 @@ export const officeSlide = {
   },
   modes: { view: 'Vista', chart: 'Gráfico' },
   tools: {
+    /** El diseño de la diapositiva, en corto (Inicio). */
+    layout: 'Diseño',
     presenterView: 'Vista del moderador',
     usePresenter: 'Usar la vista del moderador',
     screen: 'Pantalla',

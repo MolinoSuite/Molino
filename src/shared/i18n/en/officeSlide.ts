@@ -22,6 +22,8 @@ export const officeSlide: typeof source = {
   },
   modes: { view: 'View', chart: 'Chart' },
   tools: {
+    /** The slide layout, short (Home). */
+    layout: 'Layout',
     presenterView: 'Presenter view',
     usePresenter: 'Use presenter view',
     screen: 'Display',
