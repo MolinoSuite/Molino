@@ -1573,13 +1573,26 @@
 .fullscreen.idle {
   cursor: none;
 }
-.fullscreen-page {
+/* Cada página en su caja, que se recorre si con el zoom la página no cabe. Las
+   vecinas están ya dibujadas pero ocultas. Los márgenes automáticos la centran
+   cuando cabe, sin cortarla por arriba cuando no. Sin barras de desplazamiento:
+   al ajustar al ancho, una barra le quitaría sitio. */
+.fullscreen-scroll {
   position: absolute;
-  background: #fff;
+  inset: 0;
+  display: flex;
+  overflow: auto;
+  scrollbar-width: none;
   visibility: hidden;
 }
-.fullscreen-page.shown {
+.fullscreen-scroll.shown {
   visibility: visible;
+}
+.fullscreen-page {
+  position: relative;
+  flex: none;
+  margin: auto;
+  background: #fff;
 }
 .fullscreen-bar {
   position: absolute;
@@ -1611,16 +1624,24 @@
 .fullscreen-bar .icon-btn:disabled {
   opacity: 0.35;
 }
+.fullscreen-bar .icon-btn[aria-pressed='true'] {
+  background: rgb(255 255 255 / 0.2);
+}
 .fullscreen-bar .sep {
   width: 1px;
   height: 20px;
   margin: 0 4px;
   background: rgb(255 255 255 / 0.18);
 }
-.fullscreen-count {
+.fullscreen-count,
+.fullscreen-zoom {
   min-width: 72px;
   padding: 0 6px;
   text-align: center;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
+}
+.fullscreen-zoom {
+  min-width: 52px;
+  padding: 0 2px;
 }
