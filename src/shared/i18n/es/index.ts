@@ -21,6 +21,7 @@ import { office } from './office'
 import { officeWord } from './officeWord'
 import { officeCell } from './officeCell'
 import { officeSlide } from './officeSlide'
+import { officeThemes } from './officeThemes'
 import { home } from './home'
 import { cli } from './cli'
 
@@ -47,6 +48,7 @@ export const es = {
   officeWord,
   officeCell,
   officeSlide,
+  officeThemes,
   home,
   cli
 }

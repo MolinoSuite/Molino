@@ -67,6 +67,7 @@ import { chosenScreen, presenterOn, setChosenScreen, setPresenterOn, showEnded, 
 import { RehearsePanel } from './slide/RehearsePanel'
 import { ShowLayer } from './slide/ShowLayer'
 import { SmartArtDialog, smartArtPreviews } from './slide/SmartArtDialog'
+import { currentThemeId, paletteOptions } from './themes/menus'
 import type { Api, Feature, FeatureContext } from './types'
 import './slide/slide.css'
 
@@ -184,11 +185,14 @@ interface Scheme {
   name: string
   colors: string[]
 }
+// Delante, los colores de los temas de Molino y los propios (features/themes/); debajo, las del editor.
 const COLOR_SCHEMES = MENU(
   'colorScheme',
   'colorScheme',
-  (s) =>
-    ((s.extra.colorSchemes as Scheme[] | undefined) ?? []).map((scheme) => ({
+  (s) => [
+    ...paletteOptions(),
+    { value: '', label: L.officeThemes.menu.more, heading: true },
+    ...((s.extra.colorSchemes as Scheme[] | undefined) ?? []).map((scheme) => ({
       value: String(scheme.index),
       label: scheme.name,
       icon: (
@@ -198,9 +202,10 @@ const COLOR_SCHEMES = MENU(
           ))}
         </span>
       )
-    })),
+    }))
+  ],
   <Palette size={ICON} />,
-  { label: ST.colorScheme, caption: true, current: (s) => String(s.extra.colorScheme ?? '') }
+  { label: ST.colorScheme, caption: true, current: (s) => currentThemeId(s) || String(s.extra.colorScheme ?? '') }
 )
 
 // Efectos: la galería de animaciones (se añaden a lo seleccionado), el panel y verlas.

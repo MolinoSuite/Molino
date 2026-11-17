@@ -2,6 +2,7 @@
 
 import type { AiTier } from './ai'
 import type { LangSetting } from './i18n'
+import type { OfficeTheme } from './officeThemes'
 import type { PrintLayout } from './printLayout'
 
 export interface PageInfo {
@@ -249,6 +250,10 @@ export interface Settings {
   aiTier: AiTier
   /** Usar una tarjeta gráfica dedicada para la IA (si la hay). */
   aiGpu: boolean
+  /** Temas de documento propios, los mismos en Documentos, Hojas y Presentaciones (shared/officeThemes.ts). */
+  officeThemes: OfficeTheme[]
+  /** El tema con el que empiezan los documentos nuevos (en blanco) de cada app; sin él, el de siempre. */
+  officeDefaultTheme: Partial<Record<OfficeAppId, string>>
 }
 
 /** Una impresora instalada en Windows. */

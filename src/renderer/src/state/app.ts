@@ -133,7 +133,9 @@ export const DEFAULT_SETTINGS: Settings = {
   appearance: {},
   developer: [],
   aiTier: 'off',
-  aiGpu: true
+  aiGpu: true,
+  officeThemes: [],
+  officeDefaultTheme: {}
 }
 
 interface AppState {

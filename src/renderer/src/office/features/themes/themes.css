@@ -1,0 +1,338 @@
+/* Los temas de documento (features/themes/): miniaturas, cuadros y vista previa. */
+
+/* La miniatura de un tema: una hoja con su fondo, «Aa» con sus fuentes y sus colores debajo. */
+.theme-tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 92px;
+  height: 58px;
+  padding: 6px 7px 6px;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: 7px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  overflow: hidden;
+}
+.theme-tile.large {
+  width: 132px;
+  height: 82px;
+}
+.theme-tile-aa {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.theme-tile-aa b {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.theme-tile-aa span {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.theme-tile.large .theme-tile-aa b {
+  font-size: 30px;
+}
+.theme-tile-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+}
+.theme-tile-strip i {
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* Una combinación de colores: una tira de muestras. */
+.theme-palette {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.theme-palette i {
+  width: 11px;
+  height: 18px;
+}
+.office-tile .theme-palette i {
+  width: 12px;
+  height: 22px;
+}
+
+/* Las dos fuentes de un tema, escritas con su letra. */
+.theme-fontpair {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 132px;
+  max-width: 168px;
+  color: var(--text);
+  line-height: 1.2;
+  text-align: center;
+}
+.theme-fontpair b {
+  font-size: 16px;
+  font-weight: 650;
+}
+.theme-fontpair span {
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+.theme-fontpair b,
+.theme-fontpair span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* El selector de color y el menú de un tema, encima de su cuadro. */
+.office-popover.theme-colorpop,
+body:has(.theme-manager) > .menu {
+  z-index: 450;
+}
+
+/* ------------------------------------------------- crear y editar un tema */
+
+.dialog.theme-editor {
+  width: min(1000px, 100%);
+  height: min(680px, calc(100vh - 48px));
+}
+.theme-editor .dialog-body {
+  flex: 1;
+  min-height: 0;
+  flex-direction: row;
+  gap: 20px;
+  overflow: hidden;
+  padding-bottom: 4px;
+}
+.theme-editor-form {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-right: 6px;
+  overflow: auto;
+}
+.theme-editor-form h3,
+.theme-list-title {
+  margin-bottom: 8px;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.theme-editor-form section > .hint {
+  margin: -4px 0 8px;
+}
+.theme-editor-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 150px;
+  gap: 10px;
+}
+.theme-colors {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.theme-color {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-surface);
+  color: var(--text);
+  font-size: 12.5px;
+  text-align: left;
+}
+.theme-color:hover,
+.theme-color.on {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
+  background: var(--accent-soft);
+}
+.theme-color-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.theme-styles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.theme-styles-head,
+.theme-styles-row {
+  display: grid;
+  grid-template-columns: 76px 92px 56px minmax(120px, 1fr) 62px 52px 52px;
+  align-items: center;
+  gap: 6px;
+}
+.theme-styles-head {
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 600;
+}
+.theme-styles-name {
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 550;
+}
+.theme-styles-row .input {
+  min-width: 0;
+  height: 30px;
+  padding: 0 6px;
+  font-size: 12.5px;
+}
+.theme-styles-color {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.theme-styles-color .office-swatch {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.theme-styles-color .input {
+  flex: 1;
+}
+.theme-styles-toggles {
+  display: flex;
+  gap: 2px;
+}
+.theme-styles-toggles .tool {
+  width: 28px;
+  height: 28px;
+}
+.theme-num {
+  text-align: right;
+}
+.theme-editor-preview {
+  flex: none;
+  width: 330px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+/* La página de muestra (los colores son los del tema, no los de la interfaz). */
+.theme-preview {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgb(0 0 0 / 0.08));
+  user-select: none;
+}
+.theme-preview p {
+  margin: 0;
+  line-height: 1.3;
+}
+.theme-preview-band {
+  padding: 16px 18px 10px;
+}
+.theme-preview-page {
+  padding: 4px 18px 14px;
+}
+.theme-preview-quote {
+  padding-left: 10px;
+  border-left: 3px solid;
+}
+.theme-preview-table {
+  width: 100%;
+  margin-top: 6px;
+  border-collapse: collapse;
+  font-size: 10.5px;
+}
+.theme-preview-table th,
+.theme-preview-table td {
+  padding: 3px 6px;
+  text-align: left;
+}
+.theme-preview-table th {
+  font-weight: 650;
+}
+.theme-preview-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  height: 44px;
+  margin-top: 10px;
+}
+.theme-preview-bars i {
+  flex: 1;
+  border-radius: 3px 3px 0 0;
+}
+
+/* -------------------------------------------------- administrar los temas */
+
+.dialog.theme-manager {
+  width: min(660px, 100%);
+}
+.theme-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.theme-list-title {
+  margin: 4px 0 -6px;
+}
+.theme-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+.theme-row:hover {
+  background: var(--bg-hover);
+}
+.theme-row .theme-tile {
+  flex: none;
+  width: 74px;
+  height: 46px;
+  padding: 4px 6px;
+}
+.theme-row .theme-tile-aa b {
+  font-size: 18px;
+}
+.theme-row .theme-tile-strip i {
+  height: 6px;
+}
+.theme-row-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--text);
+}
+.theme-row-text .hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.theme-row.confirm {
+  background: color-mix(in srgb, var(--danger, #c4505a) 10%, transparent);
+}
+.theme-badge {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-fg);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.theme-manager .dialog-body {
+  overflow-x: hidden;
+}
