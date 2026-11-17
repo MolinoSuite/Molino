@@ -3,6 +3,8 @@
 .app {
   height: 100%;
   display: grid;
+  /* Una columna que nunca pasa del ancho de la ventana (muchas pestañas no la ensanchan). */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--titlebar-h) minmax(0, 1fr);
   background: var(--bg-surface);
 }
@@ -13,6 +15,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
   padding: 0 142px 0 10px; /* a la derecha quedan los botones de ventana de Windows */
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
@@ -50,13 +53,41 @@
   background: var(--bg-hover);
   color: var(--text);
 }
+/* Las pestañas (TabStrip.tsx): se estrechan hasta su ancho mínimo y, si aun así
+   no caben, la tira se desplaza (sin barra: rueda, flechas y la lista de todas). */
+.tabs-strip {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  /* Cuando falta sitio, se estrecha antes que nada de la barra (el buscador, después). */
+  flex: 0 1000 auto;
+}
+/* Cuando no caben: sitio para la pestaña activa entera, con sus flechas y la lista. */
+.tabs-strip.overflow {
+  min-width: 214px;
+}
+.tabs-strip .tabs-arrow,
+.tabs-strip .tabs-list {
+  flex: none;
+  -webkit-app-region: no-drag;
+}
+.tabs-strip .tabs-arrow:disabled {
+  opacity: 0.35;
+}
 .tabs {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 3px;
   min-width: 0;
   flex: 0 1 auto;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 .tab {
   -webkit-app-region: no-drag;
@@ -65,7 +96,7 @@
   align-items: center;
   gap: 7px;
   height: 29px;
-  min-width: 64px;
+  min-width: 104px;
   max-width: 220px;
   flex: 0 1 220px;
   padding: 0 5px 0 11px;
@@ -122,7 +153,7 @@
 }
 .titlebar-fill {
   flex: 1;
-  min-width: 20px;
+  min-width: 12px;
   align-self: stretch;
 }
 .isolation-warning {
@@ -130,6 +161,7 @@
 }
 .titlebar-actions {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 2px;
 }
@@ -1422,10 +1454,14 @@
 /* «¿Qué quieres hacer?»: el botón de la barra de título y el buscador (todas las apps; CommandPalette.tsx). */
 .command-search {
   display: inline-flex;
+  /* Se acorta lo último: primero se estrechan las pestañas; en una ventana muy
+     estrecha, sus letras con «…» y, al final, solo la lupa. */
+  flex: 0 1 260px;
   align-items: center;
   gap: 8px;
   height: 28px;
-  min-width: 220px;
+  min-width: 34px;
+  overflow: hidden;
   padding: 0 8px 0 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1439,7 +1475,15 @@
 }
 .command-search span {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
   text-align: left;
+}
+.command-search kbd,
+.command-search svg {
+  flex: none;
 }
 .command-search kbd {
   padding: 1px 5px;

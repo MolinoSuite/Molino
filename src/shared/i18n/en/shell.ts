@@ -106,6 +106,9 @@ export const shell: typeof source = {
   titleBar: {
     unsaved: 'Unsaved changes',
     closeTab: 'Close {name}',
+    tabsBack: 'Previous tabs',
+    tabsForward: 'Next tabs',
+    allTabs: 'All tabs',
     openOrCreate: 'Open or create',
     isolation: {
       tip: 'Reduced protection',

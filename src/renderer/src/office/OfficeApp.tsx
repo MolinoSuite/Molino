@@ -10,11 +10,11 @@ import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/of
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { AI_TASKS, AiPanel, type AiTask } from './AiPanel'
-import { aiMode, APPS, HIGHLIGHT, paletteEntries, TEXT_COLOR, type Tool } from './apps'
+import { aiMode, APPS, colorToolOf, type ColorToolDef, HIGHLIGHT, paletteEntries, TEXT_COLOR, type Tool } from './apps'
 import { FEATURES } from './features'
 import { SheetTabs } from './SheetTabs'
 import { ToolBar } from './Toolbar'
-import { ColorTool } from './ui/pickers'
+import { applyColor, ColorAsk, ColorTool } from './ui/pickers'
 import { closeAllPops } from './ui/pop'
 import { FindBar, FunctionDialog, PromptDialog, type PromptSpec, StatsDialog, SymbolsDialog } from './dialogs'
 import { type ContextInfo, type EditorNotice, EditorSession, type EditorState } from './engine'
@@ -22,6 +22,7 @@ import { env, fmt, L } from './i18n'
 import { ICONS } from './icons'
 import { FontsDialog, FontsNotice } from './MissingFonts'
 import { CommandPalette, CommandSearchButton } from '@/components/CommandPalette'
+import { TabStrip } from '@/components/TabStrip'
 import { AboutDialog } from '@/components/About'
 import { FeedbackDialog } from '@/components/FeedbackDialog'
 import { type PrintableDoc, PrintDialogView } from '@/components/Print'
@@ -126,6 +127,8 @@ export function OfficeApp() {
   const [fileMenu, setFileMenu] = useState<DOMRect | null>(null)
   const [find, setFind] = useState<{ replace: boolean } | null>(null)
   const [dialog, setDialog] = useState<OfficeDialog | null>(null)
+  // El desplegable de color abierto desde «¿Qué quieres hacer?» («Color del texto…»).
+  const [colorAsk, setColorAsk] = useState<ColorToolDef | null>(null)
   const [aiTask, setAiTask] = useState<AiTask>(AI_TASKS[kind][0])
   const [menu, setMenu] = useState<{ doc: string; info: ContextInfo } | null>(null)
   const [notice, setNotice] = useState<EditorNotice | null>(null)
@@ -242,6 +245,16 @@ export function OfficeApp() {
       }
       if (Object.hasOwn(windowCommands, command)) return (windowCommands[command](), true)
       if (!active?.ready) return false
+      // Los colores desde «¿Qué quieres hacer?»: su desplegable («Color del texto…») o un color con nombre («Color del texto: Rojo»).
+      if (command === 'colorAsk' || command === 'colorSet') {
+        const at = (value ?? '').indexOf(':')
+        const tool = colorToolOf(app, command === 'colorAsk' ? (value ?? '') : (value ?? '').slice(0, Math.max(0, at)))
+        if (!tool) return false
+        if (command === 'colorAsk') return (setColorAsk(tool), true)
+        const color = (value ?? '').slice(at + 1)
+        if (color && !/^#[0-9a-f]{6}$/i.test(color)) return false
+        return applyColor(tool, color, (c, v) => active.run(c, v))
+      }
       // Lo que pregunta algo antes (buscar, vínculo, símbolo, función…): un cuadro de Molino.
       if (command === 'find' || command === 'replace') {
         setFind({ replace: command === 'replace' })
@@ -353,7 +366,7 @@ export function OfficeApp() {
       if (host) return tabs?.active ? (host(tabs.active, active, value), true) : false
       return active.run(command, value)
     },
-    [active, tabs?.active, activeHasFile, kind, togglePanel]
+    [active, tabs?.active, activeHasFile, kind, togglePanel, app]
   )
   // Lo que piden los editores (EditorSession.onRequest): siempre con la orden de ahora.
   const runRef = useRef(run)
@@ -460,19 +473,19 @@ export function OfficeApp() {
             })}
           />
         )}
-        <div className="tabs" role="tablist" aria-label={T.tabs.label}>
+        <TabStrip tabs={tabs?.tabs.map((t) => ({ id: t.doc, name: t.name })) ?? []} active={tabs?.active ?? null} onActivate={(doc) => void window.molinoOffice.activate(doc)} label={T.tabs.label}>
           {tabs?.tabs.map((tab) => (
             <div key={tab.doc} className={cn('tab', tab.doc === tabs.active && 'on')} role="tab" aria-selected={tab.doc === tabs.active} title={tab.name}>
               <button className="tab-name" onClick={() => void window.molinoOffice.activate(tab.doc)}>
                 {tab.name}
               </button>
               {tab.modified && <span className="tab-dot" aria-label={T.tabs.unsaved} />}
-              <button className="tab-close" aria-label={T.tabs.close} data-tip={T.tabs.close} onClick={() => void window.molinoOffice.closeTab(tab.doc)}>
+              <button className="tab-close" aria-label={T.tabs.close} onClick={() => void window.molinoOffice.closeTab(tab.doc)}>
                 <X size={13} />
               </button>
             </div>
           ))}
-        </div>
+        </TabStrip>
         <button className="icon-btn sm" aria-label={T.tabs.new[kind]} data-tip={T.tabs.new[kind]} onClick={() => void window.molinoOffice.newDoc()}>
           <Plus size={16} />
         </button>
@@ -680,6 +693,7 @@ export function OfficeApp() {
       <Toasts />
       {fontsFor && <FontsDialog doc={fontsFor} onClose={() => setFontsFor(null)} />}
       {dialog?.type === 'prompt' && <PromptDialog spec={dialog.spec} onClose={closeDialog} />}
+      {colorAsk && state?.ready && <ColorAsk key={colorAsk.key} tool={colorAsk} state={state} run={run} onClose={() => setColorAsk(null)} />}
       {menu && active && menu.doc === tabs?.active && state && (
         <Menu
           anchor={{ x: menu.info.x, y: menu.info.y }}

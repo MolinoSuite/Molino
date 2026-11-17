@@ -21,6 +21,8 @@ body,
 .office {
   height: 100%;
   display: grid;
+  /* Una columna que nunca pasa del ancho de la ventana (muchas pestañas no la ensanchan). */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: var(--titlebar-h) minmax(0, 1fr);
   background: var(--bg-surface);
   color: var(--text);
@@ -39,6 +41,7 @@ body,
 }
 .office-actions {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 6px;
 }
@@ -1024,7 +1027,9 @@ body,
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
   padding: 8px;
-  overflow: auto;
+  /* Solo hacia abajo: un píxel de más a lo ancho (el anillo de un color elegido) no saca barras. */
+  overflow-x: hidden;
+  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--bg-surface);

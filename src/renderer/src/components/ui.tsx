@@ -78,13 +78,14 @@ const GAP = 6
  * si se pide) si cabe entero; si no, en el lado con más sitio y con la altura
  * que quepa (entonces, con barra de desplazamiento). Nunca tapa lo que lo abre,
  * salvo un punto (el menú del botón derecho), que se mueve para caber entero.
- * ``size``: lo que mide con todo su contenido.
+ * ``size``: lo que mide con todo su contenido. ``scroll``: si no cabe entero y
+ * necesita barra (si cabe, sin barra: las etiquetas emergentes, invisibles, no la sacan).
  */
 export function placeNear(
   anchor: DOMRect,
   size: { width: number; height: number },
   { align = 'start', side = 'bottom', point = false }: { align?: 'start' | 'center' | 'end'; side?: 'bottom' | 'top'; point?: boolean } = {}
-): { left: number; top: number; maxHeight: number } {
+): { left: number; top: number; maxHeight: number; scroll: boolean } {
   const gap = point ? 2 : GAP
   const below = window.innerHeight - anchor.bottom - gap - EDGE
   const above = anchor.top - gap - EDGE
@@ -101,7 +102,7 @@ export function placeNear(
   }
   let left = align === 'end' ? anchor.right - size.width : align === 'center' ? anchor.left + anchor.width / 2 - size.width / 2 : anchor.left
   left = Math.max(EDGE, Math.min(left, window.innerWidth - size.width - EDGE))
-  return { left, top, maxHeight }
+  return { left, top, maxHeight, scroll: maxHeight < size.height }
 }
 
 /**
@@ -137,7 +138,7 @@ interface MenuProps {
  */
 export function Menu({ anchor, align = 'start', side = 'bottom', entries, onClose, minWidth }: MenuProps) {
   const ref = useRef<HTMLDivElement>(null)
-  const [position, setPosition] = useState<{ left: number; top: number; maxHeight: number } | null>(null)
+  const [position, setPosition] = useState<{ left: number; top: number; maxHeight: number; scroll: boolean } | null>(null)
   const anchorRef = useRef(anchor)
   anchorRef.current = anchor
 
@@ -168,14 +169,21 @@ export function Menu({ anchor, align = 'start', side = 'bottom', entries, onClos
     const onResize = (): void => {
       if (!place()) onClose()
     }
+    // Otra ventana: se cierra. El teclado que pasa a un documento (un editor que lo coge al
+    // cargar) no: un clic en el documento ya lo cierra (el editor lo avisa, office/engine.ts).
+    const onBlur = (): void => {
+      setTimeout(() => {
+        if (document.activeElement?.tagName !== 'IFRAME') onClose()
+      }, 0)
+    }
     window.addEventListener('pointerdown', onDown, true)
     window.addEventListener('keydown', onKey, true)
-    window.addEventListener('blur', onClose)
+    window.addEventListener('blur', onBlur)
     window.addEventListener('resize', onResize)
     return () => {
       window.removeEventListener('pointerdown', onDown, true)
       window.removeEventListener('keydown', onKey, true)
-      window.removeEventListener('blur', onClose)
+      window.removeEventListener('blur', onBlur)
       window.removeEventListener('resize', onResize)
     }
   }, [onClose, place])
@@ -185,7 +193,7 @@ export function Menu({ anchor, align = 'start', side = 'bottom', entries, onClos
       ref={ref}
       className="menu"
       role="menu"
-      style={{ left: position?.left ?? 0, top: position?.top ?? 0, maxHeight: position?.maxHeight, visibility: position ? 'visible' : 'hidden', minWidth }}
+      style={{ left: position?.left ?? 0, top: position?.top ?? 0, maxHeight: position?.maxHeight, overflowY: position?.scroll ? 'auto' : 'hidden', visibility: position ? 'visible' : 'hidden', minWidth }}
     >
       {entries.map((entry, index) => {
         if (entry === 'sep') return <div key={index} className="menu-sep" />

@@ -109,6 +109,9 @@ export const shell = {
   titleBar: {
     unsaved: 'Cambios sin guardar',
     closeTab: 'Cerrar {name}',
+    tabsBack: 'Pestañas anteriores',
+    tabsForward: 'Pestañas siguientes',
+    allTabs: 'Todas las pestañas',
     openOrCreate: 'Abrir o crear',
     isolation: {
       tip: 'Protección reducida',

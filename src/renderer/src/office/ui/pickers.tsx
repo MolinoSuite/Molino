@@ -1,10 +1,10 @@
 import { Check, ChevronDown, Plus, Search } from 'lucide-react'
 import { type CSSProperties, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { cn } from '@/lib/cn'
-import { type MenuOption, optionsOf, type Tool } from '../apps'
+import { type ColorToolDef, type MenuOption, noneLabelOf, optionsOf, type Tool } from '../apps'
 import type { EditorState } from '../engine'
 import { L } from '../i18n'
-import { ColorPicker } from './ColorPicker'
+import { ColorPicker, rememberColor } from './ColorPicker'
 import { Pop, usePopButton } from './pop'
 
 const T = L.office
@@ -119,19 +119,29 @@ export function VisualMenu({
 const lastColor = new Map<string, string>()
 
 /**
+ * Pone un color con una herramienta (desde su desplegable o desde «¿Qué quieres
+ * hacer?»): queda como el último de ese botón y entre los usados hace poco.
+ */
+export function applyColor(tool: ColorToolDef, color: string, run: Run): unknown {
+  if (color) {
+    lastColor.set(tool.key, color)
+    rememberColor(color.toLowerCase())
+  }
+  return run(tool.command ?? tool.key, color)
+}
+
+/**
  * Un color (texto, resaltado, relleno, contorno, fondo): el botón pone el
  * último usado; la flecha abre la paleta completa.
  */
 export function ColorTool({ tool, state, ready, run }: { tool: Extract<Tool, { type: 'color' }>; state: EditorState | null; ready: boolean; run: Run }) {
   const pop = usePopButton()
   const label = toolLabel(tool)
-  const command = tool.command ?? tool.key
   const swatch = (state && tool.swatch(state)) || null
   const last = lastColor.get(tool.key) ?? tool.defaultColor ?? null
   const apply = (color: string): void => {
-    if (color) lastColor.set(tool.key, color)
     pop.close()
-    run(command, color)
+    applyColor(tool, color, run)
   }
   return (
     <span className="office-colortool">
@@ -139,15 +149,55 @@ export function ColorTool({ tool, state, ready, run }: { tool: Extract<Tool, { t
         {tool.icon}
         <span className="swatch" style={{ background: last ?? swatch ?? 'transparent' }} />
       </button>
-      <button ref={pop.button} className={cn('tool office-colortool-more', pop.anchor && 'on')} aria-label={`${label}: ${T.colors}`} aria-haspopup="dialog" aria-expanded={pop.anchor !== null} disabled={!ready} onClick={pop.toggle}>
+      <button
+        ref={pop.button}
+        className={cn('tool office-colortool-more', pop.anchor && 'on')}
+        aria-label={`${label}: ${T.colors}`}
+        aria-haspopup="dialog"
+        aria-expanded={pop.anchor !== null}
+        data-color-tool={tool.key}
+        disabled={!ready}
+        onClick={pop.toggle}
+      >
         <ChevronDown size={11} />
       </button>
       {pop.anchor && (
         <Pop anchor={pop.anchor} trigger={pop.button} onClose={pop.close} label={label} className="office-colorpop">
-          <ColorPicker current={swatch} swatches={tool.swatches} none={tool.none} noneLabel={tool.key === 'highlight' ? T.noHighlight : tool.key === 'color' ? T.colorPicker.automatic : T.noFill} onPick={apply} />
+          <ColorPicker current={swatch} swatches={tool.swatches} none={tool.none} noneLabel={noneLabelOf(tool)} onPick={apply} />
         </Pop>
       )}
     </span>
+  )
+}
+
+/**
+ * El desplegable de color de una herramienta, abierto desde «¿Qué quieres
+ * hacer?»: el mismo que el de la barra, junto a su botón si se ve; si no (está
+ * en otra pestaña o en «Más»), debajo del buscador y con el nombre de la herramienta.
+ */
+export function ColorAsk({ tool, state, run, onClose }: { tool: ColorToolDef; state: EditorState; run: Run; onClose: () => void }) {
+  const label = toolLabel(tool)
+  const [at] = useState(() => {
+    const own = [...document.querySelectorAll<HTMLElement>('.office-toolbar [data-color-tool]')].find((b) => b.dataset.colorTool === tool.key)
+    const box = own?.getBoundingClientRect()
+    if (box && box.width > 0) return { anchor: box, align: 'start' as const, titled: false }
+    const search = document.querySelector('.command-search')?.getBoundingClientRect()
+    return { anchor: search ?? new DOMRect(window.innerWidth / 2, 40, 0, 0), align: 'center' as const, titled: true }
+  })
+  return (
+    <Pop anchor={at.anchor} align={at.align} onClose={onClose} label={label} className="office-colorpop">
+      {at.titled && <div className="office-visual-title">{label}</div>}
+      <ColorPicker
+        current={tool.swatch(state) || null}
+        swatches={tool.swatches}
+        none={tool.none}
+        noneLabel={noneLabelOf(tool)}
+        onPick={(color) => {
+          onClose()
+          applyColor(tool, color, run)
+        }}
+      />
+    </Pop>
   )
 }
 
