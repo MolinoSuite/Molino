@@ -12,45 +12,46 @@
   <img src="https://img.shields.io/badge/Windows-10%20%C2%B7%2011-2F40A8?style=for-the-badge" alt="Windows 10 y 11">
   <img src="https://img.shields.io/badge/gratis-para%20siempre-2A9358?style=for-the-badge" alt="Gratis para siempre">
   <img src="https://img.shields.io/badge/telemetr%C3%ADa-cero-2A9358?style=for-the-badge" alt="Sin telemetría">
-  <a href="https://github.com/sponsors/CuevasTech"><img src="https://img.shields.io/badge/ap%C3%B3yalo-Sponsors-C4505A?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Apoya Molino en GitHub Sponsors"></a>
 </p>
 
-<h3 align="center">Documentos, hojas de cálculo, presentaciones y PDF.<br>Sin suscripciones, sin cuentas y sin subir tus archivos a la nube de nadie.</h3>
+<h3 align="center">Escribe, haz cuentas, presenta y firma.<br>Cuatro apps gratis para tu ordenador, sin suscripciones, sin cuentas y sin subir nada a la nube.</h3>
+
+<p align="center"><b><a href="https://molinosuite.org/descargar/">⬇&nbsp; Descarga Molino gratis</a></b> · en la Microsoft Store</p>
 
 <br>
 
-## Las apps
+## Cuatro apps, una sola instalación
 
-Cada aspa del molino es una app. En la Microsoft Store: **Molino PDF**, si solo quieres el PDF, o **Molino Suite**, con todas.
+Cada aspa del molino es una app, y todas abren y guardan los archivos que ya usas.
 
 <table>
   <tr>
     <td align="center" width="25%" valign="top">
-      <a href="docs/pdf.md"><img src=".github/marca/pdf.svg" width="96" alt=""></a>
-      <h3><a href="docs/pdf.md">Molino PDF</a></h3>
-      <p>Lee, rellena, firma, edita y organiza tus PDF.</p>
-      <a href="https://apps.microsoft.com/detail/9NRTWZFHG67N"><img src="https://img.shields.io/badge/-en%20la%20Microsoft%20Store-2A9358?style=flat-square" alt="En la Microsoft Store"></a>
-    </td>
-    <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/documentos/"><img src=".github/marca/documentos.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/documentos/">Molino Documentos</a></h3>
-      <p>Cartas, informes y cualquier documento, también los de Word.</p>
-      <a href="https://apps.microsoft.com/detail/9PB626KN1HND"><img src="https://img.shields.io/badge/-en%20Molino%20Suite-2A9358?style=flat-square" alt="En Molino Suite"></a>
+      <p>Cartas, trabajos, informes y currículums. También los de Word.</p>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/hojas/"><img src=".github/marca/hojas.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/hojas/">Molino Hojas</a></h3>
-      <p>Cuentas, presupuestos, listas y tablas, también las de Excel.</p>
-      <a href="https://apps.microsoft.com/detail/9PB626KN1HND"><img src="https://img.shields.io/badge/-en%20Molino%20Suite-2A9358?style=flat-square" alt="En Molino Suite"></a>
+      <p>Cuentas de casa, presupuestos, facturas y listas. También las de Excel.</p>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/presentaciones/"><img src=".github/marca/presentaciones.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/presentaciones/">Molino Presentaciones</a></h3>
-      <p>Para clase, el trabajo o una idea, también las de PowerPoint.</p>
-      <a href="https://apps.microsoft.com/detail/9PB626KN1HND"><img src="https://img.shields.io/badge/-en%20Molino%20Suite-2A9358?style=flat-square" alt="En Molino Suite"></a>
+      <p>Para clase, para el trabajo o para contar una idea. También las de PowerPoint.</p>
+    </td>
+    <td align="center" width="25%" valign="top">
+      <a href="https://molinosuite.org/pdf/"><img src=".github/marca/pdf.svg" width="96" alt=""></a>
+      <h3><a href="https://molinosuite.org/pdf/">Molino PDF</a></h3>
+      <p>Rellena, firma con tu certificado, edita y organiza tus PDF.</p>
     </td>
   </tr>
 </table>
+
+<p align="center">
+  <a href="https://molinosuite.org"><img src=".github/inicio.png" width="860" alt="Molino, el inicio desde el que se crea un documento, una hoja de cálculo o una presentación, se abre un PDF y se ven los archivos recientes"></a>
+</p>
 
 ## Las mismas reglas, para las cuatro
 
@@ -61,47 +62,19 @@ Cada aspa del molino es una app. En la Microsoft Store: **Molino PDF**, si solo 
     <td width="33%" valign="top"><h3>🙅 Sin cuentas</h3>Ni correo, ni registro, ni iniciar sesión. Lo instalas y lo usas.</td>
   </tr>
   <tr>
-    <td valign="top"><h3>📂 Abre lo que te mandan</h3>Pensadas para los documentos de Office y para los formatos abiertos.</td>
-    <td valign="top"><h3>🧠 IA en tu equipo, si quieres</h3>Opcional y apagada de serie. Lo que le preguntas no sale de tu ordenador.</td>
+    <td valign="top"><h3>📂 Abre lo que te mandan</h3>Documentos, hojas y presentaciones de Office, los formatos abiertos y cualquier PDF.</td>
+    <td valign="top"><h3>✍️ Del documento al trámite</h3>Escríbelo, guárdalo en PDF, fírmalo con tu certificado y compruébalo antes de presentarlo.</td>
     <td valign="top"><h3>🔍 Código abierto</h3>Software libre: cualquiera puede revisarlo, y nadie puede cerrártelo.</td>
   </tr>
 </table>
 
-## La primera: Molino PDF
-
-<p align="center">
-  <a href="docs/pdf.md"><img src=".github/presupuesto.png" width="860" alt="Molino PDF con un presupuesto que calcula solo los importes, el IVA y el total"></a>
-</p>
-
-<p align="center">Formularios que hacen las cuentas solos, firma con certificado digital, escáner con el móvil e IA que no sale de tu ordenador.<br><b><a href="docs/pdf.md">Todo lo que hace Molino PDF →</a></b></p>
-
-## Automatiza tareas, en todas las apps
-
-**El comando `molino`** trabaja con los archivos de todas las apps sin abrir ninguna ventana, desde PowerShell, un `.bat` o el Programador de tareas de Windows:
-
-- **Convertir:** Word, Excel, PowerPoint y OpenDocument a PDF o a otro formato de oficina (`.docx` a `.odt`, `.xlsx` a `.csv`…), con Molino Suite; PDF a Word, a texto o a imágenes; fotos a PDF.
-- **Trabajar con PDF:** unir, extraer, dividir, girar, comprimir, pasar el OCR, poner marca de agua o números de página, proteger con contraseña y limpiar datos ocultos.
-- **Firmas y formularios:** firmar con un certificado de Windows o un `.pfx`, verificar firmas y rellenar formularios desde un JSON.
-- **Imprimir**, también documentos, hojas y presentaciones.
-
-```powershell
-molino convertir cuentas.xlsx cuentas.pdf
-molino firmar contrato.pdf -o firmado.pdf --certificado "Juan Español"
-Get-ChildItem *.docx | ForEach-Object { molino convertir $_.FullName ($_.BaseName + ".pdf") }
-```
-
-**Tus propios scripts** en Documentos, Hojas y Presentaciones: JavaScript con la API de documentos de ONLYOFFICE, que trabaja sobre el documento abierto, sin acceso a tus archivos ni a internet; Ctrl+Z deshace lo que hace. Están en la pestaña **Avanzado** (en Presentaciones, **Scripts**), que viene oculta y se activa en Ajustes. En Documentos trae también controles de formulario, y en Hojas, validación de datos, bloqueo de celdas y protección de hojas. Las macros que traen los documentos nunca se ejecutan.
-
-Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
-
 ## Instalar
 
-- **Molino Suite** (Molino, Molino PDF, Documentos, Hojas y Presentaciones): [en la Microsoft Store](https://apps.microsoft.com/detail/9PB626KN1HND), o con `winget install "Molino Suite"`.
-- **Molino PDF**, si solo quieres el PDF: [en la Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), o con `winget install "Molino PDF"`.
+Gratis desde la Microsoft Store: entra en **[molinosuite.org/descargar](https://molinosuite.org/descargar/)** y elige **Molino Suite**, con las cuatro apps, o **Molino PDF**, si solo quieres el PDF. Sin cuenta y sin permisos de administrador, y las versiones nuevas llegan solas.
 
-Gratis, sin cuenta y sin permisos de administrador; las versiones nuevas llegan solas por la Store. Si tienes Molino PDF e instalas Molino Suite, la Suite se trae tus ajustes y lo sustituye.
+También con winget: `winget install "Molino Suite"` o `winget install "Molino PDF"`.
 
-Para Windows 10 y 11 de 64 bits. Linux, más adelante.
+Para Windows 10 y 11 de 64 bits. Linux y Mac, más adelante.
 
 ## Privacidad
 
@@ -116,6 +89,15 @@ Molino es gratis y lo seguirá siendo. Si te resulta útil, cuéntaselo a alguie
 Molino es software libre con licencia [GNU AGPL, versión 3 o posterior](LICENSE), y se ofrece sin ninguna garantía. © 2026 CuevasTech. Los nombres y los logos no entran en la licencia: lo que puedes hacer con ellos está en [TRADEMARKS.md](TRADEMARKS.md#nombre-y-logo-de-molino).
 
 Documentos, Hojas y Presentaciones se basan en el software ONLYOFFICE de Ascensio System SIA (AGPL-3.0), en una versión modificada por Molino que funciona en tu equipo. Cómo se arma y qué cambia está en [`office/`](office/).
+
+<details>
+<summary><b>Para usuarios avanzados: la línea de órdenes y los scripts</b></summary>
+
+<br>
+
+El comando `molino` convierte, une, firma, rellena e imprime documentos sin abrir ninguna ventana, desde PowerShell, un `.bat` o el Programador de tareas de Windows. En Documentos, Hojas y Presentaciones puedes guardar tus propios scripts (pestaña **Avanzado**, que se activa en Ajustes); las macros que traen los documentos nunca se ejecutan. Todo está en el [manual de la línea de órdenes](docs/linea-de-ordenes.md).
+
+</details>
 
 <details>
 <summary><b>Para desarrolladores: compilar desde el código</b></summary>
@@ -134,6 +116,6 @@ powershell -File scripts\fetch-tessdata.ps1
 npm run dist:store
 ```
 
-El paquete de Molino PDF para la Microsoft Store (MSIX, sin firmar: lo firma la Store) queda en `dist\`. El de Molino Suite, con Documentos, Hojas y Presentaciones, necesita además el motor de oficina (`engine\.venv\Scripts\python.exe -I office\build.py`) y sale con `npm run dist:suite`, en `dist-suite\`.
+El paquete de Molino PDF para la Microsoft Store (MSIX, sin firmar: lo firma la Store) queda en `dist\`. El de Molino Suite, con Documentos, Hojas y Presentaciones, necesita además el motor de oficina (`engine\.venv\Scripts\python.exe -I office\build.py`) y los diccionarios (`engine\.venv\Scripts\python.exe -I scripts\fetch-dictionaries.py`), y sale con `npm run dist:suite`, en `dist-suite\`.
 
 </details>

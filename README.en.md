@@ -12,45 +12,46 @@
   <img src="https://img.shields.io/badge/Windows-10%20%C2%B7%2011-2F40A8?style=for-the-badge" alt="Windows 10 and 11">
   <img src="https://img.shields.io/badge/free-forever-2A9358?style=for-the-badge" alt="Free forever">
   <img src="https://img.shields.io/badge/telemetry-none-2A9358?style=for-the-badge" alt="No telemetry">
-  <a href="https://github.com/sponsors/CuevasTech"><img src="https://img.shields.io/badge/support-Sponsors-C4505A?style=for-the-badge&logo=githubsponsors&logoColor=white" alt="Support Molino on GitHub Sponsors"></a>
 </p>
 
-<h3 align="center">Documents, spreadsheets, presentations and PDF.<br>No subscriptions, no accounts and no uploading your files to anyone’s cloud.</h3>
+<h3 align="center">Write, do the numbers, present and sign.<br>Four free apps for your computer, with no subscriptions, no accounts and nothing uploaded to the cloud.</h3>
+
+<p align="center"><b><a href="https://molinosuite.org/en/download/">⬇&nbsp; Get Molino for free</a></b> · in the Microsoft Store</p>
 
 <br>
 
-## The apps
+## Four apps, one install
 
-Each sail of the windmill is an app. In the Microsoft Store: **Molino PDF**, if you only want PDF, or **Molino Suite**, with all of them.
+Each sail of the windmill is an app, and they all open and save the files you already use.
 
 <table>
   <tr>
     <td align="center" width="25%" valign="top">
-      <a href="docs/pdf.en.md"><img src=".github/marca/pdf.svg" width="96" alt=""></a>
-      <h3><a href="docs/pdf.en.md">Molino PDF</a></h3>
-      <p>Read, fill in, sign, edit and organize your PDFs.</p>
-      <a href="https://apps.microsoft.com/detail/9NRTWZFHG67N"><img src="https://img.shields.io/badge/-in%20the%20Microsoft%20Store-2A9358?style=flat-square" alt="In the Microsoft Store"></a>
-    </td>
-    <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/en/docs/"><img src=".github/marca/documentos.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/en/docs/">Molino Docs</a></h3>
-      <p>Letters, reports and any document, Word files included.</p>
-      <a href="https://apps.microsoft.com/detail/9PB626KN1HND"><img src="https://img.shields.io/badge/-in%20Molino%20Suite-2A9358?style=flat-square" alt="In Molino Suite"></a>
+      <p>Letters, assignments, reports and resumes. Word files too.</p>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/en/sheets/"><img src=".github/marca/hojas.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/en/sheets/">Molino Sheets</a></h3>
-      <p>Accounts, budgets, lists and tables, Excel files included.</p>
-      <a href="https://apps.microsoft.com/detail/9PB626KN1HND"><img src="https://img.shields.io/badge/-in%20Molino%20Suite-2A9358?style=flat-square" alt="In Molino Suite"></a>
+      <p>Household accounts, budgets, invoices and lists. Excel files too.</p>
     </td>
     <td align="center" width="25%" valign="top">
       <a href="https://molinosuite.org/en/slides/"><img src=".github/marca/presentaciones.svg" width="96" alt=""></a>
       <h3><a href="https://molinosuite.org/en/slides/">Molino Slides</a></h3>
-      <p>For class, for work or for an idea, PowerPoint files included.</p>
-      <a href="https://apps.microsoft.com/detail/9PB626KN1HND"><img src="https://img.shields.io/badge/-in%20Molino%20Suite-2A9358?style=flat-square" alt="In Molino Suite"></a>
+      <p>For class, for work or to get an idea across. PowerPoint files too.</p>
+    </td>
+    <td align="center" width="25%" valign="top">
+      <a href="https://molinosuite.org/en/pdf/"><img src=".github/marca/pdf.svg" width="96" alt=""></a>
+      <h3><a href="https://molinosuite.org/en/pdf/">Molino PDF</a></h3>
+      <p>Fill in, sign with your certificate, edit and organize your PDFs.</p>
     </td>
   </tr>
 </table>
+
+<p align="center">
+  <a href="https://molinosuite.org/en/"><img src=".github/home.png" width="860" alt="Molino, the start screen to create a document, a spreadsheet or a presentation, open a PDF and see your recent files"></a>
+</p>
 
 ## The same rules, for all four
 
@@ -61,47 +62,19 @@ Each sail of the windmill is an app. In the Microsoft Store: **Molino PDF**, if 
     <td width="33%" valign="top"><h3>🙅 No accounts</h3>No email, no sign-up, no logging in. Install it and use it.</td>
   </tr>
   <tr>
-    <td valign="top"><h3>📂 Opens what people send you</h3>Designed for Office documents and for open formats.</td>
-    <td valign="top"><h3>🧠 AI on your computer, if you want</h3>Optional and off by default. What you ask never leaves your computer.</td>
+    <td valign="top"><h3>📂 Opens what people send you</h3>Office documents, spreadsheets and presentations, open formats and any PDF.</td>
+    <td valign="top"><h3>✍️ From document to submission</h3>Write it, save it as PDF, sign it with your certificate and check it before you submit it.</td>
     <td valign="top"><h3>🔍 Open source</h3>Free software: anyone can review it, and no one can take it away from you.</td>
   </tr>
 </table>
 
-## The first one: Molino PDF
-
-<p align="center">
-  <a href="docs/pdf.en.md"><img src=".github/presupuesto.png" width="860" alt="Molino PDF with a quote that calculates the amounts, the tax and the total by itself"></a>
-</p>
-
-<p align="center">Forms that do the math for you, digital certificate signatures, scanning with your phone and AI that never leaves your computer.<br><b><a href="docs/pdf.en.md">Everything Molino PDF does →</a></b></p>
-
-## Automate tasks, in every app
-
-**The `molino` command** works with the files of every app without opening any windows, from PowerShell, a `.bat` file or Windows Task Scheduler:
-
-- **Convert:** Word, Excel, PowerPoint and OpenDocument to PDF or to another office format (`.docx` to `.odt`, `.xlsx` to `.csv`…), with Molino Suite; PDF to Word, text or images; photos to PDF.
-- **Work with PDFs:** merge, extract, split, rotate, compress, run OCR, add a watermark or page numbers, password-protect and remove hidden data.
-- **Signatures and forms:** sign with a Windows certificate or a `.pfx` file, verify signatures and fill in forms from a JSON file.
-- **Print**, documents, spreadsheets and presentations too.
-
-```powershell
-molino convert accounts.xlsx accounts.pdf
-molino sign contract.pdf -o signed.pdf --certificate "John Smith"
-Get-ChildItem *.docx | ForEach-Object { molino convert $_.FullName ($_.BaseName + ".pdf") }
-```
-
-**Your own scripts** in Docs, Sheets and Slides: JavaScript with the ONLYOFFICE document API, which works on the open document with no access to your files or the internet; Ctrl+Z undoes what it does. They live in the **Advanced** tab (**Scripts**, in Slides), which is hidden by default and turned on in Settings. In Docs it also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.
-
-It’s all in the [command-line manual](docs/linea-de-ordenes.md) (in Spanish, with an [English summary](docs/linea-de-ordenes.md#english-summary)).
-
 ## Install
 
-- **Molino Suite** (Molino, Molino PDF, Docs, Sheets and Slides): [in the Microsoft Store](https://apps.microsoft.com/detail/9PB626KN1HND), or with `winget install "Molino Suite"`.
-- **Molino PDF**, if you only need PDF: [in the Microsoft Store](https://apps.microsoft.com/detail/9NRTWZFHG67N), or with `winget install "Molino PDF"`.
+Free from the Microsoft Store: go to **[molinosuite.org/en/download](https://molinosuite.org/en/download/)** and choose **Molino Suite**, with all four apps, or **Molino PDF**, if you only need PDF. No account and no administrator rights, and new versions arrive on their own.
 
-Free, no account and no administrator rights; new versions arrive on their own through the Store. If you have Molino PDF and install Molino Suite, the Suite brings over your settings and replaces it.
+Also with winget: `winget install "Molino Suite"` or `winget install "Molino PDF"`.
 
-For 64-bit Windows 10 and 11. Linux, later on.
+For 64-bit Windows 10 and 11. Linux and Mac, later on.
 
 ## Privacy
 
@@ -116,6 +89,15 @@ Molino is free and will stay free. If you find it useful, tell someone about it,
 Molino is free software under the [GNU AGPL, version 3 or later](LICENSE), and comes with no warranty. © 2026 CuevasTech. The names and logos aren’t covered by the license: what you can do with them is in [TRADEMARKS.md](TRADEMARKS.md#molino-name-and-logo).
 
 Docs, Sheets and Slides are based on ONLYOFFICE software by Ascensio System SIA (AGPL-3.0), in a version modified by Molino that runs on your computer. How it’s built and what changes is in [`office/`](office/).
+
+<details>
+<summary><b>For advanced users: the command line and scripts</b></summary>
+
+<br>
+
+The `molino` command converts, merges, signs, fills in and prints documents without opening any window, from PowerShell, a `.bat` file or Windows Task Scheduler. In Docs, Sheets and Slides you can save your own scripts (the **Advanced** tab, turned on in Settings); macros inside documents never run. It’s all in the [command-line manual](docs/linea-de-ordenes.md) (in Spanish, with an [English summary](docs/linea-de-ordenes.md#english-summary)).
+
+</details>
 
 <details>
 <summary><b>For developers: build from source</b></summary>
@@ -134,6 +116,6 @@ powershell -File scripts\fetch-tessdata.ps1
 npm run dist:store
 ```
 
-The Molino PDF package for the Microsoft Store (MSIX, unsigned: the Store signs it) ends up in `dist\`. The Molino Suite one, with Docs, Sheets and Slides, also needs the office engine (`engine\.venv\Scripts\python.exe -I office\build.py`) and comes out with `npm run dist:suite`, in `dist-suite\`.
+The Molino PDF package for the Microsoft Store (MSIX, unsigned: the Store signs it) ends up in `dist\`. The Molino Suite one, with Docs, Sheets and Slides, also needs the office engine (`engine\.venv\Scripts\python.exe -I office\build.py`) and the dictionaries (`engine\.venv\Scripts\python.exe -I scripts\fetch-dictionaries.py`), and comes out with `npm run dist:suite`, in `dist-suite\`.
 
 </details>
