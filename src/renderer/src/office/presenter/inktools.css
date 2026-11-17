@@ -1,0 +1,170 @@
+/* La tinta, el láser y la barrita de herramientas de la presentación (InkLayer.tsx, InkTools.tsx). */
+
+/* ------------------------------------------------------------- la capa de tinta */
+
+.ink-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  touch-action: none;
+}
+.ink-layer.with-pen,
+.ink-layer.with-highlighter,
+.ink-layer.with-eraser,
+.ink-layer.with-laser {
+  pointer-events: auto;
+}
+.ink-layer.with-pen,
+.ink-layer.with-highlighter {
+  cursor: crosshair;
+}
+/* El borrador: un círculo del tamaño de lo que borra (más o menos). */
+.ink-layer.with-eraser {
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='9' fill='rgba(255,255,255,0.35)' stroke='%2316181d' stroke-width='1.5'/%3E%3Ccircle cx='12' cy='12' r='10.5' fill='none' stroke='white' stroke-width='1'/%3E%3C/svg%3E")
+      12 12,
+    cell;
+}
+/* Con el láser, el punto rojo hace de ratón. */
+.ink-layer.with-laser {
+  cursor: none;
+}
+.ink-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+/* El punto del láser: rojo, brillante, con su halo; crece con la diapositiva (como en PowerPoint). */
+.ink-laser-dot {
+  position: absolute;
+  z-index: 2;
+  width: clamp(30px, 3.4%, 96px);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 7%, #ff3b3b 15%, #e5141a 27%, rgba(255, 34, 34, 0.38) 36%, rgba(255, 34, 34, 0.12) 52%, rgba(255, 34, 34, 0) 70%);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------- la barrita */
+
+.ink-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-2);
+  user-select: none;
+}
+/* Cada grupo, una pastilla (si no caben en una fila, pasan enteras a la siguiente). */
+.ink-group {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-md);
+}
+.ink-tools .tool {
+  height: 30px;
+  padding: 0 9px;
+  gap: 6px;
+}
+.ink-tools .tool.icon {
+  width: auto;
+  padding: 0 6px;
+}
+.ink-laser-icon {
+  color: #e5383b;
+}
+.ink-tool.on .ink-laser-icon {
+  color: #ff2b2b;
+}
+/* Negro y blanco: el cuadrado, del color de la pantalla. */
+.ink-screen-icon.black {
+  fill: #000;
+  stroke: var(--text-3);
+}
+.ink-screen-icon.white {
+  fill: #ffffff;
+  stroke: var(--text-3);
+}
+
+/* El color y el grosor de la tinta. */
+.ink-color {
+  position: relative;
+}
+.ink-color-btn {
+  gap: 3px;
+}
+.ink-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.ink-pop {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: 40;
+  translate: -50% 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+.ink-swatches,
+.ink-widths {
+  display: flex;
+  gap: 6px;
+}
+.ink-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+  transition: transform var(--dur-fast) var(--ease);
+}
+.ink-swatch:hover {
+  transform: scale(1.08);
+}
+.ink-swatch.on {
+  box-shadow:
+    0 0 0 2px var(--bg-surface),
+    0 0 0 4px var(--accent);
+}
+.ink-widths {
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.ink-width {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  height: 28px;
+  border-radius: 8px;
+}
+.ink-width:hover {
+  background: var(--bg-hover);
+}
+.ink-width.on {
+  background: var(--accent-soft);
+}
+.ink-width i {
+  display: block;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 22%, transparent);
+}

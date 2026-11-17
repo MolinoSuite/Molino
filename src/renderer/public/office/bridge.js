@@ -134,7 +134,19 @@
         v('canvas-cell-title-text', dark ? '#a3a8b3' : '#5b6170') +
         v('canvas-select-all-icon', dark ? '#5a5f68' : '#b5bac3') +
         v('canvas-page-border', dark ? '#2c2f35' : '#dfe2e7') +
-        v('border-toolbar', dark ? '#2c2f35' : '#e3e5ea')
+        v('border-toolbar', dark ? '#2c2f35' : '#e3e5ea') +
+        (info.kind === 'slide' ? slideLook(dark, surface) : '')
+      )
+    }
+    // Presentaciones: la tira de diapositivas como el panel de páginas de Molino PDF (la
+    // seleccionada, con el color de la app; al pasar el ratón, el mismo más suave) y los
+    // números de las diapositivas en gris, como los de la interfaz.
+    const slideLook = (dark, surface) => {
+      const v = (name, value) => '--' + name + ':' + value + '!important;'
+      return (
+        v('border-preview-select', dark ? mix(accent, '#ffffff', 0.78) : accent) +
+        v('border-preview-hover', mix(accent, surface, dark ? 0.5 : 0.42)) +
+        v('text-normal', dark ? '#a4a8b3' : '#6b7180')
       )
     }
     const ce = '#cell-editing-box'
@@ -155,9 +167,17 @@
       '#id_vertical_scroll canvas,#id_vertical_scroll_thmbnl canvas,#id_vertical_scroll_notes canvas,#ws-v-scrollbar canvas{clip-path:inset(15px 3px 15px 3px round 6px)}' +
       '#id_horizontal_scroll canvas,#ws-h-scrollbar canvas{clip-path:inset(3px 15px 3px 15px round 6px)}' +
       '#ws-scrollbar-corner{background:var(--canvas-background)!important}' +
-      // Presentaciones: la tira de diapositivas y las notas, sin la raya de separación.
+      // Presentaciones: la tira de diapositivas y las notas, paneles de Molino (el fondo de sus paneles
+      // y su raya fina) alrededor de la diapositiva, que se queda sobre el fondo de la app.
       '#id_panel_thumbnails_split{background:transparent!important;border:none!important}' +
-      '#id_panel_notes{border-top:1px solid var(--border-toolbar)!important}'
+      (info.kind === 'slide'
+        ? '#id_bottom_pannels_container,#id_panel_notes,#id_notes{background-color:var(--background-toolbar)!important}' +
+          '#id_bottom_pannels_container{border-top:1px solid var(--border-toolbar)!important}' +
+          '#id_panel_notes{border-top:none!important}' +
+          // La barra de la presentación del editor (y su bolígrafo, que pinta en el documento) no se
+          // usa: Molino pone la suya, con su láser, bolígrafo y pantalla en negro (slide/ShowLayer.tsx).
+          '#preview-controls-panel{display:none!important}'
+        : '#id_panel_notes{border-top:1px solid var(--border-toolbar)!important}')
     )
   }
 
@@ -187,6 +207,12 @@
     w.addEventListener(
       'keydown',
       (e) => {
+        // Presentando: las teclas de Molino (láser, bolígrafo, pantalla en negro…) antes que las del editor.
+        if (typeof w.top.molinoShowKey === 'function' && w.top.molinoShowKey(e)) {
+          e.preventDefault()
+          e.stopImmediatePropagation()
+          return
+        }
         const shortcut = molinoShortcut(e)
         // Ctrl+S es del editor, salvo en un documento sin archivo propio (nuevo o
         // recuperado): ahí Molino pregunta dónde guardarlo.

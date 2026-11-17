@@ -12,6 +12,8 @@ declare global {
     molinoFullscreen?: (on: boolean) => void
     /** ¿La pestaña activa no tiene archivo propio? Entonces Ctrl+S en el documento pregunta dónde guardar. */
     molinoNeedsSaveAs?: () => boolean
+    /** Presentando (Presentaciones): las teclas de Molino encima de la presentación (láser, bolígrafo, negro…); true si era suya. */
+    molinoShowKey?: (event: KeyboardEvent) => boolean
   }
 }
 

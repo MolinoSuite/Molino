@@ -5,7 +5,7 @@
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
 import { Archive, Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Signature, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
@@ -600,6 +600,7 @@ export function OfficeApp() {
               </div>
             )}
             {state?.ready && <OfficeDock kind={kind} state={state} run={run} words={words} />}
+            {FEATURES[kind].map((f, i) => (f.stage ? <Fragment key={i}>{f.stage({ presenting })}</Fragment> : null))}
           </main>
           {app.sheetTabs && state?.ready && (
             <div className="office-sheetbar">
@@ -806,8 +807,10 @@ function OfficeDock({ kind, state, run, words }: { kind: string; state: EditorSt
   const go = (n: number): void => {
     if (n >= 1 && n <= state.pages) run('goToPage', String(n))
   }
+  // Presentaciones: centrada sobre la diapositiva y por encima de las notas y de la tira (features/slide.tsx).
+  const at = kind === 'slide' ? (state.extra.dockAt as { left: number; bottom: number } | undefined) : undefined
   return (
-    <div className={cn('dock office-dock', kind, kind === 'slide' && state.notes && 'notes')}>
+    <div className={cn('dock office-dock', kind, kind === 'slide' && state.notes && 'notes')} style={at ? { left: at.left, bottom: at.bottom } : undefined}>
       {paged ? (
         <>
           <button className="icon-btn" aria-label={D.previous} data-tip={D.previous} data-tip-side="top" disabled={state.page <= 1} onClick={() => go(state.page - 1)}>

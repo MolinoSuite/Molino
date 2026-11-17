@@ -50,6 +50,34 @@
   height: 14px;
 }
 
+/* «Diapositiva nueva» y su flecha (los diseños), juntas: un botón partido, como el de PowerPoint. */
+.slide-split {
+  display: none;
+}
+.office-toolbar .tool:has(+ .tool > .slide-split) {
+  padding-right: 6px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.office-toolbar .tool.icon:has(> .slide-split) {
+  width: 18px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--border) 70%, transparent);
+}
+.office-toolbar .tool.icon:has(> .slide-split) .tool-caret {
+  opacity: 0.75;
+}
+
+/* Las miniaturas de los diseños (slide/layouts.tsx): la diapositiva en pequeño con sus huecos. */
+.slide-layout-glyph {
+  display: block;
+  color: var(--text);
+}
+.office-tile.on .slide-layout-glyph {
+  color: var(--accent-fg);
+}
+
 /* Texto girado 270°: de abajo arriba. */
 .glyph-text.vertical.slide-vert270 {
   transform: rotate(180deg);
@@ -294,4 +322,69 @@
 }
 .slide-smartart-wait {
   background: var(--bg-subtle);
+}
+
+/* ------------------------------------------------ encima de la presentación */
+
+/* La capa de Molino sobre la presentación del editor (slide/ShowLayer.tsx): deja pasar el ratón
+   salvo con una herramienta en la mano (la tinta), en la pantalla tapada y en su barrita. */
+.show-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.show-slide {
+  position: absolute;
+}
+.show-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border: 0;
+  pointer-events: auto;
+  cursor: default;
+}
+.show-cover.black {
+  background: #000;
+}
+.show-cover.white {
+  background: #fff;
+}
+/* La barrita, abajo a la izquierda: sale al mover el ratón y se va sola (como la de PowerPoint). */
+.show-bar {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 4;
+  max-width: calc(100% - 36px);
+  pointer-events: auto;
+  opacity: 0;
+  visibility: hidden;
+  translate: 0 6px;
+  transition:
+    opacity var(--dur) var(--ease),
+    translate var(--dur) var(--ease),
+    visibility 0s linear var(--dur);
+}
+.show-bar.on {
+  opacity: 1;
+  visibility: visible;
+  translate: 0 0;
+  transition:
+    opacity var(--dur) var(--ease),
+    translate var(--dur) var(--ease);
+}
+.show-bar .ink-tools {
+  justify-content: flex-start;
+}
+.show-where {
+  min-width: 112px;
+  padding: 0 4px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }

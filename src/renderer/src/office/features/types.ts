@@ -86,4 +86,6 @@ export interface Feature {
   dialogs?: Record<string, (props: DialogProps) => ReactNode>
   /** Órdenes del buscador «¿Qué quieres hacer?» además de las de los botones. */
   palette?: PaletteEntry[]
+  /** Lo que se pone encima del documento (en Presentaciones, la tinta y el láser al presentar). */
+  stage?: (props: { presenting: boolean }) => ReactNode
 }

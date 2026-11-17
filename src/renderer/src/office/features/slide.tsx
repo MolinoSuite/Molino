@@ -61,9 +61,11 @@ import { ParagraphGlyph, SpacingGlyph } from '../ui/glyphs'
 import { ChartDataDialog } from './chart/ChartDataDialog'
 import { takeChartDoubleClick } from './chart/data'
 import { AnimationPanel } from './slide/AnimationPanel'
+import { readLayoutArt } from './slide/layouts'
 import { EFFECT_BY_KEY, EFFECTS, EffectGlyph, GROUPS, TRIGGERS } from './slide/effects'
 import { chosenScreen, presenterOn, setChosenScreen, setPresenterOn, showEnded, slideChanged, startShow, watchScreens } from './slide/presenter'
 import { RehearsePanel } from './slide/RehearsePanel'
+import { ShowLayer } from './slide/ShowLayer'
 import { SmartArtDialog, smartArtPreviews } from './slide/SmartArtDialog'
 import type { Api, Feature, FeatureContext } from './types'
 import './slide/slide.css'
@@ -623,6 +625,12 @@ function slideListen(ctx: FeatureContext, on: (name: string, fn: (...args: Api[]
   on('asc_onFocusObject', (list: Api[]) => {
     const T = ew.Asc.c_oAscTypeSelectElement
     if (!(list || []).some((el) => el.get_ObjectType() === T.Image)) extra.cropping = false
+    // El diseño de la diapositiva actual (se marca en «Diseño de la diapositiva»).
+    for (const el of list || []) {
+      if (el.get_ObjectType() !== T.Slide) continue
+      const index = el.get_ObjectValue()?.get_LayoutIndex?.()
+      extra.layoutIndex = typeof index === 'number' && index >= 0 ? index : undefined
+    }
     if (extra.master) extra.masterCanDelete = masterSelection(api, ew)?.master ? Boolean(api.asc_CanDeleteMaster()) : Boolean(api.asc_CanDeleteLayout())
   })
   // Las combinaciones de colores del tema (llegan al abrir y al cambiar de tema).
@@ -684,6 +692,25 @@ function slideListen(ctx: FeatureContext, on: (name: string, fn: (...args: Api[]
     extra.smartArtNext = undefined
     if (typeof next === 'number') smartArtPreviews(ctx, next)
   })
+  // Los diseños: su tipo y sus huecos, para dibujar sus miniaturas (slide/layouts.tsx). Se leen
+  // después del aviso, cuando el editor ya ha terminado lo que estaba haciendo.
+  let layoutsTimer = 0
+  on('asc_onUpdateLayout', (layouts: Api[]) => {
+    const list: { index: number; name: string; type: number }[] = []
+    ;(layouts || []).slice(0, 200).forEach((l, i) => {
+      try {
+        list.push({ index: typeof l.getIndex === 'function' ? Number(l.getIndex()) : i, name: String(l.get_Name() ?? ''), type: Number(l.getType?.() ?? -1) })
+      } catch {
+        /* un diseño sin datos */
+      }
+    })
+    extra.layoutTypes = Object.fromEntries(list.map((l) => [l.index, l.type]))
+    window.clearTimeout(layoutsTimer)
+    layoutsTimer = window.setTimeout(() => {
+      extra.layoutArt = readLayoutArt(ctx, list) ?? undefined
+      ctx.changed()
+    }, 0)
+  })
   // Presentar: en qué diapositiva va (para la vista del moderador) y cuándo termina.
   on('asc_onDemonstrationSlideChanged', (n: Api) => slideChanged(ctx, n))
   on('asc_onEndDemonstration', () => showEnded(ctx))
@@ -696,6 +723,7 @@ function slideListen(ctx: FeatureContext, on: (name: string, fn: (...args: Api[]
   })
   // Doble clic en un gráfico: el cuadro de Molino con sus datos (no el editor de gráficos de ONLYOFFICE).
   takeChartDoubleClick(ctx)
+  watchSlideArea(ctx)
   // Al abrir: lo que enseña la vista y las vistas previas de WordArt.
   let ready = false
   const start = (): void => {
@@ -714,6 +742,58 @@ function slideListen(ctx: FeatureContext, on: (name: string, fn: (...args: Api[]
   setTimeout(start, 1500)
 }
 
+/**
+ * La barra de abajo (página y zoom) va centrada sobre la diapositiva que se
+ * edita, por encima de las notas y de la tira de diapositivas (abajo o a un
+ * lado): se mira dónde la deja el editor cada vez que cambia de tamaño.
+ */
+function watchSlideArea(ctx: FeatureContext): void {
+  const { ew } = ctx
+  const extra = ctx.state.extra
+  let frame = 0
+  const measure = (): void => {
+    frame = 0
+    try {
+      const main = ew.document.getElementById('id_main') as HTMLElement | null
+      if (!main || !main.offsetParent) return
+      const area = main.getBoundingClientRect()
+      const height = ew.innerHeight
+      if (!(area.width > 0 && area.height > 0 && height > 0)) return
+      const at = { left: Math.round(area.left + area.width / 2), bottom: Math.max(14, Math.round(height - area.bottom + 14)) }
+      const old = extra.dockAt as { left: number; bottom: number } | undefined
+      if (old && old.left === at.left && old.bottom === at.bottom) return
+      extra.dockAt = at
+      ctx.changed()
+    } catch {
+      /* el editor se está cerrando */
+    }
+  }
+  const later = (): void => {
+    if (!frame) frame = ew.requestAnimationFrame(measure)
+  }
+  const observed = new Set<Element>()
+  try {
+    // El editor coloca sus paneles con su estilo (al mover la tira, abrir las notas o cambiar su alto).
+    const observer = new ew.MutationObserver(later)
+    const attach = (): void => {
+      for (const id of ['id_main_parent', 'id_main', 'id_bottom_pannels_container', 'id_panel_thumbnails']) {
+        const element = ew.document.getElementById(id)
+        if (element && !observed.has(element)) {
+          observed.add(element)
+          observer.observe(element, { attributes: true, attributeFilter: ['style'] })
+        }
+      }
+      later()
+    }
+    ew.addEventListener('resize', later)
+    // El editor crea su vista al cargar el documento.
+    ew.setTimeout(attach, 500)
+    ew.setTimeout(attach, 2000)
+  } catch {
+    /* sin el editor: la barra se queda donde está */
+  }
+}
+
 // ------------------------------------------------------------------ la función
 
 export const slideFeature: Feature = {
@@ -721,9 +801,11 @@ export const slideFeature: Feature = {
   commands: (ctx) => ({ ...slideCommands(ctx), video: () => ctx.api.asc_AddVideo(), audio: () => ctx.api.asc_AddAudio() }),
   listen: (ctx, on) => slideListen(ctx, on),
   tools: {
-    home: { at: 4, groups: [SPACING, TEXT_BOX], names: [S.groups.spacing, S.groups.textBox] },
+    // Detrás de dibujo y organizar (lo más usado va delante, como en PowerPoint).
+    home: { at: 6, groups: [SPACING, TEXT_BOX], names: [S.groups.spacing, S.groups.textBox] },
+    // Detrás de la diapositiva nueva y de los objetos de siempre.
     insert: {
-      at: 1,
+      at: 2,
       groups: [
         [WORDART, SMARTART],
         [B('video', 'video', { label: ST.video, icon: <Film size={ICON} />, caption: true }), B('audio', 'audio', { label: ST.audio, icon: <Music size={ICON} />, caption: true })]
@@ -782,6 +864,8 @@ export const slideFeature: Feature = {
     smartArt: (props) => <SmartArtDialog {...props} />,
     chartData: (props) => <ChartDataDialog {...props} />
   },
+  // Al presentar: la tinta, el láser y la pantalla en negro encima de la presentación.
+  stage: ({ presenting }) => <ShowLayer presenting={presenting} />,
   palette: [
     { label: ST.animPanel, group: L.office.modes.transitions, keywords: S.keywords.animPanel, command: 'panel', value: 'animations' },
     { label: ST.rehearse, group: L.office.modes.present, keywords: S.keywords.rehearse, command: 'panel', value: 'rehearse' },

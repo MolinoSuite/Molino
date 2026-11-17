@@ -163,6 +163,7 @@ import { AI_TASKS, type AiTask } from './AiPanel'
 import type { EditorState } from './engine'
 import { FEATURES } from './features'
 import { BULLETS, NUMBERS, OUTLINES } from './features/lists'
+import { type LayoutArt, layoutGlyph } from './features/slide/layouts'
 import { L } from './i18n'
 import {
   BarsGlyph,
@@ -939,15 +940,26 @@ const ARRANGE: Tool[] = [
     { caption: true, tiles: 4 }
   )
 ]
-/** Los diseños de la presentación, con su miniatura: para una diapositiva nueva o para cambiar la actual. */
+/**
+ * Los diseños de la presentación, con su miniatura (dibujada por Molino con sus
+ * huecos: features/slide/layouts.tsx): para una diapositiva nueva o para cambiar la actual.
+ */
 const layoutOptions = (s: EditorState): MenuOption[] =>
-  s.layouts.map((l) => ({ value: String(l.index), label: l.name || String(l.index + 1), preview: /^data:image\//.test(l.image) ? <img className="glyph-layout" src={l.image} alt="" /> : <span className="glyph-layout" /> }))
-/** Diapositiva nueva: el botón la añade con el diseño de siempre; su menú, con el diseño que se elija. */
+  s.layouts.map((l) => ({
+    value: String(l.index),
+    label: l.name || String(l.index + 1),
+    preview: layoutGlyph({ index: l.index, name: l.name, type: (s.extra.layoutTypes as Record<number, number> | undefined)?.[l.index] }, s.extra.layoutArt as LayoutArt | undefined)
+  }))
+/**
+ * Diapositiva nueva: el botón la añade con el diseño de siempre; su flecha (pegada
+ * a él, como el botón partido de PowerPoint: slide.css), con el diseño que se elija.
+ */
 const NEW_SLIDE: Tool[] = [
   B('newSlide', 'newSlide', { icon: <Presentation size={ICON} />, caption: true }),
-  MENU('newSlideWith', 'newSlideLayout', layoutOptions, <LayoutTemplate size={ICON} />, { tiles: 3 })
+  MENU('newSlideWith', 'newSlideLayout', layoutOptions, <span className="slide-split" aria-hidden="true" />, { tiles: 3 })
 ]
-const LAYOUT = MENU('layoutMenu', 'layout', layoutOptions, <PanelsTopLeft size={ICON} />, { tiles: 3 })
+/** El diseño de la diapositiva actual (marcado en el menú). */
+const LAYOUT = MENU('layoutMenu', 'layout', layoutOptions, <PanelsTopLeft size={ICON} />, { tiles: 3, current: (s) => String(s.extra.layoutIndex ?? '') })
 /** Los temas, con su miniatura (la del editor: sdkjs/slide/themes/themeN/). */
 const THEMES = MENU(
   'themeMenu',
@@ -961,7 +973,8 @@ const slide: AppConfig = {
   kind: 'slide',
   panel: false,
   sheetTabs: false,
-  toolbar: 'floating',
+  // Fija arriba, como en Hojas: con toda la anchura caben delante las herramientas de siempre.
+  toolbar: 'docked',
   header: [
     { key: 'savePdf', command: 'savePdf' },
     { key: 'save', command: 'save' },
@@ -972,13 +985,15 @@ const slide: AppConfig = {
       id: 'home',
       label: M.home,
       icon: <House size={19} />,
+      // Como la pestaña Inicio de PowerPoint: diapositivas, letra, formato, párrafo, dibujo y organizar
+      // delante; lo demás (sangría, interlineado, más formato, buscar), detrás o en «Más».
       names: [N.slides, N.letter, N.format, N.paragraph, N.drawing, N.arrange, N.moreFormat, N.tools],
       groups: [
-        [...NEW_SLIDE, LAYOUT, B('duplicateSlide', 'duplicateSlide', { icon: <Copy size={ICON} /> }), B('deleteSlide', 'deleteSlide', { icon: <Trash2 size={ICON} /> })],
+        [...NEW_SLIDE, { ...LAYOUT, label: L.officeSlide.tools.layout, caption: true } as Tool, B('duplicateSlide', 'duplicateSlide', { icon: <Copy size={ICON} /> }), B('deleteSlide', 'deleteSlide', { icon: <Trash2 size={ICON} /> })],
         LETTER,
         [BOLD, ITALIC, UNDERLINE, TEXT_COLOR],
         [ALIGN_MENU, listMenu('slide')],
-        [{ ...SHAPES_MENU, caption: false } as Tool, B('image', 'image', { icon: <Image size={ICON} /> }), B('textBox', 'textBox', { icon: <Type size={ICON} /> })],
+        [{ ...SHAPES_MENU, caption: false } as Tool, B('textBox', 'textBox', { icon: <Type size={ICON} /> }), B('image', 'image', { icon: <Image size={ICON} /> })],
         ARRANGE.map((t) => ({ ...t, caption: false }) as Tool),
         [STRIKE, ...SCRIPT, CASE, ...GROW, CLEAR_FORMAT],
         [PAINTER, ...FIND]
@@ -988,8 +1003,9 @@ const slide: AppConfig = {
       id: 'insert',
       label: M.insert,
       icon: <SquarePlus size={19} />,
-      names: [N.objects, N.links, N.headerFooter],
+      names: [N.slides, N.objects, N.links, N.headerFooter],
       groups: [
+        NEW_SLIDE,
         [
           B('textBox', 'textBox', { icon: <Type size={ICON} />, caption: true }),
           SHAPES_MENU,

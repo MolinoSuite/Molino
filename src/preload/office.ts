@@ -2,7 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
 import type { MolinoShared } from '@shared/api'
 import type { Lang } from '@shared/i18n'
-import type { OfficeAsk, OfficeTabs, OfficeUiApi, PresenterAction, PresenterApi, PresenterScreen, PresenterState } from '@shared/officeui'
+import type { OfficeAsk, OfficeTabs, OfficeUiApi, PresenterAction, PresenterApi, PresenterMark, PresenterScreen, PresenterState } from '@shared/officeui'
 import type { DocDescriptor, ProgressInfo, Settings, UpdateStatus } from '@shared/types'
 
 /**
@@ -93,7 +93,10 @@ const ui: OfficeUiApi = {
     start: (doc, options) => ipcRenderer.invoke('office:presenterStart', { ...options, doc }),
     state: (doc, state) => ipcRenderer.send('office:presenterState', { doc, state }),
     end: (doc) => ipcRenderer.send('office:presenterEnd', doc),
-    onCommand: (listener) => subscribe<{ doc: string; action: PresenterAction; slide?: number }>('office:presenterCommand', listener)
+    onCommand: (listener) => subscribe<{ doc: string; action: PresenterAction; slide?: number }>('office:presenterCommand', listener),
+    mark: (doc, mark) => ipcRenderer.send('office:presenterMark', { doc, mark }),
+    onMark: (listener) => subscribe<{ doc: string; mark: PresenterMark }>('office:presenterMark', listener),
+    onReady: (listener) => subscribe<string>('office:presenterReady', listener)
   },
   ai: {
     status: () => ipcRenderer.invoke('office:aiStatus'),
@@ -159,12 +162,15 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
 
 const frameUrl = (globalThis as { location?: { href?: string } }).location?.href ?? ''
 // La vista del moderador (Presentaciones): su página, en su propia ventana (officepresenter.ts).
-// Solo ve lo que le manda la presentación y solo puede pedirle que pase de diapositiva o termine.
+// Solo ve lo que le manda la presentación y solo puede pedirle que pase de diapositiva o termine,
+// y dibujar encima (tinta, láser, pantalla en negro: officepresenter.ts lo comprueba todo).
 if (frameUrl.startsWith('molino://office/__molino__/ui/presenter.html')) {
   const presenter: PresenterApi = {
     ready: () => ipcRenderer.send('presenter:ready'),
     command: (action, slide) => ipcRenderer.send('presenter:command', { action, slide }),
-    onState: (listener) => subscribe<PresenterState>('presenter:state', listener)
+    onState: (listener) => subscribe<PresenterState>('presenter:state', listener),
+    mark: (mark) => ipcRenderer.send('presenter:mark', mark),
+    onMark: (listener) => subscribe<PresenterMark>('presenter:mark', listener)
   }
   contextBridge.exposeInMainWorld('molinoPresenter', presenter)
 }

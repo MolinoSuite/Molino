@@ -1,4 +1,5 @@
-import type { PresenterAction, PresenterScreen, PresenterState } from '@shared/officeui'
+import type { InkColor, PresenterAction, PresenterMark, PresenterScreen, PresenterState } from '@shared/officeui'
+import { type HandTool, InkBook, type LocalInkOp, type Point, type Screen } from '../../presenter/ink'
 import type { Api, FeatureContext } from '../types'
 import { readNotes } from './RehearsePanel'
 
@@ -14,6 +15,12 @@ import { readNotes } from './RehearsePanel'
  * previa de impresión, en un lienzo fuera de la vista). Lo que pide la vista
  * del moderador (pasar, volver, ir a una, terminar) llega aquí y se hace con
  * la API de la presentación del editor.
+ *
+ * Encima de la presentación, Molino pone su capa (ShowLayer.tsx): la tinta de
+ * cada diapositiva (bolígrafo y rotulador, que no se guardan en el archivo), el
+ * puntero láser y la pantalla en negro o en blanco. Se puede usar desde la vista
+ * del moderador o desde la propia presentación (con su barrita, su menú y las
+ * teclas de PowerPoint); lo de una llega a la otra. Lo que hay dibujado está aquí.
  */
 
 const USE_KEY = 'molino.slide.presenter'
@@ -112,10 +119,29 @@ interface Show {
   box: HTMLElement | null
   timers: number[]
   watch: number
+  /** La tinta de cada diapositiva (la del final: el número de diapositivas). */
+  ink: InkBook
+  /** La pantalla en negro o en blanco (null: se ve la presentación). */
+  screen: Screen
+  /** Dónde está el puntero láser (null: no se ve). */
+  laser: Point | null
+  /** Lo que se tiene en la mano en esta ventana, y el color y grosor de la tinta. */
+  tool: HandTool
+  color: InkColor
+  width: 1 | 2 | 3
+  /** El número que se va escribiendo para ir a una diapositiva (como en PowerPoint). */
+  typed: string
 }
 
 let show: Show | null = null
 let commandsWatched = false
+/** Quién pinta lo de encima de la presentación (ShowLayer.tsx): se le avisa en cada cambio. */
+const showListeners = new Set<() => void>()
+let showVersion = 0
+function changed(): void {
+  showVersion++
+  for (const listener of showListeners) listener()
+}
 
 /** El documento de la pestaña de este editor (frame.html lo lleva en su dirección) y su nombre. */
 function tabOf(ew: Api): { doc: string; name: string } | null {
@@ -147,8 +173,29 @@ export async function startShow(ctx: FeatureContext, from: 'start' | 'here', reh
     finish()
   }
   const first = from === 'here' ? Number(api.getCurrentPage()) || 0 : 0
-  const current: Show = { ctx, doc: tab.doc, name: tab.name, presenter: false, index: first, current: null, drawn: new Map(), box: null, timers: [], watch: 0 }
+  const current: Show = {
+    ctx,
+    doc: tab.doc,
+    name: tab.name,
+    presenter: false,
+    index: first,
+    current: null,
+    drawn: new Map(),
+    box: null,
+    timers: [],
+    watch: 0,
+    ink: new InkBook(),
+    screen: null,
+    laser: null,
+    tool: null,
+    color: 'red',
+    width: 2,
+    typed: ''
+  }
   show = current
+  // Las teclas de la presentación que añade Molino, también con el teclado en el editor (bridge.js).
+  window.molinoShowKey = (event) => showKey(event)
+  changed()
   try {
     const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim()
     const answer = await window.molinoOffice.presenter.start(tab.doc, { presenter: presenterOn(), screen: chosenScreen(), rehearse, accent })
@@ -177,6 +224,9 @@ export function slideChanged(ctx: FeatureContext, index: unknown): void {
   if (!show || show.ctx.api !== ctx.api || typeof index !== 'number') return
   show.index = index
   update(show)
+  // La tinta de la que se ve ahora, también en la vista del moderador.
+  sync(show)
+  changed()
 }
 
 /** La presentación ha terminado (asc_onEndDemonstration). */
@@ -188,6 +238,10 @@ function finish(): void {
   const ended = show
   show = null
   if (!ended) return
+  // La tinta no se guarda: se va con la presentación.
+  ended.ink.clearAll()
+  if (window.molinoShowKey) window.molinoShowKey = undefined
+  changed()
   window.clearInterval(ended.watch)
   for (const timer of ended.timers) window.clearTimeout(timer)
   try {
@@ -210,10 +264,24 @@ function watchCommands(): void {
     if (!current || current.doc !== doc) return
     run(current, action, slide)
   })
+  // Tinta, láser y pantalla en negro desde la vista del moderador (ya comprobado en officepresenter.ts).
+  window.molinoOffice.presenter.onMark(({ doc, mark }) => {
+    const current = show
+    if (current && current.doc === doc) receive(current, mark)
+  })
+  // La vista del moderador se ha abierto (o se ha vuelto a cargar): lo que hay dibujado y si está en negro.
+  window.molinoOffice.presenter.onReady((doc) => {
+    const current = show
+    if (!current || current.doc !== doc) return
+    sync(current)
+    send(current, { kind: 'screen', screen: current.screen })
+  })
 }
 
 function run(current: Show, action: PresenterAction, slide?: number): void {
   const api = current.ctx.api
+  // Pasar de diapositiva (o terminar) destapa la presentación.
+  if (current.screen) setScreen(current, null)
   try {
     const count = Number(api.getCountPages()) || 0
     if (action === 'next') api.DemonstrationNextSlide()
@@ -233,6 +301,198 @@ function run(current: Show, action: PresenterAction, slide?: number): void {
 function later(current: Show, ms: number): void {
   // Las de hace rato ya han saltado: solo se guardan las últimas (para pararlas al terminar).
   current.timers = [...current.timers.slice(-15), window.setTimeout(() => capture(current), ms)]
+}
+
+// -------------------------------------------- tinta, láser y pantalla en negro
+
+/** La diapositiva cuya tinta se ve: la actual o, en la pantalla del final, el número de diapositivas. */
+function slideKey(current: Show): number {
+  try {
+    const count = Math.max(1, Number(current.ctx.api.getCountPages()) || 1)
+    return current.index >= count ? count : Math.max(0, current.index)
+  } catch {
+    return Math.max(0, current.index)
+  }
+}
+
+/** A la vista del moderador (si la hay). */
+function send(current: Show, mark: PresenterMark): void {
+  if (current.presenter && show === current) window.molinoOffice.presenter.mark(current.doc, mark)
+}
+
+/** Toda la tinta de la diapositiva que se ve, a la vista del moderador. */
+function sync(current: Show): void {
+  const slide = slideKey(current)
+  send(current, { kind: 'sync', slide, strokes: current.ink.get(slide) })
+}
+
+function setScreen(current: Show, screen: Screen): void {
+  if (current.screen === screen) return
+  current.screen = screen
+  send(current, { kind: 'screen', screen })
+  changed()
+}
+
+/** Lo que llega de la vista del moderador. */
+function receive(current: Show, mark: PresenterMark): void {
+  if (mark.kind === 'ink') {
+    if (current.ink.apply(mark.op.slide, mark.op)) changed()
+  } else if (mark.kind === 'laser') {
+    current.laser = mark.at
+    changed()
+  } else if (mark.kind === 'screen') {
+    // Se devuelve siempre: así las dos ventanas dicen lo mismo aunque se pulse a la vez en las dos.
+    current.screen = mark.screen
+    send(current, { kind: 'screen', screen: mark.screen })
+    changed()
+  }
+}
+
+/** Lo que se ve encima de la presentación (para ShowLayer.tsx); null si no se presenta. */
+export interface ShowView {
+  /** La ventana del editor (sus teclas, su ratón, dónde está la presentación). */
+  ew: Api
+  slide: number
+  strokes: ReturnType<InkBook['get']>
+  screen: Screen
+  laser: Point | null
+  tool: HandTool
+  color: InkColor
+  width: 1 | 2 | 3
+  /** Ancho / alto de la diapositiva. */
+  aspect: number
+  /** La diapositiva que se ve (desde 0), cuántas hay y si se está en la pantalla del final. */
+  index: number
+  count: number
+  finished: boolean
+}
+
+export function subscribeShow(listener: () => void): () => void {
+  showListeners.add(listener)
+  return () => showListeners.delete(listener)
+}
+export function showRevision(): number {
+  return showVersion
+}
+export function showView(): ShowView | null {
+  const current = show
+  if (!current) return null
+  const { api, ew } = current.ctx
+  let aspect = 16 / 9
+  let count = 1
+  try {
+    aspect = Number(api.get_PresentationWidth()) / Number(api.get_PresentationHeight()) || aspect
+    count = Math.max(1, Number(api.getCountPages()) || 1)
+  } catch {
+    /* el editor se está cerrando */
+  }
+  const slide = slideKey(current)
+  return {
+    ew,
+    slide,
+    strokes: current.ink.get(slide),
+    screen: current.screen,
+    laser: current.laser,
+    tool: current.tool,
+    color: current.color,
+    width: current.width,
+    aspect,
+    index: Math.min(current.index, count - 1),
+    count,
+    finished: current.index >= count
+  }
+}
+
+/** Lo dibujado en la propia presentación: aquí y en la vista del moderador. */
+export function showInk(op: LocalInkOp): void {
+  const current = show
+  if (!current) return
+  const slide = slideKey(current)
+  if (current.ink.apply(slide, op)) changed()
+  send(current, { kind: 'ink', op: { ...op, slide } })
+}
+export function showLaser(at: Point | null): void {
+  const current = show
+  if (!current) return
+  current.laser = at
+  send(current, { kind: 'laser', at })
+  changed()
+}
+export function showScreen(screen: Screen): void {
+  if (show) setScreen(show, screen)
+}
+export function showTool(tool: HandTool): void {
+  const current = show
+  if (!current || current.tool === tool) return
+  if (current.tool === 'laser' && current.laser) showLaser(null)
+  current.tool = tool
+  changed()
+}
+export function showColor(color: InkColor): void {
+  if (!show) return
+  show.color = color
+  changed()
+}
+export function showWidth(width: 1 | 2 | 3): void {
+  if (!show) return
+  show.width = width
+  changed()
+}
+/** Pasar, volver, ir a una o terminar, desde la propia presentación. */
+export function showGo(action: PresenterAction, slide?: number): void {
+  if (show) run(show, action, slide)
+}
+
+/**
+ * Las teclas que Molino añade a la presentación, como en PowerPoint: Ctrl+L el
+ * láser, Ctrl+P el bolígrafo, Ctrl+I el rotulador, Ctrl+E el borrador, Ctrl+A
+ * soltarlo; E borra la tinta de la diapositiva; B o el punto, pantalla en negro;
+ * W o la coma, en blanco; con la pantalla tapada, cualquier tecla la destapa; Esc
+ * suelta lo que se tenga en la mano; un número y Enter va a esa diapositiva. Lo
+ * demás (pasar, volver, terminar) lo hace el editor. true: era suya.
+ */
+export function showKey(event: KeyboardEvent): boolean {
+  const current = show
+  if (!current || event.type !== 'keydown') return false
+  const key = event.key
+  if (['Control', 'Shift', 'Alt', 'Meta', 'AltGraph', 'CapsLock', 'NumLock'].includes(key)) return false
+  if (current.screen) {
+    setScreen(current, null)
+    return true
+  }
+  const ctrl = event.ctrlKey || event.metaKey
+  const lower = key.toLowerCase()
+  if (ctrl && !event.altKey && !event.shiftKey) {
+    const tools: Record<string, HandTool> = { l: 'laser', p: 'pen', i: 'highlighter', e: 'eraser' }
+    if (lower in tools) {
+      showTool(current.tool === tools[lower] ? null : tools[lower])
+      return true
+    }
+    if (lower === 'a') {
+      showTool(null)
+      return true
+    }
+    return false
+  }
+  if (ctrl || event.altKey) return false
+  if (/^[0-9]$/.test(key)) {
+    current.typed = (current.typed + key).slice(-4)
+    return true
+  }
+  const typed = current.typed
+  current.typed = ''
+  if (key === 'Enter' && typed) {
+    const n = Number(typed)
+    const count = Number(current.ctx.api.getCountPages()) || 0
+    if (n >= 1 && n <= count) run(current, 'goto', n - 1)
+    return true
+  }
+  if (lower === 'b' || key === '.') setScreen(current, 'black')
+  else if (lower === 'w' || key === ',') setScreen(current, 'white')
+  else if (lower === 'e') showInk({ op: 'clear' })
+  else if (key === 'Escape' && current.tool) showTool(null)
+  else return false
+  return true
 }
 
 // ---------------------------------------------------- lo que ve el moderador
