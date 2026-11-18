@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { app, BrowserWindow, ipcMain, nativeTheme, screen } from 'electron'
-import { storeAppUserModelId } from './appx'
+import { isStoreApp, storeAppUserModelId } from './appx'
 import { lang, locale } from './i18n'
 import { APP_ORIGIN, isTrustedSender } from './security'
 import type { Store } from './store'
@@ -61,7 +61,8 @@ export function createWindow(store: Store, version: string): BrowserWindow {
         `--molino-built=${__MOLINO_BUILT__}`,
         `--molino-lang=${lang}`,
         `--molino-locale=${locale}`,
-        ...(app.isPackaged ? [] : ['--molino-dev'])
+        ...(app.isPackaged ? [] : ['--molino-dev']),
+        ...(isStoreApp() ? ['--molino-store'] : [])
       ]
     }
   })

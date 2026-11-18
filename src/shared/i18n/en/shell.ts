@@ -99,6 +99,7 @@ export const shell: typeof source = {
       shortcuts: 'keyboard shortcuts',
       feedback: 'feedback suggestion bug error opinion',
       sponsor: 'coffee donate support',
+      rate: 'rate review stars store',
       about: 'about version license',
       ai: 'ai artificial intelligence summarize ask assistant'
     }
@@ -140,6 +141,7 @@ export const shell: typeof source = {
       shortcuts: 'Keyboard shortcuts',
       feedback: 'Send feedback…',
       sponsor: 'Buy me a coffee',
+      rate: 'Rate in the Store',
       about: 'About'
     }
   },

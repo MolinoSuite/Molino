@@ -145,6 +145,7 @@ export function pdfCommands(doc: DocView | undefined, aiOn: boolean): PdfCommand
   add('shortcuts', M.shortcuts, G.help, K.shortcuts, () => state.openDialog({ type: 'shortcuts' }))
   add('feedback', M.feedback, G.help, K.feedback, () => state.openDialog({ type: 'custom', id: 'feedback' }))
   add('sponsor', M.sponsor, G.help, K.sponsor, () => void window.molino.about.open('sponsors'))
+  if (window.molino.env.store) add('rate', M.rate, G.help, K.rate, () => void window.molino.about.open('rate'))
   add('about', M.about, G.help, K.about, () => state.openDialog({ type: 'about' }))
   return out
 }

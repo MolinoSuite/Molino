@@ -102,6 +102,7 @@ export const shell = {
       shortcuts: 'atajos teclado',
       feedback: 'comentarios sugerencia fallo error opinion',
       sponsor: 'cafe donar apoyar donacion',
+      rate: 'valorar puntuar estrellas resena opinion tienda store',
       about: 'acerca de version licencia',
       ai: 'ia inteligencia artificial resumir preguntar asistente'
     }
@@ -143,6 +144,7 @@ export const shell = {
       shortcuts: 'Atajos de teclado',
       feedback: 'Enviar comentarios…',
       sponsor: 'Invítame a un café',
+      rate: 'Valorar en la Store',
       about: 'Acerca de'
     }
   },

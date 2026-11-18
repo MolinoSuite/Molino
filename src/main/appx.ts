@@ -76,6 +76,20 @@ export const SUITE_FAMILY = 'CuevasTech.MolinoSuite_txf9mqjyats40'
 /** La de Molino PDF, el paquete solo de PDF (Partner Center: CuevasTech.MolinoPDF, del mismo editor). */
 export const PDF_FAMILY = 'CuevasTech.MolinoPDF_txf9mqjyats40'
 
+/** Los productos en la Store (la ficha y la página para valorarlos). */
+export const STORE_PRODUCT_ID = { suite: '9PB626KN1HND', pdf: '9NRTWZFHG67N' } as const
+
+/**
+ * La página de la Store para valorar el paquete en el que corre Molino (en la
+ * Suite, Molino PDF también es la Suite), o null fuera de la Store.
+ */
+export function storeReviewUrl(): string | null {
+  if (!isStoreApp()) return null
+  const family = storePackageFamily()
+  const id = family === SUITE_FAMILY ? STORE_PRODUCT_ID.suite : family === PDF_FAMILY ? STORE_PRODUCT_ID.pdf : null
+  return id ? `ms-windows-store://review/?ProductId=${id}` : null
+}
+
 /**
  * La carpeta de datos de Molino PDF instalado aparte (su LocalState), vista
  * desde Molino Suite; null si no está instalado o si esto no es Molino Suite.

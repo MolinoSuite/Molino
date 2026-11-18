@@ -177,7 +177,7 @@ if (frameUrl.startsWith('molino://office/__molino__/ui/presenter.html')) {
 // Lo común de Molino, solo en la página de la interfaz de cada app (no en la vista del moderador).
 if (frameUrl.startsWith('molino://office/__molino__/ui/office.html')) {
   const shared: MolinoShared = {
-    env: { version: ui.env.version, built: '', dev: process.argv.includes('--molino-dev'), lang: ui.env.lang, locale: ui.env.locale },
+    env: { version: ui.env.version, built: '', dev: process.argv.includes('--molino-dev'), lang: ui.env.lang, locale: ui.env.locale, store: process.argv.includes('--molino-store') },
     // Solo para el cuadro de imprimir: dibujar las páginas del PDF temporal e imprimirlo (officeprint.ts).
     engine: (method, params, options) => ipcRenderer.invoke('office:printRender', { method, params, priority: options?.priority }),
     cancel: (callId) => ipcRenderer.send('office:printCancel', callId),

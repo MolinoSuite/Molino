@@ -28,7 +28,7 @@ const localeArg = argValue('molino-locale')
 const locale = LOCALE_RE.test(localeArg) ? localeArg : lang === 'en' ? 'en-US' : 'es-ES'
 
 const api: MolinoApi = {
-  env: { version, built, dev: process.argv.includes('--molino-dev'), lang, locale },
+  env: { version, built, dev: process.argv.includes('--molino-dev'), lang, locale, store: process.argv.includes('--molino-store') },
 
   engine: (method, params, options) =>
     ipcRenderer.invoke('engine:call', {

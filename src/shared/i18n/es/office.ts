@@ -440,7 +440,8 @@ export const office = {
     properties: 'Propiedades…',
     shortcuts: 'Atajos de teclado',
     feedback: 'Enviar comentarios',
-    sponsor: 'Invítame a un café'
+    sponsor: 'Invítame a un café',
+    rate: 'Valorar en la Store'
   },
   shortcuts: {
     title: 'Atajos de teclado',

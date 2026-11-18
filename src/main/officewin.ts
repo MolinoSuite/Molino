@@ -9,6 +9,7 @@ import { fmt, L, lang, locale } from './i18n'
 import { setOfficeSession } from './security'
 import { log } from './log'
 import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
+import { isStoreApp } from './appx'
 import type { OfficeAsk, OfficeMergeMode, OfficeOtherDocument, OfficeTabs } from '@shared/officeui'
 import type { OfficeTheme } from '@shared/officeThemes'
 import { installFonts, lookupFont } from './fontcatalog'
@@ -839,7 +840,8 @@ export class OfficeWindows {
       `--molino-kind=${kind}`,
       `--molino-version=${app.getVersion()}`,
       `--molino-piece=${pieceVersion()}`,
-      `--molino-author=${encodeURIComponent(this.options.author().replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100))}`
+      `--molino-author=${encodeURIComponent(this.options.author().replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 100))}`,
+      ...(isStoreApp() ? ['--molino-store'] : [])
     ]
   }
 

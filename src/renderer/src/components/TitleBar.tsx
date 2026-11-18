@@ -17,6 +17,7 @@ import {
   Settings,
   ShieldAlert,
   SquareArrowOutUpRight,
+  Star,
   Undo2,
   X
 } from 'lucide-react'
@@ -81,6 +82,7 @@ export function TitleBar() {
       { label: L.shell.titleBar.menu.shortcuts, icon: <Keyboard size={16} />, onSelect: () => openDialog({ type: 'shortcuts' }) },
       { label: L.shell.titleBar.menu.feedback, icon: <MessageSquare size={16} />, onSelect: () => openDialog({ type: 'custom', id: 'feedback' }) },
       { label: L.shell.titleBar.menu.sponsor, icon: <Coffee size={16} />, onSelect: () => void window.molino.about.open('sponsors') },
+      ...(window.molino.env.store ? [{ label: L.shell.titleBar.menu.rate, icon: <Star size={16} />, onSelect: () => void window.molino.about.open('rate') }] : []),
       { label: L.shell.titleBar.menu.about, icon: <Info size={16} />, onSelect: () => openDialog({ type: 'about' }) }
     )
     return entries

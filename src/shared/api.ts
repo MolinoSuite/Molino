@@ -162,7 +162,8 @@ export interface ScanAdded {
 
 export interface MolinoApi {
   /** ``built``: fecha de compilación (AAAA-MM-DD) o vacía si no se conoce. */
-  env: { version: string; built: string; dev: boolean; lang: Lang; locale: string }
+  /** store: la versión de la Microsoft Store (para «Valorar en la Store»). */
+  env: { version: string; built: string; dev: boolean; lang: Lang; locale: string; store: boolean }
 
   /** Llama a una operación del motor que no implica rutas de archivo. */
   engine<T>(method: string, params: Record<string, unknown>, options?: CallOptions): Promise<Envelope<EngineReply<T>>>
@@ -276,7 +277,7 @@ export interface MolinoApi {
   /** Información legal y de la aplicación (licencia, código fuente, componentes de terceros). */
   about: {
     /** «whatsNew»: la página de novedades de esta versión, en el idioma de Molino (el proceso principal arma la dirección). */
-    open(what: 'license' | 'notices' | 'source' | 'issues' | 'sponsors' | 'whatsNew'): Promise<boolean>
+    open(what: 'license' | 'notices' | 'source' | 'issues' | 'sponsors' | 'whatsNew' | 'rate'): Promise<boolean>
     /** Los avisos legales del motor de oficina (si está añadido). */
     office(what: OfficeLegal): Promise<Envelope<boolean>>
   }

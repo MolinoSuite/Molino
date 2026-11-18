@@ -4,7 +4,7 @@
  * panel, barra de estado y buscador de órdenes. Lo de cada app está en
  * apps.tsx; lo que toca al editor, en engine.ts.
  */
-import { Archive, Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Signature, Sparkles, SquareArrowOutUpRight, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
+import { Archive, Bold, ChevronDown, ChevronUp, CircleAlert, CircleHelp, Coffee, FilePlusCorner, FileText, FolderOpen, GalleryHorizontal, KeyRound, PenLine, GalleryVertical, Info, Italic, Keyboard, Link, MessageSquare, MessageSquarePlus, Minus, PanelLeftClose, Play, Plus, Printer, Redo2, Save, SaveAll, Search, Settings, Signature, Sparkles, SquareArrowOutUpRight, Star, StickyNote, TriangleAlert, Underline, Undo2, X } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { OfficeTabs, OfficeAsk, OfficeKind, OfficeScript } from '@shared/officeui'
 import { Dialog, Menu, MenuButton, type MenuEntry } from '@/components/ui'
@@ -240,6 +240,7 @@ export function OfficeApp() {
         settings: () => setSettingsOpen(true),
         shortcuts: () => setShortcutsOpen(true),
         feedback: () => setFeedbackOpen(true),
+        rate: () => void window.molino.about.open('rate'),
         about: () => setAbout(true),
         showInFolder: () => void (tabs?.active && activeHasFile && window.molinoOffice.showInFolder(tabs.active))
       }
@@ -804,6 +805,7 @@ function fileEntries({
     { label: F.shortcuts, icon: <Keyboard size={15} />, onSelect: shortcuts },
     { label: F.feedback, icon: <MessageSquare size={15} />, onSelect: feedback },
     { label: F.sponsor, icon: <Coffee size={15} />, onSelect: () => void window.molino.about.open('sponsors') },
+    ...(window.molino.env.store ? [{ label: F.rate, icon: <Star size={15} />, onSelect: () => void window.molino.about.open('rate') }] : []),
     { label: F.about, icon: <Info size={15} />, onSelect: about }
   ]
 }

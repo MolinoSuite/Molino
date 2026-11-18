@@ -478,6 +478,7 @@ const COMMON_EXTRA: PaletteEntry[] = [
   { label: F.settings, group: G.help, keywords: SK.settings, command: 'settings' },
   { label: F.shortcuts, group: G.help, keywords: SK.shortcuts, command: 'shortcuts' },
   { label: F.feedback, group: G.help, keywords: SK.feedback, command: 'feedback' },
+  ...(window.molino.env.store ? [{ label: F.rate, group: G.help, keywords: SK.rate, command: 'rate' }] : []),
   { label: F.about, group: G.help, keywords: SK.about, command: 'about' }
 ]
 

@@ -438,7 +438,8 @@ export const office: typeof es = {
     properties: 'Properties…',
     shortcuts: 'Keyboard shortcuts',
     feedback: 'Send feedback',
-    sponsor: 'Buy me a coffee'
+    sponsor: 'Buy me a coffee',
+    rate: 'Rate in the Store'
   },
   shortcuts: {
     title: 'Keyboard shortcuts',

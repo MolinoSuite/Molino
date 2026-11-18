@@ -9,6 +9,7 @@ import type { DocDescriptor, EngineErrorInfo, Envelope, MutationResult } from '@
 import type { AiDownloadProgress, AiKind, AiStatus } from '@shared/ai'
 import type { OfficeApp } from '@shared/office'
 import { AiError, type AiModels } from './aimodels'
+import { storeReviewUrl } from './appx'
 import { EngineClient, EngineError } from './engine'
 import { fmt, L, lang, locale } from './i18n'
 import { log } from './log'
@@ -1249,9 +1250,16 @@ export class Bridge {
 
     // ---- acerca de: licencia, componentes de terceros, código fuente y novedades
     // (rutas y direcciones fijas, nunca recibidas de la interfaz)
-    this.handle('about:open', z.enum(['license', 'notices', 'source', 'issues', 'sponsors', 'whatsNew']), async (what) => {
+    this.handle('about:open', z.enum(['license', 'notices', 'source', 'issues', 'sponsors', 'whatsNew', 'rate']), async (what) => {
       // La página de novedades de esta versión (whatsnew.ts arma la dirección); con eso, su aviso ya está visto.
       if (what === 'whatsNew') return this.whatsNew.open()
+      // Valorar en la Store: la página del paquete en el que corre (solo en la versión de la Store).
+      if (what === 'rate') {
+        const review = storeReviewUrl()
+        if (!review) return false
+        await shell.openExternal(review)
+        return true
+      }
       if (what === 'source' || what === 'issues' || what === 'sponsors') {
         await shell.openExternal(what === 'issues' ? `${SOURCE_URL}/issues` : what === 'sponsors' ? SPONSORS_URL : SOURCE_URL)
         return true
