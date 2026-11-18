@@ -633,6 +633,7 @@ export const office: typeof es = {
     code: 'Code',
     codePlaceholder: 'Write your script here. For example:\nvar doc = Api.GetDocument();\nprint(doc.GetElementsCount());',
     run: 'Run',
+    runKbd: 'Ctrl+Enter',
     save: 'Save',
     remove: 'Delete',
     done: 'Done.',
@@ -648,6 +649,7 @@ export const office: typeof es = {
       countSlides: 'Count slides',
       newSlide: 'Add a slide'
     },
+    exampleWords: { paragraphs: 'Paragraphs:', date: 'Date: ', sum: 'Sum:', slides: 'Slides:' },
     types: { text: 'text', rich: 'rich text', check: 'check box', combo: 'combo box', list: 'drop-down list', date: 'date', picture: 'picture' },
     propsTitle: 'Control properties ({type})',
     title: 'Title',
@@ -947,6 +949,7 @@ export const office: typeof es = {
     empty: 'The document is empty.',
     emptySlide: 'This slide has no text.',
     badFormula: 'The AI suggested {formula}, but it isn’t valid ({problem}). Try asking another way.',
+    notFormula: 'it isn’t a formula',
     tasks: {
       rewrite: 'Rewrite',
       summarize: 'Summarize',

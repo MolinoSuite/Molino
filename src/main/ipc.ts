@@ -971,7 +971,7 @@ export class Bridge {
               title: L.main.dialogs.saveCompressed
             },
             text: { method: 'tools.exportText', ext: 'txt', label: L.main.filters.text, suffix: '', title: L.main.dialogs.exportText },
-            word: { method: 'tools.exportWord', ext: 'docx', label: 'Word', suffix: '', title: L.main.dialogs.exportWord }
+            word: { method: 'tools.exportWord', ext: 'docx', label: L.main.office.formats['.docx'], suffix: '', title: L.main.dialogs.exportWord }
           }[kind]
           const chosen = await dialog.showSaveDialog(this.requireWindow(), {
             title: spec.title,

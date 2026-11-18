@@ -638,6 +638,7 @@ export const office = {
     code: 'Código',
     codePlaceholder: 'Escribe aquí tu script. Por ejemplo:\nvar doc = Api.GetDocument();\nprint(doc.GetElementsCount());',
     run: 'Ejecutar',
+    runKbd: 'Ctrl+Intro',
     save: 'Guardar',
     remove: 'Borrar',
     done: 'Hecho.',
@@ -653,6 +654,8 @@ export const office = {
       countSlides: 'Contar las diapositivas',
       newSlide: 'Añadir una diapositiva'
     },
+    /** Lo que escriben los ejemplos, en el idioma de Molino. */
+    exampleWords: { paragraphs: 'Párrafos:', date: 'Fecha: ', sum: 'Suma:', slides: 'Diapositivas:' },
     types: { text: 'texto', rich: 'texto con formato', check: 'casilla', combo: 'cuadro combinado', list: 'lista desplegable', date: 'fecha', picture: 'imagen' },
     propsTitle: 'Propiedades del control ({type})',
     title: 'Título',
@@ -961,6 +964,7 @@ export const office = {
     empty: 'El documento está vacío.',
     emptySlide: 'Esta diapositiva no tiene texto.',
     badFormula: 'La IA ha propuesto {formula}, pero no vale ({problem}). Prueba a pedirlo de otra manera.',
+    notFormula: 'no es una fórmula',
     tasks: {
       rewrite: 'Reescribir',
       summarize: 'Resumir',

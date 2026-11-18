@@ -10,7 +10,7 @@ import { Copy, Loader2, Settings2, Sparkles, Square } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import type { OfficeAiMethod, OfficeKind } from '@shared/officeui'
 import { Segmented } from '@/components/ui'
-import type { EditorSession } from './engine'
+import { type EditorSession, NOT_A_FORMULA } from './engine'
 import { fmt, L } from './i18n'
 
 const A = L.office.ai
@@ -180,7 +180,7 @@ export function AiPanel({
       const r = await run(doc, 'ai.formula', { request: input.trim().slice(0, 500), ...context })
       const formula = typeof r.formula === 'string' ? r.formula : ''
       const problem = session.checkFormula(formula)
-      if (problem) throw new Error(fmt(A.badFormula, { formula, problem }))
+      if (problem) throw new Error(fmt(A.badFormula, { formula, problem: problem === NOT_A_FORMULA ? A.notFormula : problem }))
       return { text: formula, formula, marked: false, injection: injection(r) }
     }
     if (task === 'explain') {

@@ -43,6 +43,25 @@ def _app_command() -> list[str] | None:
     return parts if all(Path(p).exists() for p in parts) else None
 
 
+# Como resolveLang de la app con el idioma en «Automático»: español si Windows
+# está en español, catalán, gallego o euskera; si no, inglés. Identificadores
+# primarios de idioma de Windows (LANGID & 0x3FF).
+_SPANISH_FAMILY = {0x0A, 0x03, 0x56, 0x2D}
+
+
+def _in_spanish() -> bool:
+    """Idioma de los dos mensajes del lanzador, que habla antes de que arranque Molino (y lea sus ajustes)."""
+    wanted = os.environ.get("MOLINO_LANG", "").strip().lower()
+    if wanted in ("es", "en"):
+        return wanted == "es"
+    try:
+        import ctypes
+
+        return (ctypes.windll.kernel32.GetUserDefaultUILanguage() & 0x3FF) in _SPANISH_FAMILY
+    except (AttributeError, OSError):
+        return not os.environ.get("LANG", "").startswith("en")
+
+
 def _called_as_app() -> bool:
     """Lanzado por el alias ``molino-pdf.exe``: abrir Molino PDF, no una orden."""
     name = Path(sys.argv[0] if sys.argv and sys.argv[0] else "").name.lower()
@@ -102,7 +121,7 @@ def _utf8_console():
 def main(arguments: list[str]) -> int:
     command = _app_command()
     if command is None:
-        sys.stderr.write("No se encuentra Molino junto a este programa.\n")
+        sys.stderr.write("No se encuentra Molino junto a este programa.\n" if _in_spanish() else "Molino can't be found next to this program.\n")
         return 1
     if _called_as_app():
         return _open_app(command, list(arguments))
@@ -110,7 +129,7 @@ def main(arguments: list[str]) -> int:
     password: str | None = None
     if ("--pfx" in args or any(a.startswith("--pfx=") for a in args)) and not any(a.split("=")[0] in PASSWORD_OPTIONS for a in args):
         try:
-            password = getpass.getpass("Contraseña del certificado: " if not os.environ.get("LANG", "").startswith("en") else "Certificate password: ")
+            password = getpass.getpass("Contraseña del certificado: " if _in_spanish() else "Certificate password: ")
         except (EOFError, KeyboardInterrupt):
             sys.stderr.write("\n")
             return 130

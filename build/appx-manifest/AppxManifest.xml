@@ -20,7 +20,8 @@
   <Properties>
     <DisplayName>${displayName}</DisplayName>
     <PublisherDisplayName>${publisherDisplayName}</PublisherDisplayName>
-    <Description>${description}</Description>
+    <!-- La descripción, el nombre: es igual en español y en inglés (la de package.json solo está en español). -->
+    <Description>${displayName}</Description>
     <Logo>${logo}</Logo>
   </Properties>
   <Resources>
@@ -37,7 +38,7 @@
        DisplayName="${displayName}"
        Square150x150Logo="${square150x150Logo}"
        Square44x44Logo="${square44x44Logo}"
-       Description="${description}">
+       Description="${displayName}">
         ${lockScreen}
         ${defaultTile}
         ${splashScreen}

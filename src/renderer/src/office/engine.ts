@@ -227,6 +227,8 @@ const PARA_SPACING: Record<string, [number, number]> = { none: [0, 0], compact: 
 /** Las formas que se pueden insertar (nombres de los editores, comprobados en su lista). */
 export const SHAPE_NAMES = ['rect', 'roundRect', 'ellipse', 'triangle', 'rtTriangle', 'diamond', 'hexagon', 'star5', 'rightArrow', 'leftArrow', 'upArrow', 'downArrow', 'line', 'lineWithArrow', 'wedgeRectCallout', 'cloud', 'heart'] as const
 const SHAPES = new Set<string>(SHAPE_NAMES)
+/** checkFormula: lo propuesto no empieza por «=» (no es una fórmula). No puede confundirse con un nombre de función. */
+export const NOT_A_FORMULA = '-'
 /** Formatos de número de «Formato de número»: su lugar en la lista de asc_getFormatCells. */
 const NUMBER_FORMATS: Record<string, number> = { general: 0, number: 1, scientific: 2, accounting: 3, currency: 4, shortDate: 5, longDate: 6, time: 7, percent: 8, fraction: 9, text: 10 }
 const NUMBER_FALLBACK: Record<string, string> = { general: 'General', number: '0.00', scientific: '0.00E+00', accounting: '#,##0.00 €', currency: '#,##0.00 €', shortDate: 'dd/mm/yyyy', longDate: 'dddd, d mmmm yyyy', time: 'hh:mm:ss', percent: '0.00%', fraction: '# ?/?', text: '@' }
@@ -2076,9 +2078,12 @@ export class EditorSession {
     }
   }
 
-  /** ¿Vale la fórmula? Devuelve el problema (o '' si vale): las funciones tienen que existir. */
+  /**
+   * ¿Vale la fórmula? Devuelve el problema (o '' si vale): NOT_A_FORMULA, o el
+   * nombre de una función que no existe. Quien lo enseña lo traduce.
+   */
   checkFormula(formula: string): string {
-    if (!/^=/.test(formula) || formula.length > 1000) return 'no es una fórmula'
+    if (!/^=/.test(formula) || formula.length > 1000) return NOT_A_FORMULA
     const known = new Set<string>()
     try {
       for (const group of this.api.asc_getFormulasInfo() || []) for (const f of group.asc_getFormulasArray() || []) known.add(String(f.asc_getName()).toUpperCase())

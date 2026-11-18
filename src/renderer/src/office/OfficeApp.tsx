@@ -789,7 +789,7 @@ function fileEntries({
     { label: F.open, icon: <FolderOpen size={15} />, kbd: 'Ctrl+O', onSelect: () => void window.molinoOffice.openDialog() },
     'sep',
     { label: F.save, icon: <Save size={15} />, kbd: 'Ctrl+S', disabled: !hasDoc, onSelect: () => run('save') },
-    { label: F.saveAs, icon: <SaveAll size={15} />, kbd: 'Ctrl+Mayús+S', disabled: !hasDoc || !doc, onSelect: () => doc && void window.molinoOffice.saveAs(doc) },
+    { label: F.saveAs, icon: <SaveAll size={15} />, kbd: L.shell.titleBar.menu.saveAsKbd, disabled: !hasDoc || !doc, onSelect: () => doc && void window.molinoOffice.saveAs(doc) },
     { label: F.savePdf, icon: <FileText size={15} />, disabled: !hasDoc, onSelect: () => run('savePdf') },
     { label: F.savePdfA, icon: <Archive size={15} />, disabled: !hasDoc, onSelect: () => run('savePdfA') },
     { label: F.sign, icon: <Signature size={15} />, disabled: !hasDoc || !doc, onSelect: () => run('signAsk') },
@@ -1568,13 +1568,17 @@ function NoticeDialog({ notice, onClose }: { notice: EditorNotice; onClose: () =
   )
 }
 
-/** Ejemplos para empezar: uno o dos por app, con la API de documentos de ONLYOFFICE. */
+/** Un texto de Molino como cadena de JavaScript entre comillas simples, para el código de los ejemplos. */
+const jsText = (text: string): string => `'${text.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`
+const W = T.developer.exampleWords
+
+/** Ejemplos para empezar: uno o dos por app, con la API de documentos de ONLYOFFICE. Lo que escriben, en el idioma de Molino. */
 const SCRIPT_EXAMPLES: Record<string, { name: string; code: string }[]> = {
   word: [
-    { name: T.developer.examples.countParagraphs, code: "var doc = Api.GetDocument();\nprint('Párrafos:', doc.GetElementsCount());" },
+    { name: T.developer.examples.countParagraphs, code: `var doc = Api.GetDocument();\nprint(${jsText(W.paragraphs)}, doc.GetElementsCount());` },
     {
       name: T.developer.examples.dateAtEnd,
-      code: "var doc = Api.GetDocument();\nvar p = Api.CreateParagraph();\np.AddText('Fecha: ' + new Date().toLocaleDateString('es-ES'));\ndoc.Push(p);"
+      code: `var doc = Api.GetDocument();\nvar p = Api.CreateParagraph();\np.AddText(${jsText(W.date)} + new Date().toLocaleDateString(${jsText(env.locale)}));\ndoc.Push(p);`
     }
   ],
   cell: [
@@ -1584,11 +1588,11 @@ const SCRIPT_EXAMPLES: Record<string, { name: string; code: string }[]> = {
     },
     {
       name: T.developer.examples.sumSelection,
-      code: "var total = 0;\nApi.GetSelection().ForEach(function (cell) {\n  var n = parseFloat(cell.GetValue());\n  if (!isNaN(n)) total += n;\n});\nprint('Suma:', total);"
+      code: `var total = 0;\nApi.GetSelection().ForEach(function (cell) {\n  var n = parseFloat(cell.GetValue());\n  if (!isNaN(n)) total += n;\n});\nprint(${jsText(W.sum)}, total);`
     }
   ],
   slide: [
-    { name: T.developer.examples.countSlides, code: "print('Diapositivas:', Api.GetPresentation().GetSlidesCount());" },
+    { name: T.developer.examples.countSlides, code: `print(${jsText(W.slides)}, Api.GetPresentation().GetSlidesCount());` },
     { name: T.developer.examples.newSlide, code: 'var presentation = Api.GetPresentation();\npresentation.AddSlide(Api.CreateSlide());' }
   ]
 }
@@ -1691,7 +1695,7 @@ function ScriptsPanel({ kind, session, onClose }: { kind: string; session: Edito
         }}
       />
       <div className="row">
-        <button className="btn primary sm" disabled={!current.code.trim()} onClick={runIt} data-tip="Ctrl+Intro">
+        <button className="btn primary sm" disabled={!current.code.trim()} onClick={runIt} data-tip={P.runKbd}>
           <Play size={14} />
           {P.run}
         </button>

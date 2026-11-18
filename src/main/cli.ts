@@ -8,7 +8,7 @@ import type { DocDescriptor } from '@shared/types'
 import { EngineClient, EngineError } from './engine'
 import { productName } from './edition'
 import { engineLaunchFor } from './enginelaunch'
-import { fmt, initLang, L } from './i18n'
+import { fmt, initLang, L, lang } from './i18n'
 import { initLog, log, quietLog } from './log'
 import { bundledPieceDir, OfficePiece } from './office'
 import { configureOffice } from './officeconfig'
@@ -81,6 +81,14 @@ const ALIASES: Record<string, string> = {
   'larga-duración': 'larga-duracion', page: 'pagina', 'página': 'pagina', area: 'zona', online: 'en-linea', 'en-línea': 'en-linea',
   data: 'datos', dpi: 'ppp', 'certificate-password': 'contrasena-certificado', printer: 'impresora', copies: 'copias', duplex: 'doble-cara', 'password-stdin': 'contrasena-stdin'
 }
+/** El nombre inglés de cada opción (el más largo: --output, no -o), para los mensajes en inglés. */
+const ENGLISH_OPTION: Record<string, string> = {}
+for (const [alias, canonical] of Object.entries(ALIASES)) {
+  if (/^[a-z][a-z-]+$/.test(alias) && alias.length > (ENGLISH_OPTION[canonical]?.length ?? 0)) ENGLISH_OPTION[canonical] = alias
+}
+/** Una opción tal como se enseña en un mensaje: en inglés, --pages; en español, --paginas. */
+const shownOption = (name: string): string => (lang === 'en' ? (ENGLISH_OPTION[name] ?? name) : name)
+
 const FLAGS = new Set([
   'sobrescribir', 'grises', 'json', 'sin-imprimir', 'sin-copiar', 'sin-modificar', 'sin-sello', 'larga-duracion',
   'en-linea', 'doble-cara', 'contrasena-stdin', 'help'
@@ -119,7 +127,7 @@ function parse(argv: string[]): Parsed {
     if (FLAGS.has(name)) options.set(name, true)
     else {
       if (value === undefined) value = rest[++i]
-      if (value === undefined) throw new UsageError(fmt(L.cli.missingOption, { name }))
+      if (value === undefined) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption(name) }))
       options.set(name, value)
     }
   }
@@ -278,7 +286,7 @@ class Session {
     const raw = this.opt(name)
     if (raw === undefined) return fallback
     const found = values[raw.toLowerCase()]
-    if (!found) throw new UsageError(fmt(L.cli.badOption, { name, value: raw }))
+    if (!found) throw new UsageError(fmt(L.cli.badOption, { name: shownOption(name), value: raw }))
     return found
   }
 
@@ -286,7 +294,7 @@ class Session {
     const raw = this.opt(name)
     if (raw === undefined) return fallback
     const n = Number(raw.replace(',', '.'))
-    if (!Number.isFinite(n) || n < min || n > max) throw new UsageError(fmt(L.cli.badOption, { name, value: raw }))
+    if (!Number.isFinite(n) || n < min || n > max) throw new UsageError(fmt(L.cli.badOption, { name: shownOption(name), value: raw }))
     return n
   }
 }
@@ -410,7 +418,7 @@ const COMMAND_RUNNERS: Record<string, Command> = {
   async extract(s) {
     const input = s.input()
     const output = s.output(input)
-    if (!s.opt('paginas')) throw new UsageError(fmt(L.cli.missingOption, { name: 'paginas' }))
+    if (!s.opt('paginas')) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption('paginas') }))
     const doc = await s.openPdf(input)
     await s.request('pages.extract', { doc: doc.doc, pages: s.pages(doc), path: output })
     out(fmt(L.cli.done, { path: output }))
@@ -445,13 +453,13 @@ const COMMAND_RUNNERS: Record<string, Command> = {
   rotate: (s) =>
     pdfOut(s, async (doc) => {
       const angle = s.number('grados', 90, -90, 270)
-      if (![90, 180, 270, -90].includes(angle)) throw new UsageError(fmt(L.cli.badOption, { name: 'grados', value: String(angle) }))
+      if (![90, 180, 270, -90].includes(angle)) throw new UsageError(fmt(L.cli.badOption, { name: shownOption('grados'), value: String(angle) }))
       await s.request('pages.rotate', { doc: doc.doc, pages: s.pages(doc), angle })
     }),
 
   delete: (s) =>
     pdfOut(s, async (doc) => {
-      if (!s.opt('paginas')) throw new UsageError(fmt(L.cli.missingOption, { name: 'paginas' }))
+      if (!s.opt('paginas')) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption('paginas') }))
       await s.request('pages.delete', { doc: doc.doc, pages: s.pages(doc) })
     }),
 
@@ -481,8 +489,8 @@ const COMMAND_RUNNERS: Record<string, Command> = {
     // Con restricciones, la de propietario la pone el usuario (la necesitará para quitarlas);
     // sin ellas, una al azar: tiene que ser distinta de la de apertura.
     const owner = s.opt('contrasena-propietario') ?? (restricted ? '' : randomBytes(18).toString('base64url'))
-    if (!user && !owner) throw new UsageError(fmt(L.cli.missingOption, { name: 'contrasena' }))
-    if (!owner) throw new UsageError(fmt(L.cli.missingOption, { name: 'contrasena-propietario' }))
+    if (!user && !owner) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption('contrasena') }))
+    if (!owner) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption('contrasena-propietario') }))
     // La contraseña es la nueva: el PDF de entrada se abre sin ella.
     s.p.options.delete('contrasena')
     const doc = await s.openPdf(input)
@@ -505,7 +513,7 @@ const COMMAND_RUNNERS: Record<string, Command> = {
   watermark: (s) =>
     pdfOut(s, async (doc) => {
       const text = s.opt('texto')
-      if (!text) throw new UsageError(fmt(L.cli.missingOption, { name: 'texto' }))
+      if (!text) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption('texto') }))
       await s.request('tools.watermark', {
         doc: doc.doc,
         text: text.slice(0, 200),
@@ -580,7 +588,7 @@ const COMMAND_RUNNERS: Record<string, Command> = {
       source = { type: 'pfx', path, password }
     } else {
       const wanted = s.opt('certificado')
-      if (!wanted) throw new UsageError(fmt(L.cli.missingOption, { name: 'certificado' }))
+      if (!wanted) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption('certificado') }))
       const { certificates } = await s.request<{ certificates: Certificate[] }>('sign.certificates', {})
       const usable = certificates.filter((c) => c.canSign && c.valid)
       const needle = wanted.replace(/\s+/g, '').toUpperCase()
@@ -603,7 +611,7 @@ const COMMAND_RUNNERS: Record<string, Command> = {
       params.page = doc.pages[n - 1].id
       const zone = (s.opt('zona') ?? '').split(/[,; ]+/).filter(Boolean).map(Number)
       if (zone.length === 4 && zone.every(Number.isFinite)) params.rect = zone
-      else if (s.opt('zona')) throw new UsageError(fmt(L.cli.badOption, { name: 'zona', value: s.opt('zona')! }))
+      else if (s.opt('zona')) throw new UsageError(fmt(L.cli.badOption, { name: shownOption('zona'), value: s.opt('zona')! }))
       else params.rect = [36, 36, 236, 106]
     }
     await s.request('sign.sign', params)
@@ -636,10 +644,12 @@ const COMMAND_RUNNERS: Record<string, Command> = {
     if (s.flag('json')) return (out(JSON.stringify(fields.map((f) => ({ name: f.name, type: f.type, value: f.value, options: f.options })), null, 2)), 0)
     if (fields.length === 0) return (out(L.cli.noFields), 0)
     const seen = new Set<string>()
+    // El tipo, con el nombre de Molino en su idioma (en --json va el identificador).
+    const types = L.form.inspector.type as Record<string, string>
     for (const f of fields) {
       if (seen.has(f.name)) continue
       seen.add(f.name)
-      out(`${f.name} (${f.type}) = ${JSON.stringify(f.value)}`)
+      out(`${f.name} (${types[f.type] ?? types.other}) = ${JSON.stringify(f.value)}`)
     }
     return 0
   },
@@ -648,7 +658,7 @@ const COMMAND_RUNNERS: Record<string, Command> = {
     const input = s.input()
     const output = s.output(input)
     const dataPath = s.opt('datos')
-    if (!dataPath) throw new UsageError(fmt(L.cli.missingOption, { name: 'datos' }))
+    if (!dataPath) throw new UsageError(fmt(L.cli.missingOption, { name: shownOption('datos') }))
     let data: Record<string, unknown>
     try {
       data = JSON.parse(readFileSync(resolve(dataPath), 'utf8')) as Record<string, unknown>
