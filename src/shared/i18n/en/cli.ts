@@ -1,6 +1,6 @@
 import type { cli as es } from '../es/cli'
 
-/** The command line (`molino …`, src/main/cli.ts). Full manual in docs/linea-de-ordenes.md. */
+/** The command line (`molino …`, src/main/cli.ts). Full manual in docs/command-line.md (in Spanish, docs/linea-de-ordenes.md). */
 export const cli: typeof es = {
   usage: `Molino from the command line. Everything happens on your computer, with no internet and no windows.
 
@@ -41,7 +41,7 @@ Other
   version · help [command]
 
 Common options: -o/--output, -y/--overwrite, --password (the input PDF's), --json.
-Manual: https://github.com/MolinoSuite/Molino/blob/main/docs/linea-de-ordenes.md`,
+Manual: https://github.com/MolinoSuite/Molino/blob/main/docs/command-line.md`,
   unknownCommand: 'Unknown command «{name}». Type «molino help» to see them.',
   missingInput: 'The input file is missing.',
   missingOutput: 'Where to save the result is missing: -o <file>.',

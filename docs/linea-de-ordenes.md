@@ -1,10 +1,10 @@
 # Molino desde la línea de órdenes
 
+*[English version](command-line.md)*
+
 Con el comando `molino` puedes usar todas las apps de Molino sin abrir ninguna ventana: convertir documentos, hojas de cálculo y presentaciones, unir PDF, comprimirlos, pasarles el OCR, firmarlos, rellenar formularios o imprimir. Sirve para automatizar tareas con scripts de PowerShell, archivos `.bat` o el Programador de tareas de Windows. Y dentro de Documentos, Hojas y Presentaciones puedes además [escribir tus propios scripts](#tus-scripts-en-documentos-hojas-y-presentaciones).
 
 Todo se hace en tu equipo, con el mismo motor que usan las apps. Nada se sube a internet. Solo se conecta para firmar con sello de tiempo (el servicio recibe una huella del documento, nunca el documento; se quita con `--sin-sello`) y para consultar si un certificado sigue siendo válido, con `--larga-duracion` o `verificar --en-linea`.
-
-*English summary at the end.*
 
 ## Antes de empezar
 
@@ -176,26 +176,3 @@ print('Párrafos:', doc.GetElementsCount());
 - No cambia los ajustes de Molino. Solo los lee: el idioma y el servicio de sello de tiempo.
 - No necesita internet, salvo para el sello de tiempo de las firmas, para las firmas de larga duración (`--larga-duracion`) y para `verificar --en-linea`.
 - Más detalles en la [política de privacidad](https://molinosuite.org/privacidad/).
-
----
-
-## English summary
-
-`molino` lets you use every Molino app from PowerShell or the Command Prompt, with no windows open: Word, Excel, PowerPoint and OpenDocument files (with Molino Suite), PDFs and images. Every command and option also has an English name. It all happens on your computer; it only goes online for signature timestamps (`--no-timestamp` turns them off), long-term signatures (`--long-term`) and `verify --online`.
-
-**Commands:**
-- **Files:** `convert`, `merge`, `extract`, `split`, `rotate`, `delete-pages`, `compress`, `ocr`, `watermark`, `page-numbers`, `protect`, `unprotect`, `sanitize`, `text`, `info`.
-- **Signatures and forms:** `sign`, `certificates`, `verify`, `fields`, `fill`.
-- **Printing:** `print`, `printers`.
-- **Other:** `open`, `version`, `help`.
-
-**Options:**
-- **General:** `-o/--output`, `-y/--overwrite`, `--password`, `--pages`, `--json`.
-- **Page tools:** `--every`, `--ranges`, `--degrees`, `--level`, `--grayscale`, `--languages`, `--text`, `--position`, `--opacity`, `--format`, `--start`.
-- **Protection:** `--owner-password`, `--no-print`, `--no-copy`, `--no-modify`.
-- **Signing:** `--certificate`, `--pfx`, `--certificate-password`, `--reason`, `--location`, `--no-timestamp`, `--long-term`, `--page`, `--area`, `--online`.
-- **Forms and printing:** `--data`, `--printer`, `--copies`, `--duplex`.
-
-Run `molino help` for the full list in your language.
-
-**Your own scripts:** inside Docs, Sheets and Slides (Molino Suite), **My scripts** runs your own JavaScript on the open document, with the [ONLYOFFICE document API](https://api.onlyoffice.com/docs/office-api/get-started/overview/), no access to your files or the internet, and Ctrl+Z to undo it. It lives in the **Advanced** tab (**Scripts**, in Slides), which is hidden by default and turned on in **Settings**; in Docs the tab also has form controls, and in Sheets, data validation, cell locking and sheet protection. Macros that come inside documents never run.
