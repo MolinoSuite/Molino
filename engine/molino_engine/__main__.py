@@ -99,6 +99,12 @@ def _tidy_container(own_base: Path) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     arguments = sys.argv[1:] if argv is None else list(argv)
+    if arguments[:1] == ["--confine"] and sys.platform == "linux":
+        # El lanzador del aislamiento de Linux: se limita y se convierte en el
+        # programa que se le pide (ver linuxconfine). Antes que nada mas.
+        from .linuxconfine import exec_main
+
+        return exec_main(arguments)
     if not any(a == "--workdir" or a.startswith("--workdir=") for a in arguments) and arguments[:1] not in (
         ["--word-worker"], ["--scan-worker"], ["--ai-worker"], ["--ai-gpu"], ["--ai-detect"], ["--remove-sandbox"]
     ):

@@ -1,9 +1,18 @@
-"""Aislamiento del motor en Linux: bubblewrap, limites y carpetas de trabajo.
+"""Aislamiento del motor en Linux: bubblewrap, Landlock, seccomp y limites.
 
 Hace en Linux lo mismo que ``winsandbox`` en Windows, con la misma forma (ver
-``sandbox``). El proceso que analiza los documentos (el "aislado", ver
-``broker.py``) corre dentro de bubblewrap, la herramienta con la que Flatpak
-encierra sus aplicaciones. Asi:
+``sandbox``), en dos capas que se suman:
+
+1. **bubblewrap**, la herramienta con la que Flatpak encierra sus aplicaciones,
+   cuando el sistema lo deja (ver abajo).
+2. **Landlock y seccomp** (``linuxconfine``), que cada proceso aislado se pone a
+   si mismo antes de arrancar: no necesitan permisos especiales, asi que valen
+   tambien donde bubblewrap no puede (Ubuntu 24.04 sin perfil de AppArmor,
+   dentro de Flatpak o Snap). Solo leer lo permitido y escribir en su carpeta,
+   sin red de ningun tipo y sin crear procesos.
+
+Con bubblewrap, el proceso que analiza los documentos (el "aislado", ver
+``broker.py``):
 
 * no ve los archivos del usuario: solo un sistema minimo de solo lectura (/usr
   y las bibliotecas del sistema), el propio motor, sus recursos y su carpeta
@@ -17,12 +26,9 @@ encierra sus aplicaciones. Asi:
 * no puede ganar privilegios (``no_new_privs``, bubblewrap lo pone siempre) y
   su memoria esta acotada (``RLIMIT_DATA``, con ``prlimit``).
 
-Pendiente: un filtro seccomp que le impida crear procesos, como el objeto de
-trabajo de Windows. Mientras, lo que crease seguiria igual de encerrado.
-
-Si bubblewrap no esta instalado, o el sistema no deja crear los espacios de
-nombres que usa, ``open_container`` falla y el motor se lanza sin aislar, como
-en Windows: la aplicacion lo indica al usuario. Solo se usa el bubblewrap del
+Si no hay ninguna de las dos capas (ni bubblewrap ni Landlock),
+``open_container`` falla y el motor se lanza sin aislar, como en Windows: la
+aplicacion lo indica al usuario. Solo se usa el bubblewrap del
 sistema (``/usr/bin/bwrap``), nunca uno buscado en el PATH: es el que tiene el
 permiso de AppArmor en las distribuciones que lo exigen (Ubuntu 24.04).
 """
@@ -32,12 +38,14 @@ from __future__ import annotations
 import fcntl
 import functools
 import hashlib
+import json
 import os
 import re
 import shutil
 import signal
 import stat
 import subprocess
+import sys
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -74,14 +82,34 @@ def _first_program(candidates: tuple[str, ...]) -> str | None:
 
 @dataclass
 class Container:
-    """El "contenedor" del motor en Linux: su carpeta privada y lo que puede leer."""
+    """El "contenedor" del motor en Linux: su carpeta privada, lo que puede leer y sus capas."""
 
     folder: Path
-    bwrap: str
+    bwrap: str | None  # None: el sistema no deja usar bubblewrap
+    landlock: int  # version de Landlock del nucleo (0: no hay)
+    launcher: list[str]  # la orden que pone Landlock y seccomp (este mismo motor)
     readable: list[Path] = field(default_factory=list)
+
+    @property
+    def layers(self) -> str:
+        names = (["bubblewrap"] if self.bwrap else []) + ([f"Landlock {self.landlock}"] if self.landlock >= 2 else []) + ["seccomp"]
+        return " + ".join(names)
 
     def close(self) -> None:
         pass
+
+
+def _launcher() -> list[str]:
+    """Como lanzar ``linuxconfine`` con este mismo motor (empaquetado o, en desarrollo, el Python base)."""
+    if getattr(sys, "frozen", False):
+        return [sys.executable]
+    engine_dir = str(Path(__file__).resolve().parents[1])
+    base = str(Path(getattr(sys, "_base_executable", sys.executable)).resolve())
+    boot = (
+        f"import sys; sys.path.insert(0, {engine_dir!r}); "
+        "from molino_engine.linuxconfine import exec_main; sys.exit(exec_main(sys.argv[1:]))"
+    )
+    return [base, "-E", "-s", "-S", "-c", boot]
 
 
 def _data_home() -> Path:
@@ -130,12 +158,19 @@ def _namespaces_work(bwrap: str) -> bool:
 
 
 def open_container(name: str = CONTAINER_NAME) -> Container:
-    """Comprueba que se puede aislar y prepara la carpeta privada del motor."""
+    """Comprueba que se puede aislar (con alguna de las dos capas) y prepara la carpeta privada del motor."""
+    from .linuxconfine import ConfineError, landlock_abi, seccomp_program
+
     bwrap = _first_program(_BWRAP)
-    if bwrap is None:
-        raise SandboxError("bubblewrap")
-    if not _namespaces_work(bwrap):
-        raise SandboxError("espacios de nombres")
+    if bwrap is not None and not _namespaces_work(bwrap):
+        bwrap = None
+    try:
+        seccomp_program()
+    except ConfineError as exc:  # una arquitectura sin filtro
+        raise SandboxError("seccomp") from exc
+    abi = landlock_abi()
+    if bwrap is None and abi < 2:
+        raise SandboxError("ni bubblewrap ni Landlock")
     folder = container_folder(name)
     try:
         folder.parent.mkdir(parents=True, exist_ok=True)
@@ -148,7 +183,7 @@ def open_container(name: str = CONTAINER_NAME) -> Container:
         os.chmod(folder, 0o700)  # solo el usuario: dentro hay copias de sus documentos
     except OSError as exc:
         raise SandboxError("carpeta", exc.errno or 0) from exc
-    return Container(folder, bwrap)
+    return Container(folder, bwrap, abi, _launcher())
 
 
 def delete_container(name: str = CONTAINER_NAME) -> bool:
@@ -274,6 +309,14 @@ def _user_font_dirs() -> list[str]:
     return [str(p) for p in (data / "fonts", home / ".fonts", cache_home / "fontconfig") if p.is_dir()]
 
 
+def _confine_rules(container: Container) -> str:
+    """Lo que el proceso podra leer y escribir con Landlock (linuxconfine), en JSON."""
+    return json.dumps({
+        "read": [str(p) for p in container.readable] + _user_font_dirs(),
+        "write": [str(container.folder)],
+    }, ensure_ascii=False)
+
+
 def _bwrap_args(container: Container, cwd: str, env: dict[str, str]) -> list[str]:
     args = [
         "--unshare-all",  # usuario, procesos, red, IPC, nombre del equipo y cgroup propios
@@ -304,7 +347,7 @@ def spawn(
     env: dict[str, str],
     container: Container | None,
     job: Job | None,
-    block_children: bool = True,  # noqa: ARG001 - lo hara el filtro seccomp (pendiente)
+    block_children: bool = True,  # noqa: ARG001 - siempre: el filtro seccomp no deja crear procesos
 ) -> Child:
     """Lanza ``cmd`` (sin interprete de ordenes), aislado si hay ``container``.
 
@@ -314,8 +357,11 @@ def spawn(
     argv = list(cmd)
     run_env = dict(env)
     if container is not None:
-        argv = [container.bwrap, *_bwrap_args(container, cwd, env), "--", *argv]
-        run_env = {}  # el entorno del motor lo pone bubblewrap (--setenv), nada del nuestro
+        # Landlock y seccomp siempre; dentro de bubblewrap, si lo hay.
+        argv = [*container.launcher, "--confine", _confine_rules(container), "--", *argv]
+        if container.bwrap:
+            argv = [container.bwrap, *_bwrap_args(container, cwd, env), "--", *argv]
+            run_env = {}  # el entorno del motor lo pone bubblewrap (--setenv), nada del nuestro
     limit = job.memory_limit if job is not None else None
     prlimit = _first_program(_PRLIMIT) if limit else None
     if limit and prlimit:
