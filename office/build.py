@@ -1,21 +1,26 @@
 """Arma el motor de oficina de Molino (Documentos, Hojas y Presentaciones).
 
 Parte de la versión oficial de ONLYOFFICE Desktop Editors y deja solo lo que
-Molino usa, con sus cambios:
+Molino usa, con sus cambios. Para el sistema en el que se ejecuta: Windows x64
+(la portable) o Linux x64 o ARM64 (el .tar.xz), porque la versión precompilada
+del paso 4 la hace x2t y es de su sistema y su arquitectura:
 
-1. La portable oficial (office/source.json: dirección, tamaño y SHA-256 fijos)
+1. El paquete oficial (office/source.json: dirección, tamaño y SHA-256 fijos)
    se descarga a una caché fuera del repositorio, o se usa una copia ya
    descargada si su huella coincide (``--source``).
 2. Se extraen los editores (sin los de PDF y Visio: de eso se encarga Molino
    PDF), el conversor, los diccionarios de los idiomas cercanos y las fuentes del
    motor. Nada del navegador ni de Qt de la app de escritorio de ONLYOFFICE.
-3. Se comprueba la firma de Ascensio System SIA en los .exe y .dll del conversor.
+3. En Windows, se comprueba la firma de Ascensio System SIA en los .exe y .dll
+   del conversor (en Linux no van firmados: vale la huella del paquete).
 4. Se aplican los cambios de Molino (office/patches.py) y se regenera la versión
    precompilada de cada app cambiada (``x2t -create-js-snapshots``): x2t lee
    esa, no el JavaScript.
 5. Se añaden las licencias (office/licenses) y el aviso de modificación que piden
    los términos del §7 de la licencia de ONLYOFFICE.
-6. Todo se comprime en dist-office/MolinoOffice-<versión>.zip, con orden y fechas
+6. Todo se comprime en dist-office/MolinoOffice-<versión>.zip (en Linux,
+   MolinoOffice-<versión>-linux-<arquitectura>.zip, con los permisos de
+   ejecución del conversor), con orden y fechas
    fijos, y se escribe al lado su ficha (tamaño y SHA-256) para el catálogo de
    Molino. Dos armados dan los mismos archivos salvo la versión precompilada
    regenerada (V8 no la genera igual dos veces), así que la huella del zip cambia:
@@ -24,6 +29,7 @@ Molino usa, con sus cambios:
    que lleva Molino (src/main/office.ts).
 
   engine\\.venv\\Scripts\\python.exe -I office\\build.py [--source <DesktopEditors_x64.zip>] [--rehacer]
+  engine/.venv/bin/python -I office/build.py [--source <onlyoffice-desktopeditors-x64.tar.xz>]   (Linux)
 """
 
 from __future__ import annotations
@@ -31,9 +37,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import platform
 import shutil
 import subprocess
 import sys
+import tarfile
 import urllib.request
 import zipfile
 from pathlib import Path, PurePosixPath
@@ -45,7 +53,20 @@ import patches  # noqa: E402
 
 SOURCE = json.loads((HERE / "source.json").read_text(encoding="utf-8"))
 VERSION = SOURCE["piece"]
-NAME = f"MolinoOffice-{VERSION}"
+# El sistema para el que se arma: el de este equipo.
+WINDOWS = sys.platform == "win32"
+ARCH = {"x86_64": "x64", "amd64": "x64", "aarch64": "arm64", "arm64": "arm64"}.get(platform.machine().lower(), platform.machine().lower())
+if WINDOWS:
+    PACKAGE = {"url": SOURCE["url"], "size": SOURCE["size"], "sha256": SOURCE["sha256"]}
+    PREFIX = ""
+    NAME = f"MolinoOffice-{VERSION}"
+elif sys.platform == "linux" and ARCH in SOURCE["linux"]:
+    PACKAGE = SOURCE["linux"][ARCH]
+    PREFIX = SOURCE["linux"]["prefix"]
+    NAME = f"MolinoOffice-{VERSION}-linux-{ARCH}"
+else:
+    sys.exit(f"office/build.py: sin paquete de ONLYOFFICE para {sys.platform} {ARCH}")
+X2T = "x2t.exe" if WINDOWS else "x2t"
 # Lo que se deja fuera de lo extraído.
 LEFT_OUT = (
     "editors/sdkjs/pdf/",
@@ -70,21 +91,21 @@ def sha256_of(path: Path) -> str:
 
 
 def fetch(cache: Path, local: Path | None) -> Path:
-    """La portable oficial, comprobada por tamaño y huella."""
-    for candidate in (local, cache / "DesktopEditors_x64.zip"):
-        if candidate and candidate.is_file() and candidate.stat().st_size == SOURCE["size"]:
-            if sha256_of(candidate) == SOURCE["sha256"]:
+    """El paquete oficial, comprobado por tamaño y huella."""
+    target = cache / PACKAGE["url"].rsplit("/", 1)[1]
+    for candidate in (local, target):
+        if candidate and candidate.is_file() and candidate.stat().st_size == PACKAGE["size"]:
+            if sha256_of(candidate) == PACKAGE["sha256"]:
                 log("origen:", candidate)
                 return candidate
             log("no coincide la huella, se descarta:", candidate)
-    target = cache / "DesktopEditors_x64.zip"
     part = target.with_suffix(".part")
     cache.mkdir(parents=True, exist_ok=True)
-    log("descargando", SOURCE["url"])
-    request = urllib.request.Request(SOURCE["url"], headers={"User-Agent": "Molino office build"})
+    log("descargando", PACKAGE["url"])
+    request = urllib.request.Request(PACKAGE["url"], headers={"User-Agent": "Molino office build"})
     with urllib.request.urlopen(request, timeout=120) as response, open(part, "wb") as out:
         shutil.copyfileobj(response, out, 1 << 20)
-    if part.stat().st_size != SOURCE["size"] or sha256_of(part) != SOURCE["sha256"]:
+    if part.stat().st_size != PACKAGE["size"] or sha256_of(part) != PACKAGE["sha256"]:
         part.unlink()
         raise SystemExit("la descarga no coincide con office/source.json (tamaño o huella)")
     part.replace(target)
@@ -101,6 +122,8 @@ def wanted(name: str) -> bool:
 
 
 def extract(archive: Path, dest: Path) -> int:
+    if not WINDOWS:
+        return extract_tar(archive, dest)
     count = 0
     with zipfile.ZipFile(archive) as z:
         for info in z.infolist():
@@ -115,6 +138,34 @@ def extract(archive: Path, dest: Path) -> int:
             out.parent.mkdir(parents=True, exist_ok=True)
             with z.open(info) as src, open(out, "wb") as dst:
                 shutil.copyfileobj(src, dst, 1 << 20)
+            count += 1
+    return count
+
+
+def extract_tar(archive: Path, dest: Path) -> int:
+    """Linux: lo de dentro de ``opt/onlyoffice/desktopeditors/``, con sus permisos; sin enlaces."""
+    count = 0
+    with tarfile.open(archive, "r:xz") as tar:
+        for member in tar:
+            if not member.name.startswith(PREFIX):
+                continue
+            name = member.name[len(PREFIX):]
+            if member.isdir() or not name:
+                continue
+            path = PurePosixPath(name)
+            if path.is_absolute() or ".." in path.parts or "\\" in name:
+                raise SystemExit(f"ruta no admitida en el archivo: {member.name!r}")
+            if not wanted(name):
+                continue
+            if not member.isfile():
+                raise SystemExit(f"en lo que usa Molino solo debe haber archivos normales: {member.name!r}")
+            out = dest.joinpath(*path.parts)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            src = tar.extractfile(member)
+            assert src is not None
+            with src, open(out, "wb") as dst:
+                shutil.copyfileobj(src, dst, 1 << 20)
+            out.chmod(0o755 if member.mode & 0o111 else 0o644)
             count += 1
     return count
 
@@ -143,7 +194,7 @@ def snapshots(dest: Path, apps: set[str]) -> None:
     sdkjs = dest / "editors" / "sdkjs"
     before = {b.parent.name: b.read_bytes() for b in sdkjs.glob("*/sdk-all.bin")}
     run = subprocess.run(
-        [str(dest / "converter" / "x2t.exe"), "-create-js-snapshots"],
+        [str(dest / "converter" / X2T), "-create-js-snapshots"],
         cwd=dest / "converter", capture_output=True, timeout=600,
     )
     for app, data in before.items():
@@ -222,7 +273,8 @@ def notices(dest: Path) -> None:
         "piece": "office",
         "version": VERSION,
         "onlyoffice": SOURCE["onlyoffice"],
-        "sourceSha256": SOURCE["sha256"],
+        "sourceSha256": PACKAGE["sha256"],
+        "platform": "windows-x64" if WINDOWS else f"linux-{ARCH}",
         "patches": [p["name"] for p in patches.PATCHES],
         "dictionaries": SOURCE["dictionaries"],
     }
@@ -235,14 +287,16 @@ def pack(dest: Path, archive: Path) -> None:
     with zipfile.ZipFile(part, "w") as z:
         for f in files:
             info = zipfile.ZipInfo(f.relative_to(dest).as_posix(), date_time=FIXED_TIME)
-            info.external_attr = 0o644 << 16
+            # En Linux, el conversor y sus bibliotecas siguen siendo ejecutables.
+            executable = not WINDOWS and f.stat().st_mode & 0o111
+            info.external_attr = (0o755 if executable else 0o644) << 16
             z.writestr(info, f.read_bytes(), compress_type=zipfile.ZIP_DEFLATED, compresslevel=9)
     part.replace(archive)
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="Arma el motor de oficina de Molino.")
-    ap.add_argument("--source", type=Path, help="DesktopEditors_x64.zip ya descargada (se comprueba su huella)")
+    ap.add_argument("--source", type=Path, help="el paquete ya descargado: DesktopEditors_x64.zip o el .tar.xz de Linux (se comprueba su huella)")
     ap.add_argument("--cache", type=Path, default=REPO / "build-cache" / "office")
     ap.add_argument("--rehacer", action="store_true", help="rehacer el zip aunque ya exista (cambiará su huella)")
     a = ap.parse_args()
@@ -256,7 +310,10 @@ def main() -> None:
     work.mkdir(parents=True)
     archive = fetch(a.cache, a.source)
     log("extraídos", extract(archive, work), "archivos")
-    log("firmas del conversor válidas:", check_signatures(work))
+    if WINDOWS:
+        log("firmas del conversor válidas:", check_signatures(work))
+    else:
+        log("Linux: el conversor no va firmado; vale la huella del paquete (office/source.json)")
     apps = patches.apply(work)
     log("cambios aplicados:", ", ".join(p["name"] for p in patches.PATCHES))
     snapshots(work, apps)

@@ -33,12 +33,16 @@ export function pieceVersion(): string {
  * MOLINO_TEST_OFFICE_BUNDLED; «none»: sin pieza, como Molino PDF). Tiene que ser
  * la de esta versión.
  */
+// Sin empaquetar, la que arma office/build.py en este sistema (en Linux lleva el
+// sistema y la arquitectura en el nombre).
+const DEV_PIECE_SUFFIX = process.platform === 'win32' ? '' : `-linux-${process.arch === 'arm64' ? 'arm64' : 'x64'}`
+
 export function bundledPieceDir(): string | null {
   const test = app.isPackaged ? undefined : process.env.MOLINO_TEST_OFFICE_BUNDLED
   if (test === 'none') return null
   const dir = app.isPackaged
     ? join(process.resourcesPath, 'office')
-    : (test ?? join(app.getAppPath(), 'dist-office', `MolinoOffice-${OFFICE_PIECE.version}`))
+    : (test ?? join(app.getAppPath(), 'dist-office', `MolinoOffice-${OFFICE_PIECE.version}${DEV_PIECE_SUFFIX}`))
   try {
     const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as { piece?: unknown; version?: unknown }
     return manifest.piece === 'office' && manifest.version === OFFICE_PIECE.version ? dir : null

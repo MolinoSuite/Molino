@@ -337,7 +337,7 @@ class Broker:
         if sandboxed:
             container = sandbox.open_container()
             self._container = container
-            for target in [*readable, *([self._resources] if self._resources else [])]:
+            for target in [*readable, *([self._resources] if self._resources else []), *self._office_folders_at_start()]:
                 sandbox.ensure_read_access(target, container)
             root = self._claim_run_dir(self._profile_base(container.folder))
             # Restos de ejecuciones sin aislar (o de versiones anteriores) en la
@@ -354,6 +354,28 @@ class Broker:
         return sandbox.spawn(
             command + args, cwd=cwd, env=self._env, container=self._container if sandboxed else None, job=self._job
         )
+
+    def _office_folders_at_start(self) -> list[Path]:
+        """Linux: la carpeta de la oficina (piezas, indice de fuentes y fuentes propias) y la pieza del paquete.
+
+        En Linux, lo que el motor aislado puede leer se fija al lanzarlo
+        (bubblewrap y Landlock no se pueden ampliar despues, como el permiso de
+        Windows): se le da ya, solo para leer. Lo que la aplicacion guarde ahi
+        despues (el indice de fuentes, una fuente nueva) tambien lo vera. La
+        comprobacion de que pieza e indice usar sigue en ``_prepare_office``.
+        """
+        if sys.platform == "win32":
+            return []
+        folders: list[Path] = []
+        if self._office_root is not None:
+            try:
+                self._office_root.mkdir(parents=True, exist_ok=True)
+                folders.append(self._office_root)
+            except OSError:
+                pass
+        if self._office_bundled is not None and self._office_bundled.is_dir():
+            folders.append(self._office_bundled)
+        return folders
 
     def _start(self) -> dict[str, Any]:
         """Lanza el motor (aislado si se puede) y espera a que este listo."""

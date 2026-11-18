@@ -222,6 +222,11 @@ class OfficeUnavailable(Exception):
     """La pieza no esta instalada o no es una pieza de Molino."""
 
 
+# El conversor de la pieza: el de Windows o el de Linux (office/build.py arma
+# cada una en su sistema).
+X2T_NAME = "x2t.exe" if os.name == "nt" else "x2t"
+
+
 @dataclass(frozen=True)
 class Piece:
     """Una pieza instalada y, si ya existe, el indice de fuentes de este equipo."""
@@ -237,7 +242,7 @@ class Piece:
 
     @property
     def x2t(self) -> Path:
-        return self.converter / "x2t.exe"
+        return self.converter / X2T_NAME
 
     @property
     def themes(self) -> Path:
@@ -253,7 +258,7 @@ def check_piece(root: Path) -> Path:
     try:
         resolved = root.resolve(strict=True)
         manifest = json.loads((resolved / "manifest.json").read_text(encoding="utf-8"))
-        ok = isinstance(manifest, dict) and manifest.get("piece") == "office" and (resolved / "converter" / "x2t.exe").is_file()
+        ok = isinstance(manifest, dict) and manifest.get("piece") == "office" and (resolved / "converter" / X2T_NAME).is_file()
     except (OSError, ValueError):
         ok = False
     if not ok:
@@ -309,7 +314,15 @@ def user_font_dirs() -> list[Path]:
     instaladas solo para el usuario y las que descarga Office (Aptos, en
     ``FontCache\\4\\CloudFonts``). Sin permiso, x2t no las ve y las cambia por
     otras (Aptos sale en Arial).
+
+    En Linux, las de la carpeta personal (``~/.local/share/fonts`` y
+    ``~/.fonts``); las del sistema estan en /usr, que el aislado ya lee.
     """
+    if os.name != "nt":
+        home = Path.home()
+        data = os.environ.get("XDG_DATA_HOME", "")
+        data_home = Path(data) if data and os.path.isabs(data) else home / ".local" / "share"
+        return [p for p in (data_home / "fonts", home / ".fonts") if p.is_dir()]
     local = os.environ.get("LOCALAPPDATA")
     if not local:
         return []
@@ -341,6 +354,14 @@ def x2t_command(piece: Piece, work_root: Path, job: dict[str, Any]) -> list[str]
 
 def x2t_environment(temp: Path) -> dict[str, str]:
     """Entorno minimo de x2t (sin las variables del usuario)."""
+    if os.name != "nt":
+        # Linux: x2t busca sus bibliotecas en su carpeta (RPATH $ORIGIN) y las
+        # fuentes del equipo a partir de HOME.
+        env = {"PATH": "/usr/bin:/bin", "TMPDIR": str(temp), "LANG": "C.UTF-8"}
+        home = os.environ.get("HOME")
+        if home and os.path.isabs(home):
+            env["HOME"] = home
+        return env
     system_root = os.environ.get("SystemRoot", r"C:\Windows")
     env = {
         "SystemRoot": system_root,

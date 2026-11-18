@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { join, resolve, sep } from 'node:path'
+import { homedir } from 'node:os'
+import { isAbsolute, join, resolve, sep } from 'node:path'
 
 /**
  * El índice de fuentes de los editores (AllFonts.js y font_selection.bin).
@@ -24,6 +25,13 @@ export function ownFontsDir(officeRoot: string): string {
 
 /** Carpetas de fuentes que van en el índice: las del equipo y, si se da, las instaladas solo en Molino. */
 export function fontFolders(ownFonts?: string): string[] {
+  if (process.platform !== 'win32') {
+    // Linux: las del sistema y las de la carpeta personal (donde las busca x2t).
+    const home = homedir()
+    const xdg = process.env.XDG_DATA_HOME
+    const data = xdg && isAbsolute(xdg) ? xdg : join(home, '.local', 'share')
+    return ['/usr/share/fonts', '/usr/local/share/fonts', join(data, 'fonts'), join(home, '.fonts'), ...(ownFonts ? [ownFonts] : [])]
+  }
   const windows = process.env.WINDIR ?? process.env.SystemRoot ?? 'C:\\Windows'
   const folders = [join(windows, 'Fonts')]
   const local = process.env.LOCALAPPDATA
@@ -33,6 +41,9 @@ export function fontFolders(ownFonts?: string): string[] {
   if (ownFonts) folders.push(ownFonts)
   return folders
 }
+
+// CloudFonts guarda cada familia en una carpeta; en Linux van más hondas (truetype/familia/archivo).
+const MAX_DEPTH = process.platform === 'win32' ? 2 : 4
 
 async function listing(folder: string, depth = 0): Promise<string[]> {
   const out: string[] = []
@@ -46,7 +57,7 @@ async function listing(folder: string, depth = 0): Promise<string[]> {
     const full = join(folder, entry.name)
     if (entry.isDirectory()) {
       // CloudFonts guarda cada familia en su carpeta.
-      if (depth < 2) out.push(...(await listing(full, depth + 1)))
+      if (depth < MAX_DEPTH) out.push(...(await listing(full, depth + 1)))
     } else if (entry.isFile()) {
       try {
         const info = await stat(full)
