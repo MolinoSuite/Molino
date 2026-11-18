@@ -64,16 +64,18 @@ import { engineLaunchFor } from './enginelaunch'
 
 // Molino PDF; en la Store, la app del paquete (appx.ts). Las ventanas de las
 // demás apps llevan la suya (officeapps.ts).
-app.setAppUserModelId(storeAppUserModelId('pdf') ?? 'org.molinosuite.molino')
+if (process.platform === 'win32') app.setAppUserModelId(storeAppUserModelId('pdf') ?? 'org.molinosuite.molino')
 
 // Todos los datos de la aplicación (ajustes, registro y copias de trabajo de los
 // documentos) van a una carpeta local y privada del usuario, no a la itinerante:
 // en la versión de la Microsoft Store, la del propio paquete (ver appx.ts); sin
-// empaquetar, %LOCALAPPDATA%\Molino.
+// empaquetar, %LOCALAPPDATA%\Molino. En Linux, ~/.config/Molino (la carpeta de
+// configuración de XDG): la misma para Molino PDF y Molino Suite, como en Windows.
 if (!app.commandLine.hasSwitch('user-data-dir')) {
   const store = storeDataDir()
   if (store) app.setPath('userData', store)
   else if (process.env.LOCALAPPDATA) app.setPath('userData', join(process.env.LOCALAPPDATA, 'Molino'))
+  else if (process.platform === 'linux') app.setPath('userData', join(app.getPath('appData'), 'Molino'))
 }
 
 // Una sola instancia por carpeta de datos: los archivos que se abran desde el

@@ -4,7 +4,7 @@ El motor funciona de dos formas y las operaciones no distinguen entre ellas:
 
 * ``DirectHost``: todo en el mismo proceso, con acceso directo (las pruebas y el
   modo ``--direct``).
-* ``BrokeredHost``: el motor corre aislado (``--worker``, ver ``winsandbox``) y
+* ``BrokeredHost``: el motor corre aislado (``--worker``, ver ``sandbox``) y
   no puede abrir nada del usuario. Cada acceso se convierte en una peticion al
   proceso intermediario (``broker.py``), que comprueba que corresponda a lo que
   el usuario ha pedido en la operacion en curso antes de hacerlo (A01:2025,

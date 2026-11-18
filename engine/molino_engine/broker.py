@@ -8,7 +8,7 @@ Arquitectura::
 * El **motor aislado** (``--worker``) es el que lee y modifica los PDF, es
   decir, el que procesa datos no fiables con codigo en C (MuPDF). Corre en un
   AppContainer sin acceso a los archivos del usuario, sin red y sin poder crear
-  procesos (ver ``winsandbox``).
+  procesos (ver ``sandbox``).
 * El **intermediario** nunca analiza un PDF. Reenvia las peticiones de la
   aplicacion al motor y atiende lo que este no puede hacer: leer y escribir los
   archivos que el usuario ha elegido, firmar con su certificado, conectarse al
@@ -56,13 +56,12 @@ from typing import Any, BinaryIO, Callable
 
 from . import __version__, i18n, office, paths
 
-# El aislamiento de este intermediario es el de Windows (AppContainer). En otros
-# sistemas el modulo se puede importar, pero aun no aislar: eso llega con su
-# propio mecanismo (PLAN-1.0.md, fase 4).
+# El aislamiento del motor, el de cada sistema (ver ``sandbox``): AppContainer
+# en Windows, bubblewrap en Linux.
+from . import sandbox
+
 if sys.platform == "win32":
     import msvcrt
-
-    from . import winsandbox
 from .aibroker import AI_OPS, AiService
 from .errors import Cancelled, EngineError, denied, invalid, io_error
 from .host import CHUNK, SCAN_TIMEOUT, WORD_TIMEOUT, claim_name, same_path, stat_pair
@@ -121,8 +120,10 @@ _SCAN_RESULT = re.compile(r"^(j[0-9a-f]{16})/detect-([0-9a-f]{12})\.out\.json$")
 
 
 def _key(raw: str) -> str:
-    """Forma comparable de una ruta (mayusculas, separadores y ``..`` resueltos)."""
-    return os.path.normcase(os.path.normpath(raw.replace("/", "\\")))
+    """Forma comparable de una ruta (``..`` resueltos; en Windows, ademas, mayusculas y separadores)."""
+    if os.name == "nt":
+        return os.path.normcase(os.path.normpath(raw.replace("/", "\\")))
+    return os.path.normpath(raw)
 
 
 def _text(params: dict[str, Any], name: str, limit: int = 32_000) -> str:
@@ -211,9 +212,9 @@ class Broker:
         self._known: set[str] = set()  # rutas que el usuario ya eligio en esta ejecucion
         self._lock = threading.Lock()
         self._pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix="intermediario")
-        self._container: winsandbox.Container | None = None
-        self._job: winsandbox.Job | None = None
-        self._worker: winsandbox.Child | None = None
+        self._container: sandbox.Container | None = None
+        self._job: sandbox.Job | None = None
+        self._worker: sandbox.Child | None = None
         self._to_worker: FrameWriter | None = None
         self._worker_root: Path | None = None
         self._run_lock: BinaryIO | None = None
@@ -253,6 +254,8 @@ class Broker:
         return [str(base), "-E", "-s", "-S", "-c", boot], str(engine_dir), [engine_dir, base.parent]
 
     def _environment(self, temp: Path) -> dict[str, str]:
+        if sys.platform != "win32":
+            return self._environment_posix(temp)
         system_root = os.environ.get("SystemRoot", r"C:\Windows")
         env = {
             "SystemRoot": system_root,
@@ -274,15 +277,33 @@ class Broker:
                 env[name] = value
         return env
 
+    def _environment_posix(self, temp: Path) -> dict[str, str]:
+        """Linux: lo minimo. HOME y las carpetas XDG, para que las fuentes del usuario
+        se encuentren donde dice la configuracion de fontconfig; dentro del aislado
+        solo se ven esas carpetas de fuentes y la del motor (ver linuxsandbox)."""
+        env = {
+            "PATH": "/usr/bin:/bin",
+            "TMPDIR": str(temp),
+            "LANG": "C.UTF-8",
+            "PYTHONUTF8": "1",
+            "PYTHONDONTWRITEBYTECODE": "1",
+            i18n.ENV: i18n.language(),
+        }
+        for name in ("HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME", "XDG_CONFIG_HOME"):
+            value = os.environ.get(name)
+            if value and os.path.isabs(value):
+                env[name] = value
+        return env
+
     def _profile_base(self, folder: Path) -> Path:
-        """Carpeta de este perfil dentro del contenedor (ver ``winsandbox.PROFILE_PREFIX``).
+        """Carpeta de este perfil dentro del contenedor (ver ``sandbox.PROFILE_PREFIX``).
 
         El contenedor es uno por usuario de Windows: sin esta separacion, lo
         recuperable de un perfil (o de una prueba) apareceria en otro.
         """
-        if not winsandbox.plain_directory(folder):
-            raise winsandbox.SandboxError("carpeta")
-        base = folder / winsandbox.profile_folder_name(self._main_workdir)
+        if not sandbox.plain_directory(folder):
+            raise sandbox.SandboxError("carpeta")
+        base = folder / sandbox.profile_folder_name(self._main_workdir)
         try:
             base.mkdir()
         except FileExistsError:
@@ -296,41 +317,41 @@ class Broker:
         carpeta (crear uniones de directorio que apunten a los documentos del
         usuario, por ejemplo). Por eso este proceso nunca borra de forma
         recursiva alli: los restos de ejecuciones anteriores los borra el propio
-        motor aislado al arrancar (ver ``winsandbox.clean_stale_runs``), con sus
+        motor aislado al arrancar (ver ``sandbox.clean_stale_runs``), con sus
         permisos, que no alcanzan a nada del usuario.
         """
-        if not winsandbox.plain_directory(base):
-            raise winsandbox.SandboxError("carpeta")
+        if not sandbox.plain_directory(base):
+            raise sandbox.SandboxError("carpeta")
         run = base / secrets.token_hex(8)
         # Comprobado justo antes de crear: nada se escribe a traves de un enlace.
         run.mkdir()
         (run / "temp").mkdir()
         # "x": se crea nuevo, nunca se abre algo que ya estuviera ahi.
-        lock = open(run / winsandbox.RUN_MARKER, "xb")  # noqa: SIM115 - vive lo que la ejecucion
+        lock = open(run / sandbox.RUN_MARKER, "xb")  # noqa: SIM115 - vive lo que la ejecucion
         _lock_marker(lock)
         self._run_lock = lock
         return run
 
-    def _spawn(self, sandboxed: bool) -> winsandbox.Child:
+    def _spawn(self, sandboxed: bool) -> sandbox.Child:
         command, cwd, readable = self._command()
         if sandboxed:
-            container = winsandbox.open_container()
+            container = sandbox.open_container()
             self._container = container
             for target in [*readable, *([self._resources] if self._resources else [])]:
-                winsandbox.ensure_read_access(target, container)
+                sandbox.ensure_read_access(target, container)
             root = self._claim_run_dir(self._profile_base(container.folder))
             # Restos de ejecuciones sin aislar (o de versiones anteriores) en la
             # carpeta de la aplicacion: con el motor aislado no los recoge nadie.
-            winsandbox.clean_stale_dirs(self._main_workdir)
+            sandbox.clean_stale_dirs(self._main_workdir)
         else:
             root = self._claim_run_dir(self._main_workdir)
         self._worker_root = root
         self._env = self._environment(root / "temp")
-        self._job = winsandbox.Job(memory_limit=winsandbox.process_memory_limit())
+        self._job = sandbox.Job(memory_limit=sandbox.process_memory_limit())
         args = ["--worker", "--workdir", str(root)]
         if self._resources is not None:
             args += ["--resources", str(self._resources)]
-        return winsandbox.spawn(
+        return sandbox.spawn(
             command + args, cwd=cwd, env=self._env, container=self._container if sandboxed else None, job=self._job
         )
 
@@ -340,7 +361,7 @@ class Broker:
         for sandboxed in attempts:
             try:
                 child = self._spawn(sandboxed)
-            except (winsandbox.SandboxError, OSError) as exc:
+            except (sandbox.SandboxError, OSError) as exc:
                 self.issue = getattr(exc, "step", type(exc).__name__)
                 log.error("no se pudo lanzar el motor aislado (%s)", self.issue)
                 self._discard_attempt()
@@ -378,7 +399,7 @@ class Broker:
         # Si el motor dejo algo (cambios sin guardar de una salida de golpe), el
         # proximo motor lo aparta para recuperarlo y borra lo demas.
         try:
-            (root / winsandbox.RUN_MARKER).unlink()
+            (root / sandbox.RUN_MARKER).unlink()
         except OSError:
             pass
         for folder in (root / "temp", root):
@@ -598,7 +619,7 @@ class Broker:
             # dibujar el PDF, plantillas y fuentes propias), el indice, las
             # instaladas solo en Molino y las fuentes del usuario, que x2t tambien usa.
             for folder in (root, *([index] if index else []), *([own] if own else []), *office.user_font_dirs()):
-                winsandbox.ensure_read_access(folder, self._container)
+                sandbox.ensure_read_access(folder, self._container)
         self._office = office.Piece(root, index, own)
         return {"piece": str(root), "fonts": str(index) if index else None, "ownFonts": str(own) if own else None}
 
@@ -919,9 +940,9 @@ class Broker:
         # Las rutas solo se pasan como argumentos a otro proceso aislado: este
         # proceso no abre nada dentro de la carpeta del motor.
         command, cwd, _readable = self._command()
-        job = winsandbox.Job(memory_limit=winsandbox.process_memory_limit())
+        job = sandbox.Job(memory_limit=sandbox.process_memory_limit())
         try:
-            child = winsandbox.spawn(
+            child = sandbox.spawn(
                 [*command, "--word-worker", str(self._worker_root / source), str(self._worker_root / dest)],
                 cwd=cwd, env=self._env, container=self._container if self.sandboxed else None, job=job,
             )
@@ -966,9 +987,9 @@ class Broker:
             raise denied(_("Operación no permitida."))
         assert self._worker_root is not None
         command, cwd, _readable = self._command()
-        job = winsandbox.Job(memory_limit=winsandbox.process_memory_limit())
+        job = sandbox.Job(memory_limit=sandbox.process_memory_limit())
         try:
-            child = winsandbox.spawn(
+            child = sandbox.spawn(
                 [*command, "--scan-worker", str(self._worker_root / request), str(self._worker_root / result)],
                 cwd=cwd, env=self._env, container=self._container if self.sandboxed else None, job=job,
             )
@@ -1012,9 +1033,9 @@ class Broker:
             command = office.x2t_command(self._office, self._worker_root, params)
         except ValueError:
             raise denied(_("Operación no permitida.")) from None
-        job = winsandbox.Job(memory_limit=winsandbox.process_memory_limit())
+        job = sandbox.Job(memory_limit=sandbox.process_memory_limit())
         try:
-            child = winsandbox.spawn(
+            child = sandbox.spawn(
                 command, cwd=str(self._office.converter), env=self._env,
                 container=self._container if self.sandboxed else None, job=job,
             )
@@ -1050,12 +1071,12 @@ class Broker:
 
     # ====================================================================== IA
 
-    def _spawn_ai(self, args: list[str], memory: int) -> tuple[winsandbox.Child, winsandbox.Job]:
+    def _spawn_ai(self, args: list[str], memory: int) -> tuple[sandbox.Child, sandbox.Job]:
         """Lanza el proceso de IA como los demas auxiliares: aislado, sin hijos y con su memoria acotada."""
         command, cwd, _readable = self._command()
-        job = winsandbox.Job(memory_limit=max(memory, winsandbox.process_memory_limit()))
+        job = sandbox.Job(memory_limit=max(memory, sandbox.process_memory_limit()))
         try:
-            child = winsandbox.spawn(
+            child = sandbox.spawn(
                 [*command, *args], cwd=cwd, env=self._env, container=self._container if self.sandboxed else None, job=job
             )
         except BaseException:
@@ -1066,7 +1087,7 @@ class Broker:
     def _grant_ai_read(self, folder: Path) -> None:
         """El contenedor puede leer (solo leer) la carpeta de modelos."""
         if self.sandboxed and self._container is not None:
-            winsandbox.ensure_read_access(folder, self._container)
+            sandbox.ensure_read_access(folder, self._container)
 
     def _ai_run(self, grant: Grant, params: dict[str, Any], payload: bytes) -> tuple[dict[str, Any], bytes]:
         """Lo que el motor aislado pide a la IA, solo si corresponde a la operacion en curso."""
@@ -1168,7 +1189,7 @@ def _lock_marker(fh: BinaryIO) -> None:
         fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
 
 
-def _wait_ready(child: winsandbox.Child) -> dict[str, Any] | None:
+def _wait_ready(child: sandbox.Child) -> dict[str, Any] | None:
     """Espera el saludo del motor; ``None`` si termina o no responde a tiempo."""
     box: dict[str, Any] = {}
 

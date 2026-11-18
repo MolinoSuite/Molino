@@ -80,13 +80,13 @@ def _tidy_container(own_base: Path) -> int:
     temporales (pruebas) no dejan restos. Lo de otro perfil en marcha no se
     toca (su marca de uso esta bloqueada).
     """
-    from . import recovery, winsandbox
+    from . import recovery, sandbox
 
     removed = 0
     root = own_base.parent
-    for base in [*winsandbox.other_profiles(own_base), root]:
+    for base in [*sandbox.other_profiles(own_base), root]:
         area = base / recovery.AREA
-        removed += winsandbox.clean_stale_dirs(base, before_delete=lambda run, area=area: recovery.harvest(run, area))
+        removed += sandbox.clean_stale_dirs(base, before_delete=lambda run, area=area: recovery.harvest(run, area))
         recovery.prune(area)
         if base != root:
             for leftover in (area, base):
@@ -135,9 +135,9 @@ def main(argv: list[str] | None = None) -> int:
 
         return detect_main(arguments[1:])
     if arguments[:1] == ["--remove-sandbox"]:
-        from . import winsandbox
+        from . import sandbox
 
-        return 0 if winsandbox.delete_container() else 1
+        return 0 if sandbox.delete_container() else 1
 
     parser = argparse.ArgumentParser(prog="molino-engine", add_help=False)
     mode = parser.add_mutually_exclusive_group()
@@ -160,9 +160,9 @@ def main(argv: list[str] | None = None) -> int:
         # este proceso no puede crear ni modificar codigo ejecutable (ACG). Un
         # fallo de memoria explotado por un PDF ya no puede inyectar codigo
         # propio. ctypes, que lo necesita al cargarse, ya esta cargado.
-        from . import winsandbox
+        from . import sandbox
 
-        locked = winsandbox.lock_down_dynamic_code()
+        locked = sandbox.lock_down_dynamic_code()
 
     logging.basicConfig(
         level=getattr(logging, args.log_level.upper()),
@@ -199,10 +199,10 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if args.worker:
-        from . import recovery, winsandbox
+        from . import recovery, sandbox
 
         if not locked:
-            if winsandbox.running_emulated():
+            if sandbox.running_emulated():
                 log.info("motor emulado en Windows ARM: sin prohibicion de generar codigo (el emulador la necesita)")
             else:
                 log.warning("no se pudo prohibir la generacion de codigo en el motor aislado")
@@ -210,9 +210,9 @@ def main(argv: list[str] | None = None) -> int:
         # Ejecuciones anteriores que terminaron mal: lo que tenia cambios sin
         # guardar se aparta para ofrecer recuperarlo; el resto se borra.
         area = recovery.area_for(work_root)
-        removed = winsandbox.clean_stale_runs(work_root, before_delete=lambda run: recovery.harvest(run, area))
+        removed = sandbox.clean_stale_runs(work_root, before_delete=lambda run: recovery.harvest(run, area))
         recovery.prune(area)
-        if work_root.parent.name.startswith(winsandbox.PROFILE_PREFIX):
+        if work_root.parent.name.startswith(sandbox.PROFILE_PREFIX):
             removed += _tidy_container(work_root.parent)
         if removed:
             log.info("borradas %d carpetas de trabajo de ejecuciones anteriores", removed)

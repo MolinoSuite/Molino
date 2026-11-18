@@ -15,12 +15,14 @@ export interface EngineFolders {
   officeBundled: string | null
 }
 
+const windows = process.platform === 'win32'
+
 export function engineLaunchFor(folders: EngineFolders): EngineLaunch {
   const { workDir, modelsRoot, officeRoot, officeBundled } = folders
   if (app.isPackaged) {
     const dir = join(process.resourcesPath, 'engine')
     return {
-      command: join(dir, 'molino-engine.exe'),
+      command: join(dir, windows ? 'molino-engine.exe' : 'molino-engine'),
       args: [
         '--workdir', workDir, '--resources', join(process.resourcesPath, 'assets'), '--models', modelsRoot, '--office', officeRoot,
         ...(officeBundled ? ['--office-bundled', officeBundled] : [])
@@ -30,7 +32,7 @@ export function engineLaunchFor(folders: EngineFolders): EngineLaunch {
   }
   const root = app.getAppPath()
   return {
-    command: join(root, 'engine', '.venv', 'Scripts', 'python.exe'),
+    command: windows ? join(root, 'engine', '.venv', 'Scripts', 'python.exe') : join(root, 'engine', '.venv', 'bin', 'python'),
     // -E y -s: el intérprete ignora las variables PYTHON* y los paquetes del
     // perfil del usuario, de modo que el entorno no puede inyectarle código.
     args: [

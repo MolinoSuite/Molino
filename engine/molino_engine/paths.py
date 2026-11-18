@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import ctypes
 import os
+import posixpath
 import re
+import stat
 from pathlib import Path
 
 from .errors import invalid, io_error
@@ -30,7 +32,7 @@ _DRIVE = re.compile(r"^[A-Za-z]:\\")
 _SHARE = re.compile(r"^\\\\[^\\/?*.<>|:\"\x00-\x1f][^\\/?*<>|:\"\x00-\x1f]*\\[^\\/?*<>|:\"\x00-\x1f]+\\")
 
 
-def _check_shape(raw: str) -> Path:
+def _check_shape_windows(raw: str) -> Path:
     if "\x00" in raw or len(raw) > 4096:
         raise invalid(_("La ruta contiene caracteres no válidos."))
     text = raw.replace("/", "\\")
@@ -61,6 +63,36 @@ def _check_shape(raw: str) -> Path:
         if part.split(".")[0].strip().upper() in _RESERVED:
             raise invalid(_("Nombre de archivo reservado por el sistema."))
     return path
+
+
+# En Linux (y en macOS) solo valen las rutas absolutas. Quedan fuera las
+# carpetas que no guardan archivos de verdad: /proc y /sys (el nucleo) y /dev
+# (dispositivos). Leer o escribir ahi no es abrir ni guardar un documento.
+# Tambien si se llega a ellas por un enlace simbolico.
+_POSIX_SYSTEM = ("/proc", "/sys", "/dev")
+
+
+def _in_posix_system(path: str) -> bool:
+    return any(path == root or path.startswith(root + "/") for root in _POSIX_SYSTEM)
+
+
+def _check_shape_posix(raw: str) -> Path:
+    if "\x00" in raw or len(raw) > 4096:
+        raise invalid(_("La ruta contiene caracteres no válidos."))
+    if not raw.startswith("/"):
+        raise invalid(_("La ruta debe ser absoluta y apuntar a una carpeta normal."))
+    # normpath resuelve los ".." de forma lexica; POSIX deja «//» al principio
+    # como caso especial: aqui es una barra mas.
+    text = posixpath.normpath(raw)
+    if text.startswith("//"):
+        text = "/" + text.lstrip("/")
+    if _in_posix_system(text) or _in_posix_system(os.path.realpath(text)):
+        raise invalid(_("La ruta debe ser absoluta y apuntar a una carpeta normal."))
+    return Path(text)
+
+
+# Cada sistema, con su forma de ruta (cada una se prueba en su sistema).
+_check_shape = _check_shape_windows if os.name == "nt" else _check_shape_posix
 
 
 def input_file(raw: str, *, max_bytes: int | None = None) -> Path:
@@ -117,6 +149,8 @@ def replace_file(tmp: Path, dest: Path) -> None:
     ``os.replace`` el archivo nuevo se queda con los permisos heredados de la
     carpeta: un documento que el usuario habia restringido a su cuenta pasaria
     a ser legible por quien tenga acceso a la carpeta (A01:2025).
+    En Linux y macOS, ``os.replace`` con el modo (permisos) del archivo
+    sustituido copiado antes al nuevo, por lo mismo.
     Lanza ``OSError`` si no se puede; ``tmp`` debe estar en la misma carpeta.
     """
     if os.name == "nt" and dest.exists():
@@ -138,12 +172,22 @@ def replace_file(tmp: Path, dest: Path) -> None:
         # un recurso de red que no admite la operacion): se usa la via normal.
         if error not in (_ERROR_UNABLE_TO_REMOVE_REPLACED, _ERROR_UNABLE_TO_MOVE_REPLACEMENT):
             raise ctypes.WinError(error)
+    if os.name != "nt":
+        try:
+            os.chmod(tmp, stat.S_IMODE(os.stat(dest).st_mode))
+        except FileNotFoundError:
+            pass
     os.replace(tmp, dest)
 
 
 def safe_filename(name: str, fallback: str = "documento") -> str:
-    """Nombre de archivo sin separadores ni caracteres problematicos en Windows."""
+    """Nombre de archivo sin separadores ni caracteres problematicos en Windows (ni en Linux)."""
     cleaned = "".join("_" if ch in '<>:"/\\|?*' or ord(ch) < 32 else ch for ch in name).strip(" .")
     if not cleaned or cleaned.split(".")[0].upper() in _RESERVED:
         return fallback
-    return cleaned[:150]
+    cleaned = cleaned[:150]
+    # Linux admite 255 bytes por nombre, no 255 letras: con letras de varios
+    # bytes (chino, japones...) 150 letras pueden pasarse.
+    while len(cleaned.encode("utf-8")) > 240:
+        cleaned = cleaned[:-1]
+    return cleaned

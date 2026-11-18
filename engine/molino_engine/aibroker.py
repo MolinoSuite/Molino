@@ -28,8 +28,8 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
-if TYPE_CHECKING:  # solo para los tipos: el modulo se importa tambien fuera de Windows
-    from . import winsandbox
+if TYPE_CHECKING:  # solo para los tipos
+    from . import sandbox
 from .errors import EngineError, denied, invalid
 from .i18n import _
 from .protocol import FrameWriter, ProtocolError, read_frame
@@ -90,13 +90,13 @@ def cpu_ok() -> bool:
         return False
 
 
-Spawn = Callable[[list[str], int], "tuple[winsandbox.Child, winsandbox.Job]"]
+Spawn = Callable[[list[str], int], "tuple[sandbox.Child, sandbox.Job]"]
 
 
 class _Process:
     """El proceso de IA en marcha y lo que llega por su salida."""
 
-    def __init__(self, child: winsandbox.Child, job: winsandbox.Job, gpu: bool) -> None:
+    def __init__(self, child: sandbox.Child, job: sandbox.Job, gpu: bool) -> None:
         self.child = child
         self.job = job
         self.gpu = gpu

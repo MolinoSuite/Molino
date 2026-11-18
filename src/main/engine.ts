@@ -97,7 +97,19 @@ const ENV_ALLOWLIST = [
   'PROCESSOR_ARCHITECTURE',
   'HTTP_PROXY',
   'HTTPS_PROXY',
-  'NO_PROXY'
+  'NO_PROXY',
+  // Linux: la carpeta personal, el idioma y las carpetas XDG (fuentes del
+  // usuario y la carpeta privada del motor aislado, ver linuxsandbox.py).
+  'HOME',
+  'USER',
+  'LOGNAME',
+  'LANG',
+  'LC_ALL',
+  'LC_CTYPE',
+  'TMPDIR',
+  'XDG_DATA_HOME',
+  'XDG_CACHE_HOME',
+  'XDG_CONFIG_HOME'
 ]
 
 function childEnv(): NodeJS.ProcessEnv {

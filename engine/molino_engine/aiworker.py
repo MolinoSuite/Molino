@@ -698,9 +698,9 @@ def main(arguments: list[str], rfile: BinaryIO, wfile: BinaryIO) -> int:
 
     if gpu is None:
         # ACG como en el motor; con grafica no se puede (ver la cabecera).
-        from . import winsandbox
+        from . import sandbox
 
-        if not winsandbox.lock_down_dynamic_code():
+        if not sandbox.lock_down_dynamic_code():
             log.warning("no se pudo prohibir la generacion de codigo en el proceso de IA")
     log.info("proceso de IA listo (%s)", f"grafica {gpu.name}" if gpu else "procesador")
     return serve(rfile, wfile, models_root, gpu)
