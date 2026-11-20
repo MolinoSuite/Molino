@@ -154,5 +154,6 @@ jobs:
       - name: Office piece
         run: engine/.venv/bin/python -I office/build.py
 
+      # With the local AI too (on the processor; real basic models, checked by SHA-256).
       - name: Engine check
-        run: engine/.venv/bin/python scripts/engine-check.py --full --office-piece dist-office/MolinoOffice-*-linux-${{ matrix.arch }}
+        run: engine/.venv/bin/python scripts/engine-check.py --full --office-piece dist-office/MolinoOffice-*-linux-${{ matrix.arch }} --models "$RUNNER_TEMP/models" --fetch-models

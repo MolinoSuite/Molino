@@ -30,9 +30,14 @@ tokenizers==0.23.2 \
     --hash=sha256:eb2f9c8a24da020ea8c11a01a19c1c2547912d92121ae4a01cfbca46125dee40 \
     --hash=sha256:f486f402f6f9abee5bb032553736813af0c710a86b2e0ca592634c55cea1f835
 
-# llama-cpp-python (IA): la version con Vulkan para Windows x64, de las que
-# publica su autor en GitHub. Sus dependencias (numpy, typing-extensions,
-# diskcache, jinja2) estan en requirements.in. Solo en Windows: en Linux se
-# instala todo lo demas de este archivo (la IA de Linux, aparte).
+# llama-cpp-python (IA), de las que publica su autor en GitHub. Sus
+# dependencias (numpy, typing-extensions, diskcache, jinja2) estan en
+# requirements.in. En Windows x64, la version con Vulkan (la grafica); en Linux
+# x64 y ARM64, la de solo el procesador (el aislamiento de Linux no le da la
+# grafica). La misma version en los tres.
 llama-cpp-python @ https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.36-vulkan/llama_cpp_python-0.3.36-py3-none-win_amd64.whl ; sys_platform == "win32" \
     --hash=sha256:b3d58d70e9fa6216f3d1919bb6141a98eb22eb889e14a44d080dd250e969fab4
+llama-cpp-python @ https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.36/llama_cpp_python-0.3.36-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl ; sys_platform == "linux" and platform_machine == "x86_64" \
+    --hash=sha256:c8a3e98093e950d7a770f794842e36f2db82b2933e8762ed7b5ffd435011e8e4
+llama-cpp-python @ https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.36/llama_cpp_python-0.3.36-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl ; sys_platform == "linux" and platform_machine == "aarch64" \
+    --hash=sha256:410bdf3cf66478f55de0ad51dd6ab241424591bdd36aff086b000d155ac182c6

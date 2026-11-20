@@ -20,6 +20,7 @@ from __future__ import annotations
 import ctypes
 import json
 import logging
+import platform
 import queue
 import re
 import sys
@@ -82,7 +83,10 @@ def cpu_ok() -> bool:
             return bool(ctypes.windll.kernel32.IsProcessorFeaturePresent(40))  # PF_AVX2_INSTRUCTIONS_AVAILABLE
         except (AttributeError, OSError):
             return False
-    # Linux: las banderas del procesador. En otros sistemas (y en ARM), aun sin IA.
+    # Linux ARM64: llama.cpp usa NEON, que tienen todos (es de la base de ARMv8).
+    if sys.platform == "linux" and platform.machine().lower() in ("aarch64", "arm64"):
+        return True
+    # Linux x64: las banderas del procesador. En otros sistemas, aun sin IA.
     try:
         with open("/proc/cpuinfo", encoding="ascii", errors="replace") as fh:
             return any(line.startswith("flags") and "avx2" in line.split() for line in fh)

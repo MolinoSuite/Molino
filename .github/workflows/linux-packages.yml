@@ -80,13 +80,14 @@ jobs:
           engine/.venv/bin/python -I office/build.py
           engine/.venv/bin/python -I scripts/fetch-dictionaries.py
 
-      # The packaged engine as it ships, sandboxed, with every native part (and,
-      # for the Suite, the office piece of this architecture).
+      # The packaged engine as it ships, sandboxed, with every native part, the
+      # local AI with the real basic models and, for the Suite, the office piece
+      # of this architecture.
       - name: Engine check
         run: |
           extra=()
           if [ "$PRODUCT" = suite ]; then extra=(--office-piece dist-office/MolinoOffice-*-linux-"$ARCH"); fi
-          engine/.venv/bin/python scripts/engine-check.py --packaged dist-engine/molino-engine/molino-engine --full "${extra[@]}"
+          engine/.venv/bin/python scripts/engine-check.py --packaged dist-engine/molino-engine/molino-engine --full "${extra[@]}" --models "$RUNNER_TEMP/models" --fetch-models
 
       - name: Packages
         run: node scripts/make-linux.mjs "--$PRODUCT"
