@@ -6,11 +6,13 @@ import './home.css'
 import { createRoot } from 'react-dom/client'
 import { Home } from './Home'
 import { env } from './i18n'
+import { measureWindowButtons } from '../lib/windowButtons'
 
 /** «Molino», el inicio común (main/home.ts lo abre en molino://app/home.html). */
 const root = document.documentElement
 root.lang = env.lang
 root.dataset.theme = env.dark ? 'dark' : 'light'
+measureWindowButtons()
 window.molinoHome.onTheme((dark) => {
   root.dataset.theme = dark ? 'dark' : 'light'
 })

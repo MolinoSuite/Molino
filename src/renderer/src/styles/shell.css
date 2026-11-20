@@ -16,11 +16,9 @@
   align-items: center;
   gap: 4px;
   min-width: 0;
-  /* Los botones de la ventana: su hueco lo dice el sistema (Window Controls
-     Overlay; en Windows, 137 px a la derecha; en Linux, los suyos, también a la
-     izquierda si el escritorio los pone allí) y 5 px más. */
-  padding: 0 calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, calc(100vw - 137px)) + 5px) 0
-    calc(env(titlebar-area-x, 0px) + 10px);
+  /* Los botones de la ventana y 5 px más: su hueco, medido al abrir
+     (lib/windowButtons.ts); si no, el de Windows (137 px a la derecha). */
+  padding: 0 calc(var(--window-buttons-right, 137px) + 5px) 0 calc(var(--window-buttons-left, 0px) + 10px);
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
   -webkit-app-region: drag;

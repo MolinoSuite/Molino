@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client'
 import { lookOf } from '@shared/appearance'
 import type { Settings } from '@shared/types'
 import { setCurrentApp } from '@/lib/currentApp'
+import { measureWindowButtons } from '@/lib/windowButtons'
 import { followAi } from '@/state/ai'
 import { useApp } from '@/state/app'
 import { followOffice } from '@/state/office'
@@ -24,6 +25,7 @@ root.lang = lang
 root.dataset.molino = 'interfaz'
 root.dataset.theme = env.dark ? 'dark' : 'light'
 root.dataset.app = env.kind
+measureWindowButtons()
 document.title = L.office.apps[env.kind]
 // Lo común a todas las apps (Ajustes, Acerca de…) dice el nombre de esta y enseña lo suyo.
 setCurrentApp(env.kind)

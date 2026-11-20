@@ -145,7 +145,8 @@ jobs:
         run: |
           python -m venv engine/.venv
           # Exact versions checked by hash; nothing is built from source.
-          engine/.venv/bin/python -m pip install --no-deps --only-binary :all: --require-hashes -r engine/requirements.txt
+          # (requirements-nodeps.txt: Word export; its Windows-only AI part is skipped here.)
+          engine/.venv/bin/python -m pip install --no-deps --only-binary :all: --require-hashes -r engine/requirements.txt -r engine/requirements-nodeps.txt
           engine/.venv/bin/python -c "import platform, sys; print('Python', platform.python_version(), platform.machine())"
           (cd engine && .venv/bin/python -m molino_engine --ai-gpu)
           pwsh -NoProfile -File scripts/fetch-tessdata.ps1
