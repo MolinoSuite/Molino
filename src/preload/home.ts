@@ -16,7 +16,8 @@ const api: HomeApi = {
   env: {
     lang,
     locale: LOCALE_RE.test(localeArg) ? localeArg : lang === 'en' ? 'en-US' : 'es-ES',
-    dark: argValue('molino-theme') === 'dark'
+    dark: argValue('molino-theme') === 'dark',
+    os: process.platform === 'linux' ? 'linux' : process.platform === 'darwin' ? 'darwin' : 'win32'
   },
   apps: () => ipcRenderer.invoke('home:apps'),
   recent: () => ipcRenderer.invoke('home:recent'),

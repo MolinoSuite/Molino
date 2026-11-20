@@ -32,6 +32,7 @@ tokenizers==0.23.2 \
 
 # llama-cpp-python (IA): la version con Vulkan para Windows x64, de las que
 # publica su autor en GitHub. Sus dependencias (numpy, typing-extensions,
-# diskcache, jinja2) estan en requirements.in.
-llama-cpp-python @ https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.36-vulkan/llama_cpp_python-0.3.36-py3-none-win_amd64.whl \
+# diskcache, jinja2) estan en requirements.in. Solo en Windows: en Linux se
+# instala todo lo demas de este archivo (la IA de Linux, aparte).
+llama-cpp-python @ https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.36-vulkan/llama_cpp_python-0.3.36-py3-none-win_amd64.whl ; sys_platform == "win32" \
     --hash=sha256:b3d58d70e9fa6216f3d1919bb6141a98eb22eb889e14a44d080dd250e969fab4

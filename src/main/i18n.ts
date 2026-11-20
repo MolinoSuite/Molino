@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { fmt, type Lang, type LangSetting, localeFor, messagesFor, pluralOf, resolveLang } from '@shared/i18n'
+import { fmt, type Lang, type LangSetting, localeFor, messagesFor, osOf, pluralOf, resolveLang } from '@shared/i18n'
 
 /**
  * Idioma de esta sesión para el proceso principal (diálogos de Windows,
@@ -8,7 +8,7 @@ import { fmt, type Lang, type LangSetting, localeFor, messagesFor, pluralOf, res
  */
 export let lang: Lang = 'es'
 export let locale = 'es-ES'
-export let L = messagesFor('es')
+export let L = messagesFor('es', osOf(process.platform))
 export let plural = pluralOf('es')
 export { fmt }
 
@@ -22,6 +22,6 @@ export function initLang(setting: LangSetting): void {
   const preferred = app.getPreferredSystemLanguages()
   lang = testLang() ?? resolveLang(setting, preferred)
   locale = localeFor(lang, preferred)
-  L = messagesFor(lang)
+  L = messagesFor(lang, osOf(process.platform))
   plural = pluralOf(lang)
 }

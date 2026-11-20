@@ -4,7 +4,7 @@ import { app } from 'electron'
 import type { EngineClient } from './engine'
 import { log } from './log'
 import { type OfficePiece, pieceVersion } from './office'
-import { cleanFontIndex, fontFingerprint, fontFolders, loadFontIndex, ownFontsDir, saveFontIndex } from './officefonts'
+import { cleanFontIndex, fontFingerprint, fontFolders, fontKey, loadFontIndex, ownFontsDir, saveFontIndex } from './officefonts'
 
 /** Lo que queda listo para abrir documentos de oficina: la pieza y su índice de fuentes. */
 export interface OfficeSetup {
@@ -86,7 +86,7 @@ export async function configureOffice(engine: EngineClient, piece: OfficePiece):
   return {
     piece: dir,
     allFonts: index.text,
-    listed: new Set(index.files.map((f) => f.toLowerCase())),
+    listed: new Set(index.files.map(fontKey)),
     families: new Set(index.families.map((f) => f.toLowerCase())),
     folders: [...fontFolders(own), join(dir, 'fonts')]
   }

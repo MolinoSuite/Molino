@@ -246,6 +246,10 @@ class Container:
     sid_string: str
     folder: Path
 
+    @property
+    def layers(self) -> str:
+        return "AppContainer"
+
     def close(self) -> None:
         _advapi32.FreeSid(self.sid)
 

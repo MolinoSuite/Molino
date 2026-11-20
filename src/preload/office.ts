@@ -41,6 +41,7 @@ const ui: OfficeUiApi = {
     lang,
     locale: LOCALE_RE.test(localeArg) ? localeArg : lang === 'en' ? 'en-US' : 'es-ES',
     dark: argValue('molino-theme') === 'dark',
+    os: process.platform === 'linux' ? 'linux' : process.platform === 'darwin' ? 'darwin' : 'win32',
     kind: kindArg === 'cell' || kindArg === 'slide' ? kindArg : 'word',
     version: /^\d{1,4}\.\d{1,4}\.\d{1,6}/.test(argValue('molino-version')) ? argValue('molino-version') : '',
     piece: /^[\w.-]{1,40}$/.test(argValue('molino-piece')) ? argValue('molino-piece') : '',
@@ -177,7 +178,7 @@ if (frameUrl.startsWith('molino://office/__molino__/ui/presenter.html')) {
 // Lo común de Molino, solo en la página de la interfaz de cada app (no en la vista del moderador).
 if (frameUrl.startsWith('molino://office/__molino__/ui/office.html')) {
   const shared: MolinoShared = {
-    env: { version: ui.env.version, built: '', dev: process.argv.includes('--molino-dev'), lang: ui.env.lang, locale: ui.env.locale, store: process.argv.includes('--molino-store') },
+    env: { version: ui.env.version, built: '', dev: process.argv.includes('--molino-dev'), lang: ui.env.lang, locale: ui.env.locale, store: process.argv.includes('--molino-store'), os: ui.env.os },
     // Solo para el cuadro de imprimir: dibujar las páginas del PDF temporal e imprimirlo (officeprint.ts).
     engine: (method, params, options) => ipcRenderer.invoke('office:printRender', { method, params, priority: options?.priority }),
     cancel: (callId) => ipcRenderer.send('office:printCancel', callId),

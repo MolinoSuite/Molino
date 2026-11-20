@@ -1,6 +1,7 @@
 # Builds Molino PDF for Windows x64 on every change to main and every pull request,
 # twice: on a Windows x64 machine and on a Windows 11 on Arm machine, where the
 # same x64 build runs under emulation, as it does for people with Arm laptops.
+# And checks the Linux version on Linux x64 and Linux Arm64 machines.
 # Each machine builds its own copy and checks it there: nothing built here is
 # kept or published. Official releases are built, signed and published separately.
 name: Build
@@ -109,11 +110,23 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
-  # Groundwork for the Linux version: the engine installs from the same locked
-  # versions and loads outside Windows (sandboxing on Linux comes later).
-  linux-engine:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+  # The Linux version, on a Linux x64 machine and on a Linux Arm64 one: the
+  # engine from source with the same locked versions, sandboxed (bubblewrap when
+  # the system allows it, plus Landlock and seccomp), with every native part
+  # checked; and the office piece built from the ONLYOFFICE package for that
+  # architecture, then used by the sandboxed engine. Nothing built is kept.
+  linux:
+    name: linux-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -121,10 +134,24 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
-      - name: Engine loads on Linux
-        working-directory: engine
+
+      - name: System packages
         run: |
-          python -m venv .venv
-          .venv/bin/python -m pip install --no-deps --only-binary :all: --require-hashes -r requirements.txt
-          .venv/bin/python -c "import molino_engine.server, molino_engine.ops, molino_engine.broker, molino_engine.brotli_guard"
-          .venv/bin/python -m molino_engine --ai-gpu
+          sudo apt-get update -qq
+          # bubblewrap, the first sandbox layer; fonts like those of a desktop.
+          sudo apt-get install -y -qq --no-install-recommends bubblewrap fonts-liberation fonts-dejavu-core
+
+      - name: Engine
+        run: |
+          python -m venv engine/.venv
+          # Exact versions checked by hash; nothing is built from source.
+          engine/.venv/bin/python -m pip install --no-deps --only-binary :all: --require-hashes -r engine/requirements.txt
+          engine/.venv/bin/python -c "import platform, sys; print('Python', platform.python_version(), platform.machine())"
+          (cd engine && .venv/bin/python -m molino_engine --ai-gpu)
+          pwsh -NoProfile -File scripts/fetch-tessdata.ps1
+
+      - name: Office piece
+        run: engine/.venv/bin/python -I office/build.py
+
+      - name: Engine check
+        run: engine/.venv/bin/python scripts/engine-check.py --full --office-piece dist-office/MolinoOffice-*-linux-${{ matrix.arch }}

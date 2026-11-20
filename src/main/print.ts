@@ -1,4 +1,6 @@
+import { execFile } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
+import { existsSync } from 'node:fs'
 import { BrowserWindow, type WebContentsPrintOptions } from 'electron'
 import { layoutSheets, MAX_SHEETS, type PaperName, type Sheet } from '@shared/printLayout'
 import type { PrinterEntry, PrintRequest } from '@shared/types'
@@ -65,12 +67,29 @@ export interface PrintHooks {
 const cancelled = (): EngineError => new EngineError({ code: 'cancelled', message: L.main.print.cancelled })
 const pt = (value: number): string => `${value.toFixed(2)}pt`
 
-/** Impresora predeterminada del usuario según Windows («Nombre,winspool,Ne00:»). */
+/** Impresora predeterminada del usuario según Windows («Nombre,winspool,Ne00:») o, en Linux, según CUPS. */
 export async function defaultPrinter(): Promise<string | null> {
+  if (process.platform !== 'win32') return cupsDefaultPrinter()
   const device = await regQuery('HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Windows', 'Device')
   if (!device) return null
   const match = /^(.*),winspool,[^,]*$/i.exec(device)
   return (match ? match[1] : device).trim() || null
+}
+
+/**
+ * Linux: la predeterminada de CUPS (la que eligió el usuario o, si no, la del
+ * sistema), con ``lpstat -d`` por su ruta completa y sin intérprete de órdenes.
+ * En inglés (LANG=C): «system default destination: Nombre».
+ */
+function cupsDefaultPrinter(): Promise<string | null> {
+  const lpstat = ['/usr/bin/lpstat', '/bin/lpstat'].find((path) => existsSync(path))
+  if (!lpstat) return Promise.resolve(null)
+  return new Promise((done) => {
+    execFile(lpstat, ['-d'], { env: { ...process.env, LANG: 'C', LC_ALL: 'C', LANGUAGE: '' }, timeout: 5000, maxBuffer: 64 * 1024 }, (error, stdout) => {
+      const match = /destination:[ \t]*(\S[^\r\n]*?)[ \t]*$/m.exec(String(stdout ?? ''))
+      done(!error && match ? match[1].slice(0, 200) : null)
+    })
+  })
 }
 
 export class PrintService {

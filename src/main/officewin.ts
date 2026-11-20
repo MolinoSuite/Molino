@@ -12,9 +12,10 @@ import { type OfficePiece, openOfficeLegal, pieceVersion } from './office'
 import { isStoreApp } from './appx'
 import type { OfficeAsk, OfficeMergeMode, OfficeOtherDocument, OfficeTabs } from '@shared/officeui'
 import type { OfficeTheme } from '@shared/officeThemes'
+import { fontAvailable } from '@shared/metricFonts'
 import { installFonts, lookupFont } from './fontcatalog'
 import { appIcon, officeKindOf, OPENS, windowDetails } from './officeapps'
-import { cleanFontIndex, fontAllowed, ownFontsDir } from './officefonts'
+import { cleanFontIndex, fontAllowed, fontKey, ownFontsDir } from './officefonts'
 import { configureOffice } from './officeconfig'
 import { themedTemplate } from './officethemes'
 import { OfficePresenter } from './officepresenter'
@@ -740,7 +741,7 @@ export class OfficeWindows {
           : [],
         index: index && {
           text: index.text,
-          listed: new Set(index.files.map((f) => f.toLowerCase())),
+          listed: new Set(index.files.map(fontKey)),
           families: new Set(index.families.map((f) => f.toLowerCase()))
         },
         fontsDismissed: false,
@@ -876,13 +877,17 @@ export class OfficeWindows {
     }
   }
 
-  /** Las fuentes que nombra un documento y no están en el índice (ni se dijo que no se avise de ellas). */
+  /**
+   * Las fuentes que nombra un documento y no están en el índice (ni se dijo que
+   * no se avise de ellas). Una con las mismas medidas que otra que sí está
+   * (Arial y Liberation Sans, Calibri y Carlito...) no falta: se ve igual.
+   */
   private missingFonts(open: OpenDoc): string[] {
     const families = this.setup?.families
     if (!families) return []
     const ignored = new Set(this.options.ignoredFonts.list())
     const own = open.index?.families
-    return open.fonts.filter((f) => !families.has(f.toLowerCase()) && !own?.has(f.toLowerCase()) && !ignored.has(f.toLowerCase()))
+    return open.fonts.filter((f) => !fontAvailable(f, families) && !own?.has(f.toLowerCase()) && !ignored.has(f.toLowerCase()))
   }
 
   /**
@@ -1827,8 +1832,7 @@ export class OfficeWindows {
   /** Una fuente del índice del editor de ``open``: del equipo o de la pieza (del disco), o una letra incrustada suya (del motor). */
   private async font(open: OpenDoc, file: string, setup: Setup): Promise<Response> {
     if (open.index) {
-      const key = file.toLowerCase()
-      if (!open.index.listed.has(key)) return notFound()
+      if (!open.index.listed.has(fontKey(file))) return notFound()
       const embedded = EMBEDDED_FONT.exec(file)
       if (embedded) {
         if (embedded[1] !== open.doc) return notFound()

@@ -37,6 +37,10 @@ _FAMILY_HINTS = (
     ("couriernew", "Courier New"), ("courier", "Courier New"), ("cour", "Courier New"),
     ("aptos", "Aptos"), ("calibri", "Calibri"), ("verdana", "Verdana"), ("tahoma", "Tahoma"), ("georgia", "Georgia"),
     ("trebuchet", "Trebuchet MS"), ("segoe", "Segoe UI"), ("consolas", "Consolas"), ("comic", "Comic Sans MS"),
+    # Las de Linux: las de las mismas medidas, como la de Windows; y las de las distribuciones.
+    ("liberationsans", "Arial"), ("liberationserif", "Times New Roman"), ("liberationmono", "Courier New"), ("carlito", "Calibri"),
+    ("dejavusansmono", "Courier New"), ("dejavuserif", "DejaVu Serif"), ("dejavusans", "DejaVu Sans"),
+    ("notoserif", "Noto Serif"), ("notosans", "Noto Sans"),
 )
 Index = Annotated[int, Field(ge=0, le=1_000_000)]
 NewText = Annotated[str, StringConstraints(max_length=4_000)]

@@ -78,7 +78,7 @@ export function currentThemeId(s: EditorState): string {
   const name = String(s.extra.themeSchemeName ?? '')
   if (!name) return ''
   // Los de Molino, con su nombre en cualquiera de los idiomas (el documento pudo hacerse en el otro).
-  const molino = MOLINO_THEMES.find((t) => (['es', 'en'] as const).some((lang) => (messagesFor(lang).officeThemes.builtIn as Record<string, string>)[t.id] === name))
+  const molino = MOLINO_THEMES.find((t) => (['es', 'en'] as const).some((lang) => (messagesFor(lang, 'win32').officeThemes.builtIn as Record<string, string>)[t.id] === name))
   return molino?.id ?? userThemes().find((t) => t.name === name)?.id ?? ''
 }
 

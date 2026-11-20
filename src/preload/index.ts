@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import type { AiDownloadError, AiDownloadProgress } from '@shared/ai'
 import type { EngineStatus, MolinoApi } from '@shared/api'
-import { LOCALE_RE, type Lang } from '@shared/i18n'
+import { LOCALE_RE, type Lang, osOf } from '@shared/i18n'
 import type { ProgressInfo, Settings } from '@shared/types'
 
 /**
@@ -28,7 +28,7 @@ const localeArg = argValue('molino-locale')
 const locale = LOCALE_RE.test(localeArg) ? localeArg : lang === 'en' ? 'en-US' : 'es-ES'
 
 const api: MolinoApi = {
-  env: { version, built, dev: process.argv.includes('--molino-dev'), lang, locale, store: process.argv.includes('--molino-store') },
+  env: { version, built, dev: process.argv.includes('--molino-dev'), lang, locale, store: process.argv.includes('--molino-store'), os: osOf(process.platform) },
 
   engine: (method, params, options) =>
     ipcRenderer.invoke('engine:call', {

@@ -251,7 +251,12 @@ class Broker:
             f"site.addsitedir({packages!r}); sys.path.insert(0, {str(engine_dir)!r}); "
             "from molino_engine.__main__ import main; sys.exit(main(sys.argv[1:]))"
         )
-        return [str(base), "-E", "-s", "-S", "-c", boot], str(engine_dir), [engine_dir, base.parent]
+        readable = [engine_dir, base.parent]
+        if sys.platform != "win32":
+            # En Linux el interprete esta en <prefijo>/bin y su biblioteca en <prefijo>/lib
+            # (fuera de /usr si no es el del sistema, como el de GitHub en /opt).
+            readable.append(Path(sys.base_prefix).resolve())
+        return [str(base), "-E", "-s", "-S", "-c", boot], str(engine_dir), readable
 
     def _environment(self, temp: Path) -> dict[str, str]:
         if sys.platform != "win32":
@@ -337,6 +342,7 @@ class Broker:
         if sandboxed:
             container = sandbox.open_container()
             self._container = container
+            log.info("motor aislado: %s", container.layers)
             for target in [*readable, *([self._resources] if self._resources else []), *self._office_folders_at_start()]:
                 sandbox.ensure_read_access(target, container)
             root = self._claim_run_dir(self._profile_base(container.folder))

@@ -2,6 +2,7 @@
 
     python scripts/engine-check.py [--packaged EXE] [--expect-emulated]
     python scripts/engine-check.py --packaged EXE --full [--store-cert] [--models DIR [--fetch-models]]
+    python scripts/engine-check.py --full --office-piece dist-office/MolinoOffice-<version>[-linux-<arch>]
 
 Quick check: starts the broker, which launches the sandboxed engine, creates a
 blank document and renders its page. Fails if the engine is not sandboxed.
@@ -17,6 +18,11 @@ user did not choose.
 and an old CSP key). It creates throwaway certificates in CurrentUser\\My and
 always deletes them.
 
+--office-piece DIR also runs Documents, Sheets and Presentations with a built
+office piece (office/build.py): the font index, and a new document of each kind
+saved, opened again and exported to PDF, all by its converter (x2t) in the
+sandbox.
+
 --models DIR also runs the local AI with the basic models (llama.cpp and ONNX
 Runtime, in its own sandboxed process): search by meaning, personal data
 detection, a question, a translation and page unwarping. --fetch-models first
@@ -24,7 +30,9 @@ downloads them from the addresses in src/main/aicatalog.ts, checking size and
 SHA-256.
 
 Used by the GitHub build on Windows x64 and on Windows 11 on Arm, where the x64
-engine runs under emulation. Needs the engine's virtual environment (engine/.venv).
+engine runs under emulation, and on Linux x64 and Arm64 (from source; there the
+sandbox is bubblewrap, when the system allows it, plus Landlock and seccomp).
+Needs the engine's virtual environment (engine/.venv).
 """
 
 from __future__ import annotations
@@ -35,6 +43,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import struct
 import subprocess
 import sys
@@ -42,6 +51,7 @@ import tempfile
 import threading
 import time
 import urllib.request
+import zipfile
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -384,7 +394,7 @@ def check_scan(engine: Engine, files: Path) -> str:
 
 def check_sandbox_blocks(_engine: Engine, files: Path) -> str:
     """A file the user did not choose: a sandboxed process may not read it, even if it tries."""
-    from molino_engine import winsandbox
+    from molino_engine import sandbox
 
     secret = make_pdf(files / "not-chosen.pdf", pages=1)
     probe = (
@@ -396,18 +406,24 @@ def check_sandbox_blocks(_engine: Engine, files: Path) -> str:
         "    print('DENIED')\n"
     )
     base = Path(getattr(sys, "_base_executable", sys.executable)).resolve()
-    container = winsandbox.open_container()
+    container = sandbox.open_container()
     try:
         # The probe is this machine's Python: the container may read (only read)
-        # its folder, as the broker allows when it runs the engine from source.
-        winsandbox.ensure_read_access(base.parent, container)
-        job = winsandbox.Job(memory_limit=None)
+        # its folder, as the broker allows when it runs the engine from source
+        # (on Linux, also its prefix, where the standard library is, and the
+        # engine's folder, where the code that sets Landlock and seccomp is).
+        for folder in {base.parent, *(() if os.name == "nt" else (Path(sys.base_prefix).resolve(), ROOT / "engine"))}:
+            sandbox.ensure_read_access(folder, container)
+        job = sandbox.Job(memory_limit=None)
         run = container.folder / ("c" * 16)
         run.mkdir(exist_ok=True)
         try:
-            env = {name: os.environ[name] for name in ("SystemRoot", "LOCALAPPDATA", "USERPROFILE")}
-            env.update(TEMP=str(run), TMP=str(run))
-            child = winsandbox.spawn([str(base), "-I", "-c", probe, str(secret)], cwd=str(run), env=env, container=container, job=job)
+            if os.name == "nt":
+                env = {name: os.environ[name] for name in ("SystemRoot", "LOCALAPPDATA", "USERPROFILE")}
+                env.update(TEMP=str(run), TMP=str(run))
+            else:
+                env = {"PATH": "/usr/bin:/bin", "HOME": str(run), "TMPDIR": str(run), "LANG": "C.UTF-8"}
+            child = sandbox.spawn([str(base), "-I", "-c", probe, str(secret)], cwd=str(run), env=env, container=container, job=job)
             child.stdin.close()
             output = child.stdout.read().decode("ascii", "replace").strip()
             output = output or child.stderr.read().decode("utf-8", "replace").strip()[-300:]
@@ -422,6 +438,55 @@ def check_sandbox_blocks(_engine: Engine, files: Path) -> str:
     expect(output in ("DENIED", "READ"), f"the probe did not run in the sandbox ({output[:200]!r})")
     expect(output == "DENIED", "the sandboxed process read the file")
     return "denied"
+
+
+# ================================================================ office
+
+
+def office_root(piece: Path, parent: Path) -> tuple[Path, str]:
+    """An office folder like the app's (office/<version>) with the built piece in it."""
+    version = json.loads((piece / "manifest.json").read_text(encoding="utf-8"))["version"]
+    root = parent / "office"
+
+    def link_or_copy(source: str, dest: str) -> None:
+        try:
+            os.link(source, dest)  # same disk: no copy
+        except OSError:
+            shutil.copy2(source, dest)
+
+    shutil.copytree(piece, root / version, copy_function=link_or_copy)
+    return root, version
+
+
+def check_office(root: Path, version: str) -> Callable[[Engine, Path], str]:
+    def run(engine: Engine, files: Path) -> str:
+        configured, _ = engine.call("office.configure", piece=version)
+        expect(configured == {"ready": True, "fonts": False}, f"the office piece is ready ({configured})")
+        # The font index, made by x2t in the sandbox from this machine's fonts.
+        info, selection = engine.call("office.fonts")
+        expect(isinstance(info.get("allFonts"), str) and len(selection) > 1000, "the font index")
+        index = root / "fonts" / "0123456789abcdef"
+        index.mkdir(parents=True)
+        (index / "AllFonts.js").write_text(info["allFonts"], encoding="utf-8")
+        (index / "font_selection.bin").write_bytes(selection)
+        configured, _ = engine.call("office.configure", piece=version, fonts=index.name)
+        expect(configured == {"ready": True, "fonts": True}, "the piece with its font index")
+        for kind, suffix, canvas_mark in (("word", ".docx", b"DOCY"), ("cell", ".xlsx", b"XLSY"), ("slide", ".pptx", b"PPTY")):
+            made, canvas = engine.call("office.new", kind=kind)
+            expect(canvas.startswith(canvas_mark), f"a new {kind} document")
+            dest = files / f"Office{suffix}"
+            engine.call("office.save", doc=made["doc"], path=str(dest))
+            expect(zipfile.is_zipfile(dest), f"{dest.name} saved")
+            opened, canvas = engine.call("office.open", path=str(dest))
+            expect(canvas.startswith(canvas_mark), f"{dest.name} opened again")
+            pdf = files / f"Office-{kind}.pdf"
+            exported, _ = engine.call("office.exportPdf", doc=opened["doc"], path=str(pdf))
+            expect(exported["size"] == pdf.stat().st_size > 0, f"{dest.name} exported to PDF")
+            for doc in (made["doc"], opened["doc"]):
+                engine.call("office.close", doc=doc)
+        return f"piece {version}: font index; .docx, .xlsx and .pptx saved, opened and exported to PDF"
+
+    return run
 
 
 # ================================================================ Windows store
@@ -471,6 +536,52 @@ def create_store_certificates() -> dict[str, str]:
     made = dict(re.findall(r"^(\w+)=([0-9A-F]{40})\s*$", _powershell("; ".join(parts)), flags=re.M))
     expect(set(made) == set(_STORE_KEYS), "could not create the test certificates")
     return made
+
+
+def linux_confined_engine(broker_pid: int) -> str | None:
+    """Linux: the engine process under the broker, with its own seccomp filter and no way to gain privileges.
+
+    Seen from outside, in /proc (Landlock leaves no trace there). The engine is
+    the last process of the tree (prlimit and bubblewrap come before it); it must
+    have one more seccomp filter than the broker (there may already be some, as
+    in a container). Says whether it also has its own process namespace (bubblewrap).
+    """
+
+    def status(pid: int) -> dict[str, str]:
+        try:
+            return {k: v.strip() for k, v in (line.split(":", 1) for line in Path(f"/proc/{pid}/status").read_text().splitlines() if ":" in line)}
+        except OSError:
+            return {}
+
+    children: dict[int, list[int]] = {}
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            parent = int((entry / "stat").read_text().rsplit(")", 1)[1].split()[1])
+        except (OSError, ValueError, IndexError):
+            continue
+        children.setdefault(parent, []).append(int(entry.name))
+    leaves: list[int] = []
+    pending = list(children.get(broker_pid, []))
+    while pending:
+        pid = pending.pop()
+        below = children.get(pid, [])
+        pending.extend(below)
+        if not below:
+            leaves.append(pid)
+    before = int(status(broker_pid).get("Seccomp_filters", "0") or 0)
+    for pid in leaves:
+        state = status(pid)
+        filters = state.get("Seccomp_filters")
+        own_filter = filters is None or int(filters) > before  # no count before Linux 5.9
+        if state.get("Seccomp") == "2" and state.get("NoNewPrivs") == "1" and own_filter:
+            try:
+                own = os.readlink(f"/proc/{pid}/ns/pid") != os.readlink("/proc/self/ns/pid")
+            except OSError:
+                own = True  # another user namespace: its links cannot be read from here
+            return "seccomp" + (", own process namespace" if own else "")
+    return None
 
 
 def check_store(engine: Engine, files: Path, thumbprints: dict[str, str]) -> Callable[[Engine, Path], str]:
@@ -659,6 +770,7 @@ def main() -> int:
     parser.add_argument("--store-cert", action="store_true", help="also sign with throwaway Windows store certificates")
     parser.add_argument("--models", type=Path, help="folder with the basic AI models (layout of the app)")
     parser.add_argument("--fetch-models", action="store_true", help="download the basic AI models into --models first")
+    parser.add_argument("--office-piece", type=Path, help="built office piece (office/build.py): also Documents, Sheets and Presentations")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # AI answers have accents
     if (args.store_cert or args.models) and not args.full:
@@ -696,6 +808,10 @@ def main() -> int:
         options = ["--workdir", str(work), "--resources", str(resources)]
         if models_dir:
             options += ["--models", str(models_dir)]
+        if args.office_piece:
+            root, version = office_root(args.office_piece.resolve(), Path(tmp))
+            options += ["--office", str(root)]
+            checks.append(("documents, sheets and presentations (x2t, in the sandbox)", check_office(root, version)))
         if args.packaged:
             command, cwd = [str(args.packaged.resolve()), *options], args.packaged.resolve().parent
         else:
@@ -707,11 +823,21 @@ def main() -> int:
                 thumbprints = create_store_certificates()
             engine = Engine(command, cwd)
             try:
-                from molino_engine import winsandbox
-
                 expect(engine.hello.get("sandbox") is True, f"the engine is not sandboxed ({engine.hello.get('sandboxIssue')})")
-                expect(winsandbox.process_in_appcontainer(int(engine.hello.get("pid", 0))) is True, "the engine is not in its AppContainer")
-                print(f"engine: sandboxed, PyMuPDF {engine.hello.get('pymupdf')}", flush=True)
+                if os.name == "nt":
+                    from molino_engine import winsandbox
+
+                    expect(winsandbox.process_in_appcontainer(int(engine.hello.get("pid", 0))) is True, "the engine is not in its AppContainer")
+                    how = "AppContainer"
+                else:
+                    confined = linux_confined_engine(engine.process.pid)
+                    expect(confined is not None, "no engine process with seccomp under the broker")
+                    deadline = time.monotonic() + 5  # the broker's log line may still be on its way
+                    while not any("motor aislado: " in line for line in engine.notes) and time.monotonic() < deadline:
+                        time.sleep(0.05)
+                    layers = next((line.split("motor aislado: ", 1)[1] for line in engine.notes if "motor aislado: " in line), "?")
+                    how = f"{layers} ({confined})"
+                print(f"engine: sandboxed with {how}, PyMuPDF {engine.hello.get('pymupdf')}", flush=True)
                 if thumbprints:
                     position = next(i for i, (name, _) in enumerate(checks) if name.startswith("sign with a .pfx")) + 1
                     checks.insert(position, ("sign with Windows store certificates", check_store(engine, files, thumbprints)))

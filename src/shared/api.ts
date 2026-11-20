@@ -8,7 +8,7 @@
 
 import type { AiDownloadError, AiDownloadProgress, AiStatus } from './ai'
 import type { OfficeApp, OfficeLegal, OfficeStatus } from './office'
-import type { Lang } from './i18n'
+import type { Lang, Os } from './i18n'
 import type {
   DocDescriptor,
   DocState,
@@ -162,8 +162,8 @@ export interface ScanAdded {
 
 export interface MolinoApi {
   /** ``built``: fecha de compilación (AAAA-MM-DD) o vacía si no se conoce. */
-  /** store: la versión de la Microsoft Store (para «Valorar en la Store»). */
-  env: { version: string; built: string; dev: boolean; lang: Lang; locale: string; store: boolean }
+  /** store: la versión de la Microsoft Store (para «Valorar en la Store»); os: el sistema. */
+  env: { version: string; built: string; dev: boolean; lang: Lang; locale: string; store: boolean; os: Os }
 
   /** Llama a una operación del motor que no implica rutas de archivo. */
   engine<T>(method: string, params: Record<string, unknown>, options?: CallOptions): Promise<Envelope<EngineReply<T>>>

@@ -1,4 +1,5 @@
 /** «Molino», el inicio común de la suite (src/main/home.ts y renderer/src/home): lo que comparten. */
+import type { Os } from './i18n'
 import type { OfficeKind } from './officeui'
 import type { WhatsNewNotice } from './types'
 
@@ -14,7 +15,7 @@ export interface HomeRecent {
 }
 
 export interface HomeApi {
-  env: { lang: 'es' | 'en'; locale: string; dark: boolean }
+  env: { lang: 'es' | 'en'; locale: string; dark: boolean; os: Os }
   /** Las apps que se pueden usar (Molino PDF siempre; las demás, con el motor de oficina añadido). */
   apps(): Promise<Record<HomeApp, boolean>>
   recent(): Promise<HomeRecent[]>

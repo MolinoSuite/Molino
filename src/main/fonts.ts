@@ -72,6 +72,8 @@ export function findAptos(): Promise<Partial<Record<FontStyle, string>>> {
 }
 
 async function search(): Promise<Partial<Record<FontStyle, string>>> {
+  // Aptos llega con Office: en Linux no hay (las carpetas de macOS, cuando se haga).
+  if (process.platform !== 'win32') return {}
   const local = process.env.LOCALAPPDATA ?? ''
   const windows = process.env.WINDIR ?? process.env.SystemRoot ?? 'C:\\Windows'
   // Primero lo instalado (en Windows o para el usuario) y después la caché de Office.

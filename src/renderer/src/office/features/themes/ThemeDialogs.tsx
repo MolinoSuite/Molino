@@ -6,11 +6,12 @@
  */
 import { Bold, Copy, Ellipsis, Italic, Pencil, Plus, Star, StarOff, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { fontAvailable } from '@shared/metricFonts'
 import { ALWAYS_FONTS, type OfficeTheme, THEME_COLOR_KEYS, THEME_NAME_MAX, THEME_SIZE, THEME_SPACE, THEME_STYLE_KEYS, type ThemeColorKey, type ThemeStyleKey } from '@shared/officeThemes'
 import { Dialog, Field, Menu, type MenuEntry } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { useApp } from '@/state/app'
-import { fmt, L } from '../../i18n'
+import { env, fmt, L } from '../../i18n'
 import { ColorPicker } from '../../ui/ColorPicker'
 import { Pop, usePopButton } from '../../ui/pop'
 import type { DialogProps } from '../types'
@@ -76,9 +77,14 @@ export function ThemePreview({ theme }: { theme: OfficeTheme }) {
 
 // ------------------------------------------------------------ campos
 
-/** Una fuente: las que hay en cualquier equipo delante y las de este equipo después. */
+/**
+ * Una fuente: las que hay en cualquier equipo delante y las de este equipo
+ * después. Fuera de Windows, de las de Windows solo las que tienen aquí una
+ * con sus mismas medidas (Arial con Liberation Sans...).
+ */
 function FontSelect({ value, fonts, label, onChange }: { value: string; fonts: string[]; label: string; onChange: (font: string) => void }) {
-  const always = ALWAYS_FONTS as readonly string[]
+  const here = useMemo(() => new Set(fonts.map((f) => f.toLowerCase())), [fonts])
+  const always = (ALWAYS_FONTS as readonly string[]).filter((f) => env.os === 'win32' || fontAvailable(f, here))
   const others = fonts.filter((f) => !always.includes(f))
   const known = always.includes(value) || others.includes(value)
   return (

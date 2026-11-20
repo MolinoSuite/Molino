@@ -203,9 +203,18 @@ export async function loadFontIndex(officeRoot: string, fingerprint: string): Pr
   }
 }
 
+/**
+ * Una ruta de fuente para comparar: en Windows, sin distinguir mayúsculas (como
+ * sus rutas); en Linux, tal cual (dos rutas que solo se diferencian en eso son
+ * archivos distintos).
+ */
+export function fontKey(path: string): string {
+  return process.platform === 'win32' ? path.toLowerCase() : path
+}
+
 /** ¿Es ``file`` una fuente que los editores pueden pedir? (está en el índice y en una carpeta de fuentes). */
 export function fontAllowed(file: string, listed: ReadonlySet<string>, folders: readonly string[]): boolean {
-  if (!listed.has(file.toLowerCase())) return false
-  const full = resolve(file).toLowerCase()
-  return folders.some((folder) => full.startsWith(resolve(folder).toLowerCase() + sep))
+  if (!listed.has(fontKey(file))) return false
+  const full = fontKey(resolve(file))
+  return folders.some((folder) => full.startsWith(fontKey(resolve(folder)) + sep))
 }

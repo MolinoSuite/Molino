@@ -5,6 +5,7 @@ import { app } from 'electron'
 import { EngineError } from './engine'
 import { L } from './i18n'
 import { log } from './log'
+import { listSaneScanners, scanSanePages } from './scannerSane'
 
 /**
  * Escáneres (USB, de red y los de las impresoras multifunción) a través de WIA,
@@ -16,6 +17,8 @@ import { log } from './log'
  * escáner, el origen del papel, el color, la resolución y la carpeta les llegan
  * por variables de entorno ya validadas (A05:2025, inyección de órdenes). Se
  * lanza por su ruta completa, nunca por la que diga el PATH (A08:2025).
+ *
+ * En Linux, SANE (scannerSane.ts).
  */
 
 export interface ScannerInfo {
@@ -190,9 +193,10 @@ function runScript(script: string, env: Record<string, string>, timeoutMs: numbe
 
 const cancelled = (): EngineError => new EngineError({ code: 'cancelled', message: L.main.scanner.cancelled })
 
-/** Los escáneres que Windows tiene instalados. */
+/** Los escáneres que el sistema tiene instalados. */
 export async function listScanners(): Promise<ScannerInfo[]> {
   if (testScanner()) return [{ id: 'prueba', name: L.main.scanner.testDevice }]
+  if (process.platform === 'linux') return listSaneScanners()
   let run: Run
   try {
     run = await runScript(LIST_SCRIPT, {}, LIST_TIMEOUT_MS)
@@ -228,6 +232,7 @@ export async function scanPages(request: ScanRequest, folder: string, signal?: A
       return target
     })
   }
+  if (process.platform === 'linux') return scanSanePages(request, folder, signal)
   const run = await runScript(
     SCAN_SCRIPT,
     {

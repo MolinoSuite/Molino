@@ -1,4 +1,5 @@
 /** Lo que comparten el proceso principal (officewin.ts) y la interfaz de Documentos, Hojas y Presentaciones. */
+import type { Os } from './i18n'
 import type { DocDescriptor } from './types'
 import type { OfficeLegal } from './office'
 
@@ -173,7 +174,7 @@ export interface PresenterApi {
 
 export interface OfficeUiApi {
   /** ``piece``: la versión del motor de oficina (para «Acerca de»). */
-  env: { lang: 'es' | 'en'; locale: string; dark: boolean; kind: OfficeKind; version: string; piece: string; author: string }
+  env: { lang: 'es' | 'en'; locale: string; dark: boolean; os: Os; kind: OfficeKind; version: string; piece: string; author: string }
   tabs(): Promise<OfficeTabs | null>
   activate(doc: string): Promise<boolean>
   closeTab(doc: string): Promise<boolean>

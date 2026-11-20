@@ -7,6 +7,6 @@ import { fmt, messagesFor, pluralOf } from '@shared/i18n'
  */
 export const lang = window.molino.env.lang
 export const locale = window.molino.env.locale
-export const L = messagesFor(lang)
+export const L = messagesFor(lang, window.molino.env.os)
 export const plural = pluralOf(lang)
 export { fmt }

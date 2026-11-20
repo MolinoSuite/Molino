@@ -1,5 +1,7 @@
 import { en } from './en/index'
+import { linux as enLinux } from './en/linux'
 import { es } from './es/index'
+import { linux as esLinux } from './es/linux'
 
 /**
  * Idiomas de Molino PDF. El español es el original y define qué textos hay: el
@@ -13,11 +15,31 @@ export type LangSetting = 'auto' | Lang
 export type Messages = typeof es
 /** Un texto con singular y plural; {n} es la cantidad. */
 export type Plural = { one: string; other: string }
+/** El sistema en el que corre (``process.platform``, solo los que hay). */
+export type Os = 'win32' | 'linux' | 'darwin'
+/** Algunos textos de una zona, con la misma forma que los de verdad (los de un sistema, ``es/linux.ts``). */
+export type Overlay<T> = { [K in keyof T]?: T[K] extends string ? string : Overlay<T[K]> }
+
+/** Los textos de ``base`` con los de ``over`` encima. */
+function overlay<T>(base: T, over: Overlay<T>): T {
+  const out = { ...base } as Record<string, unknown>
+  for (const [key, value] of Object.entries(over as Record<string, unknown>)) {
+    out[key] = typeof value === 'string' ? value : overlay(out[key], value as Overlay<unknown>)
+  }
+  return out as T
+}
 
 const CATALOG: Record<Lang, Messages> = { es, en }
+// En Linux, lo que en Windows nombra Windows (Ajustes, imprimir, el aislamiento...).
+const LINUX: Record<Lang, Messages> = { es: overlay(es, esLinux), en: overlay(en, enLinux) }
 
-export function messagesFor(lang: Lang): Messages {
-  return CATALOG[lang]
+export function messagesFor(lang: Lang, os: Os): Messages {
+  return os === 'linux' ? LINUX[lang] : CATALOG[lang]
+}
+
+/** El sistema de ``process.platform`` (lo que no es Linux ni macOS, como Windows). */
+export function osOf(platform: string): Os {
+  return platform === 'linux' ? 'linux' : platform === 'darwin' ? 'darwin' : 'win32'
 }
 
 /** Idiomas de España con los que el español se entiende mejor que el inglés. */

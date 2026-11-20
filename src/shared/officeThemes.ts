@@ -53,7 +53,8 @@ const FONT_NAME = /^[\p{L}\p{N}][\p{L}\p{N} ._&+-]{0,63}$/u
 /**
  * Fuentes que hay siempre: las que trae Molino (Inter) y la pieza de oficina
  * (Open Sans, Carlito, Caladea) y las de cualquier Windows. Los temas de Molino
- * solo usan estas.
+ * solo usan estas. (En Linux, de las de Windows, el cuadro de los temas solo
+ * enseña las que tienen allí otra con sus mismas medidas: shared/metricFonts.ts.)
  */
 export const ALWAYS_FONTS = [
   'Inter',

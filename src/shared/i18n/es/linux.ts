@@ -1,0 +1,34 @@
+import type { Messages, Overlay } from '../index'
+
+/**
+ * Lo que cambia en Linux: los textos que en Windows nombran Windows. Al abrir
+ * Molino en Linux van encima de los de cada zona (i18n/index.ts); el resto es
+ * igual. El inglés (en/linux.ts) tiene las mismas claves.
+ */
+export const linux = {
+  shell: {
+    titleBar: {
+      isolation: {
+        warning:
+          'Este equipo no ha permitido aislar el motor que lee los PDF (hace falta bubblewrap o un núcleo con Landlock). Molino PDF funciona con normalidad, pero un PDF malicioso tendría más margen: abre solo documentos de confianza.'
+      }
+    }
+  },
+  dialogs: {
+    settings: {
+      language: { auto: 'Automático (como el sistema)' },
+      theme: { system: 'Como el sistema' },
+      author: {
+        hint: 'Firma las notas de los PDF y los comentarios y cambios de los documentos. Vacío: el de tu usuario del equipo.'
+      }
+    }
+  },
+  print: {
+    moreSettingsTip: 'Abre el cuadro de impresión del sistema (bandeja, calidad…)'
+  },
+  scan: {
+    scanner: {
+      none: 'No se ha encontrado ningún escáner. Comprueba que está encendido y conectado (si es de red, en la misma red que este equipo). Molino usa SANE: los paquetes sane-utils y, para los de red, sane-airscan.'
+    }
+  }
+} satisfies Overlay<Messages>
