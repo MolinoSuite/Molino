@@ -602,12 +602,71 @@
     }
   })
 
+  // -- pre_Paste del editor, de una en una ----------------------------------------
+  // Antes de pegar o de aplicar una orden de la API de documentos (las de los
+  // paneles de Molino), el editor carga las fuentes e imágenes que hagan falta
+  // (pre_Paste). Si alguna no está cargada lo hace en segundo plano y guarda en un
+  // solo hueco a quién avisar al acabar: si llega otra antes, la pisa, y el editor
+  // se queda «ocupado» para siempre (ya no guarda). Pasa con las fuentes que el
+  // equipo no tiene, que nunca da por cargadas: en Linux, Arial o Times New Roman
+  // (salen con Liberation); en cualquier sistema, las que falten. Aquí van en cola:
+  // cada una cuando acabe la anterior. Sin solaparse, todo sigue igual que antes.
+  function prePasteInOrder(api) {
+    const own = api.pre_Paste
+    if (typeof own !== 'function') return
+    // Dentro del editor se llama por su nombre interno: se sustituyen los dos.
+    const names = []
+    for (let proto = Object.getPrototypeOf(api); proto && proto !== Object.prototype; proto = Object.getPrototypeOf(proto)) {
+      for (const name of Object.getOwnPropertyNames(proto)) {
+        try {
+          if (proto[name] === own && !names.includes(name)) names.push(name)
+        } catch {
+          /* un accesor que no se deja leer */
+        }
+      }
+    }
+    if (names.length === 0) return
+    const queue = []
+    let busy = false
+    let since = 0
+    const next = () => {
+      // Si una no avisara nunca, a los 60 s se sigue con las demás.
+      if (busy && Date.now() - since < 60000) return
+      busy = false
+      const call = queue.shift()
+      if (call) run(call)
+    }
+    const run = ([fonts, images, done]) => {
+      busy = true
+      since = Date.now()
+      let called = false
+      own.call(api, fonts, images, function (...args) {
+        if (called) return
+        called = true
+        try {
+          return typeof done === 'function' ? done.apply(this, args) : undefined
+        } finally {
+          busy = false
+          // Después de que el editor acabe con esta (quita su aviso y su «ocupado»).
+          setTimeout(next, 0)
+        }
+      })
+    }
+    const inOrder = function (fonts, images, done) {
+      queue.push([fonts, images, done])
+      if (busy) setTimeout(next, 60000)
+      else next()
+    }
+    for (const name of names) api[name] = inOrder
+  }
+
   // Los errores del documento llegan por un evento del editor, no como excepción.
   const waiting = setInterval(() => {
     const api = editor()
     if (!api || !api.asc_registerCallback) return
     clearInterval(waiting)
     api.asc_registerCallback('asc_onError', (code, level) => log('asc_onError', code, level))
+    prePasteInOrder(api)
   }, 200)
 
   // Para las pruebas y para la interfaz de Molino (paso 5).
