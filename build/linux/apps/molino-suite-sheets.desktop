@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Molino Hojas
+Name[en]=Molino Sheets
+GenericName=Hoja de cálculo
+GenericName[en]=Spreadsheet
+Comment=Haz cuentas y tablas en hojas de Excel y de OpenDocument
+Comment[en]=Work with Excel and OpenDocument spreadsheets
+Exec=molino-suite --molino-app=sheets %U
+Icon=molino-hojas
+Terminal=false
+StartupWMClass=molino-suite
+Categories=Office;Spreadsheet;
+MimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;application/vnd.ms-excel;application/vnd.oasis.opendocument.spreadsheet;text/csv;
+Keywords=hoja;cálculo;excel;xlsx;ods;csv;spreadsheet;

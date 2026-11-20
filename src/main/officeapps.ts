@@ -3,6 +3,7 @@ import { app, type AppDetailsOptions } from 'electron'
 import type { OfficeKind } from '@shared/officeui'
 import { storeAppUserModelId } from './appx'
 import { openDefaultAppSettings } from './defaultApp'
+import { makeDefaultFor } from './linuxDesktop'
 
 /**
  * Documentos, Hojas y Presentaciones como programas de Windows. En Molino Suite
@@ -74,5 +75,7 @@ export function homeDetails(): AppDetailsOptions {
 
 /** Abre la página de una app en «Aplicaciones predeterminadas» (donde el usuario elige con qué se abren sus archivos). */
 export function openDefaultApps(kind: OfficeKind | 'pdf'): Promise<boolean> {
+  // En Linux, la app se elige al momento para sus tipos de archivo (sin empaquetar, no: no hay acceso).
+  if (process.platform === 'linux') return app.isPackaged ? makeDefaultFor(kind) : Promise.resolve(true)
   return openDefaultAppSettings(storeAppUserModelId(kind))
 }

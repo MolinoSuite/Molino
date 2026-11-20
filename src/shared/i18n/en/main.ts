@@ -89,6 +89,18 @@ export const main: typeof source = {
     coverOpen: 'The scanner lid is open.',
     lampOff: 'The scanner lamp is off.'
   },
+  updates: {
+    message: 'There is a new version of {name}: {version}.',
+    detail: 'It is installed now and {name} opens again. The system will ask for your password.',
+    install: 'Install now',
+    later: 'Later'
+  },
+  appimage: {
+    message: 'Add {name} to the applications menu?',
+    detail: 'You will find it with your other applications and can open your files with it. It is added for your user only.',
+    add: 'Add',
+    notNow: 'Not now'
+  },
   office: {
     /** Presenter view in Slides (officepresenter.ts). */
     presenter: {

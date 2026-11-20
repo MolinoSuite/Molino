@@ -1,0 +1,105 @@
+# Builds the Linux packages of Molino PDF or Molino Suite (.deb, .rpm and AppImage)
+# for Linux x64 and Linux Arm64, each on a machine of that architecture, when
+# asked (Run workflow). The packaged engine is checked sandboxed before packaging.
+# The packages stay 7 days as artifacts of the run: nothing is published from
+# here (read-only), the release is published separately from them.
+name: Linux packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      product:
+        description: Which product
+        type: choice
+        options: [pdf, suite]
+        required: true
+      ref:
+        description: Commit, tag or branch to build
+        required: true
+        default: main
+
+# Least privilege: read the code, nothing else. No secrets are used.
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: ${{ inputs.product }}-linux-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    env:
+      # Inputs reach the shell only through the environment, never pasted into scripts.
+      PRODUCT: ${{ inputs.product }}
+      ARCH: ${{ matrix.arch }}
+    steps:
+      # Actions pinned to an exact commit, not a movable tag (supply chain).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - name: System packages
+        run: |
+          sudo apt-get update -qq
+          # rpm to build the .rpm; bubblewrap and fonts for the engine check.
+          sudo apt-get install -y -qq --no-install-recommends rpm bubblewrap fonts-liberation fonts-dejavu-core
+
+      - name: App
+        run: |
+          # Locked versions, without running third-party install scripts.
+          npm ci --ignore-scripts
+          npm run build
+
+      - name: Engine
+        run: |
+          python -m venv engine/.venv
+          # Exact versions checked by hash; nothing is built from source.
+          engine/.venv/bin/python -m pip install --no-deps --only-binary :all: --require-hashes -r engine/requirements.txt -r engine/requirements-nodeps.txt
+          engine/.venv/bin/python -m pip install --only-binary :all: --require-hashes -r engine/requirements-build.txt
+          pwsh -NoProfile -File scripts/fetch-tessdata.ps1
+          bash scripts/build-engine.sh
+          engine/.venv/bin/python scripts/third_party_notices.py
+
+      - name: Office piece and dictionaries
+        if: inputs.product == 'suite'
+        run: |
+          engine/.venv/bin/python -I office/build.py
+          engine/.venv/bin/python -I scripts/fetch-dictionaries.py
+
+      # The packaged engine as it ships, sandboxed, with every native part (and,
+      # for the Suite, the office piece of this architecture).
+      - name: Engine check
+        run: |
+          extra=()
+          if [ "$PRODUCT" = suite ]; then extra=(--office-piece dist-office/MolinoOffice-*-linux-"$ARCH"); fi
+          engine/.venv/bin/python scripts/engine-check.py --packaged dist-engine/molino-engine/molino-engine --full "${extra[@]}"
+
+      - name: Packages
+        run: node scripts/make-linux.mjs "--$PRODUCT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: molino-${{ inputs.product }}-linux-${{ matrix.arch }}
+          path: |
+            dist-linux/${{ inputs.product }}/*.deb
+            dist-linux/${{ inputs.product }}/*.rpm
+            dist-linux/${{ inputs.product }}/*.AppImage
+            dist-linux/${{ inputs.product }}/latest-linux*.yml
+          retention-days: 7
+          if-no-files-found: error
+          # Already compressed.
+          compression-level: 0

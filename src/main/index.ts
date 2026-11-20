@@ -7,7 +7,7 @@ import { AiModels } from './aimodels'
 import { HomeWindow } from './home'
 import { EngineClient, type EngineLaunch } from './engine'
 import { Bridge, isOpenable } from './ipc'
-import { initLang, L } from './i18n'
+import { initLang, L, lang } from './i18n'
 import { initLog, log } from './log'
 import { legacyModelsDir, migrateLegacy } from './migrate'
 import { firstPdfNotice, markRetireTried, removeSeparatePdf, separatePdfImported, separatePdfInstalled, shouldRetireSeparatePdf, uninstallSeparatePdf } from './pdfapart'
@@ -23,6 +23,8 @@ import { PrintService } from './print'
 import { hardenContents, hardenSession, registerAppScheme, serveApp } from './security'
 import { Store } from './store'
 import { openedBefore, WhatsNew } from './whatsnew'
+import { offerAppImageIntegration } from './appimage'
+import { startUpdates } from './updater'
 import { darkFor } from '@shared/appearance'
 import { extraFontFile, findAptos, FONT_STYLES, interFile } from './fonts'
 
@@ -232,7 +234,9 @@ async function officeReady(): Promise<boolean> {
     cancelId: 1
   }
   void (window ? dialog.showMessageBox(window, options) : dialog.showMessageBox(options)).then(({ response }) => {
-    if (response === 0) void shell.openExternal(`ms-windows-store://pdp/?PFN=${SUITE_FAMILY}`).catch(() => undefined)
+    // En Linux no hay Store: la página de descarga de la web (dirección fija).
+    const where = process.platform === 'linux' ? (lang === 'en' ? 'https://molinosuite.org/en/download/' : 'https://molinosuite.org/descargar/') : `ms-windows-store://pdp/?PFN=${SUITE_FAMILY}`
+    if (response === 0) void shell.openExternal(where).catch(() => undefined)
   })
   return false
 }
@@ -423,6 +427,10 @@ void app.whenReady().then(async () => {
   // en vez de descargarse. Sin red; si falta alguno, no se hace nada.
   setTimeout(() => void (shouldRetireSeparatePdf(app.getPath('userData')) ? retireSeparatePdf() : bridge?.adoptLegacyAi()), 3000)
   if (!shouldRetireSeparatePdf(app.getPath('userData')) && firstPdfNotice(app.getPath('userData'))) setTimeout(() => homeWindow?.show(), 1500)
+  // Linux, con la AppImage: añadir Molino al menú (la primera vez, preguntando).
+  setTimeout(() => void offerAppImageIntegration(() => BrowserWindow.getFocusedWindow() ?? mainWindow), 2500)
+  // Linux: versiones nuevas (en Windows, la Store).
+  startUpdates(() => BrowserWindow.getFocusedWindow() ?? mainWindow)
   // Al minuto, sin estorbar el arranque: huella de los modelos de IA instalados.
   // En pruebas (sin empaquetar) se puede adelantar con MOLINO_TEST_AI_RECHECK_MS.
   const recheckDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_AI_RECHECK_MS) : NaN

@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Molino Presentaciones
+Name[en]=Molino Slides
+GenericName=Presentaciones
+GenericName[en]=Presentations
+Comment=Crea y presenta diapositivas de PowerPoint y de OpenDocument
+Comment[en]=Create and present PowerPoint and OpenDocument slides
+Exec=molino-suite --molino-app=slides %U
+Icon=molino-presentaciones
+Terminal=false
+StartupWMClass=molino-suite
+Categories=Office;Presentation;
+MimeType=application/vnd.openxmlformats-officedocument.presentationml.presentation;application/vnd.ms-powerpoint;application/vnd.oasis.opendocument.presentation;
+Keywords=presentación;diapositivas;powerpoint;pptx;odp;presentation;slides;

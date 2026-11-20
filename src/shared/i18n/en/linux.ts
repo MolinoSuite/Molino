@@ -15,8 +15,13 @@ export const linux: typeof source = {
       theme: { system: 'System' },
       author: {
         hint: 'It signs your PDF notes and the comments and changes in your documents. Empty: your user name on this computer.'
-      }
+      },
+      defaultApp: { confirmHint: 'It changes right away, for your user.' },
+      apps: { defaultAppsTip: 'To open its files with a double click: makes {name} the default program for them.' }
     }
+  },
+  main: {
+    office: { seeSuite: 'See Molino Suite on the website' }
   },
   print: {
     moreSettingsTip: 'Opens the system print dialog (tray, quality…)'

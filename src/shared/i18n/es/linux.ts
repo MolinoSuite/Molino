@@ -20,8 +20,13 @@ export const linux = {
       theme: { system: 'Como el sistema' },
       author: {
         hint: 'Firma las notas de los PDF y los comentarios y cambios de los documentos. Vacío: el de tu usuario del equipo.'
-      }
+      },
+      defaultApp: { confirmHint: 'Se cambia al momento, para tu usuario.' },
+      apps: { defaultAppsTip: 'Para abrir sus archivos con doble clic: hace de {name} el programa predeterminado para ellos.' }
     }
+  },
+  main: {
+    office: { seeSuite: 'Ver Molino Suite en la web' }
   },
   print: {
     moreSettingsTip: 'Abre el cuadro de impresión del sistema (bandeja, calidad…)'

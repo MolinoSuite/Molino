@@ -97,6 +97,20 @@ export const main = {
     coverOpen: 'La tapa del escáner está abierta.',
     lampOff: 'La lámpara del escáner está apagada.'
   },
+  /** Linux: una versión nueva ya descargada, con el .deb o el .rpm (updater.ts). */
+  updates: {
+    message: 'Hay una versión nueva de {name}: la {version}.',
+    detail: 'Se instala ahora y {name} se vuelve a abrir. El sistema te pedirá tu contraseña.',
+    install: 'Instalar ahora',
+    later: 'Más tarde'
+  },
+  /** Linux, con la AppImage: añadir Molino al menú de aplicaciones (appimage.ts). */
+  appimage: {
+    message: '¿Añadir {name} al menú de aplicaciones?',
+    detail: 'Así lo encontrarás con tus demás aplicaciones y podrás abrir con él tus archivos. Se añade solo para tu usuario.',
+    add: 'Añadir',
+    notNow: 'Ahora no'
+  },
   /** Documentos, Hojas y Presentaciones: las ventanas de los editores (officewin.ts). */
   office: {
     /** La vista del moderador de Presentaciones (officepresenter.ts). */

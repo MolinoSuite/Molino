@@ -1,7 +1,8 @@
 """El comando ``molino`` de la linea de ordenes.
 
 Windows lo lanza por su alias (``molino.exe``, en el manifiesto del paquete)
-como este ejecutable de consola, que hace solo de lanzador: arranca Molino sin
+y Linux por el enlace ``/usr/bin/molino`` (lo pone el .deb o el .rpm), como
+este ejecutable de consola, que hace solo de lanzador: arranca Molino sin
 ventanas (``Molino.exe --molino-cli ...``, src/main/cli.ts), le pasa la
 carpeta desde donde se llamo y devuelve su salida y su codigo de salida. Asi
 la linea de ordenes hace lo mismo que la app: el mismo motor aislado, la misma
@@ -33,9 +34,11 @@ def _app_command() -> list[str] | None:
     """La orden que arranca Molino: el ejecutable del paquete o, en pruebas, el de MOLINO_CLI_APP."""
     if getattr(sys, "frozen", False):
         # ...\app\resources\engine\molino-engine.exe -> ...\app\Molino.exe
+        # En Linux: /opt/molino-suite/resources/engine/molino-engine -> /opt/molino-suite/molino-suite.
         app = Path(sys.executable).resolve().parent.parent.parent
-        exe = app / "Molino.exe"
-        return [str(exe)] if exe.is_file() else None
+        names = ("Molino.exe",) if os.name == "nt" else ("molino-suite", "molino-pdf")
+        found = [app / name for name in names if (app / name).is_file()]
+        return [str(found[0])] if found else None
     test = os.environ.get("MOLINO_CLI_APP")
     if not test:
         return None
@@ -54,6 +57,10 @@ def _in_spanish() -> bool:
     wanted = os.environ.get("MOLINO_LANG", "").strip().lower()
     if wanted in ("es", "en"):
         return wanted == "es"
+    if os.name != "nt":
+        # Linux: el idioma de la sesión (LC_ALL, LC_MESSAGES o LANG), como los programas de allí.
+        tag = next((os.environ[v] for v in ("LC_ALL", "LC_MESSAGES", "LANG") if os.environ.get(v)), "")
+        return tag.split("_")[0].split(".")[0].lower() in ("es", "ca", "gl", "eu")
     try:
         import ctypes
 

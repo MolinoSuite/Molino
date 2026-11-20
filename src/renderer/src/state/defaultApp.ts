@@ -45,6 +45,8 @@ export function followDefaultApp(): void {
 export async function chooseMolinoAsDefault(): Promise<void> {
   useDefaultApp.setState({ asked: true })
   if (!(await window.molino.defaultApp.open())) return
+  // En Linux queda elegido al momento (xdg-mime): se mira ya y sale «hecho».
+  if (window.molino.env.os === 'linux') return void (await refresh())
   useApp.getState().toast('info', L.state.defaultApp.hint)
   if (watching) clearInterval(watching)
   const until = Date.now() + WATCH_FOR_MS

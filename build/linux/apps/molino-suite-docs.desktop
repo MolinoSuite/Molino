@@ -1,0 +1,15 @@
+[Desktop Entry]
+Type=Application
+Name=Molino Documentos
+Name[en]=Molino Docs
+GenericName=Procesador de textos
+GenericName[en]=Word processor
+Comment=Escribe y edita documentos de Word y de OpenDocument
+Comment[en]=Write and edit Word and OpenDocument documents
+Exec=molino-suite --molino-app=docs %U
+Icon=molino-documentos
+Terminal=false
+StartupWMClass=molino-suite
+Categories=Office;WordProcessor;
+MimeType=application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/msword;application/vnd.oasis.opendocument.text;application/rtf;text/rtf;
+Keywords=documento;texto;word;docx;odt;document;text;

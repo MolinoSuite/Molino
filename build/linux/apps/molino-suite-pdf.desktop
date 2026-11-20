@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Molino PDF
+GenericName=Visor y editor de PDF
+GenericName[en]=PDF viewer and editor
+Comment=Abre, rellena, firma y edita PDF
+Comment[en]=Open, fill in, sign and edit PDFs
+Exec=molino-suite --molino-app=pdf %U
+Icon=molino-pdf
+Terminal=false
+StartupWMClass=molino-suite
+Categories=Office;Viewer;
+MimeType=application/pdf;
+Keywords=pdf;firmar;formulario;sign;form;

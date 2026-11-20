@@ -1,6 +1,7 @@
 import { app, shell } from 'electron'
 import type { DefaultAppStatus } from '@shared/types'
 import { storeAppUserModelId } from './appx'
+import { isDefaultFor, makeDefaultFor } from './linuxDesktop'
 import { log } from './log'
 import { regQuery } from './registry'
 
@@ -15,6 +16,10 @@ import { regQuery } from './registry'
  * El paquete de la Store declara los PDF en su manifiesto y Windows les pone un
  * tipo de archivo propio («AppX…»), cuya clave dice de qué app es
  * (Application\AppUserModelID): así se sabe si la elegida es esta.
+ *
+ * En Linux, en cambio, cada usuario elige con xdg-mime y un programa puede
+ * hacerlo por él cuando se lo pide: Molino lo deja elegido al momento
+ * (linuxDesktop.ts).
  */
 
 const CHOICE = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\FileExts\\.pdf'
@@ -29,6 +34,11 @@ function testState(): DefaultAppStatus | null {
 async function readStatus(): Promise<DefaultAppStatus> {
   const simulated = testState()
   if (simulated) return simulated
+  if (process.platform === 'linux') {
+    if (!app.isPackaged) return 'unknown'
+    const chosen = await isDefaultFor('pdf')
+    return chosen === null ? 'unknown' : chosen ? 'default' : 'other'
+  }
   const own = storeAppUserModelId('pdf')
   if (!own || process.platform !== 'win32') return 'unknown'
   // Windows 11 reciente guarda la elección en el valor ProgId de la subclave
@@ -60,6 +70,7 @@ export async function openDefaultAppSettings(aumid: string | null = storeAppUser
     log.info('predeterminado: se abriría Configuración (prueba)')
     return true
   }
+  if (process.platform === 'linux') return makeDefaultFor('pdf')
   try {
     await shell.openExternal(aumid ? `ms-settings:defaultapps?registeredAUMID=${encodeURIComponent(aumid)}` : 'ms-settings:defaultapps')
     return true

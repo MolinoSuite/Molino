@@ -35,6 +35,7 @@
     "@vitejs/plugin-react": "5.2.0",
     "electron": "44.9.3",
     "electron-builder": "26.15.3",
+    "electron-updater": "6.8.12",
     "electron-vite": "5.0.0",
     "lucide-react": "1.49.0",
     "playwright-core": "1.63.0",

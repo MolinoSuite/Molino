@@ -8,7 +8,9 @@ dist/
 dist-engine/
 dist-office/
 dist-suite/
+dist-linux/
 build-engine/
+build-linux/
 *.tsbuildinfo
 # Avisos de terceros: se generan al compilar (npm run notices)
 build/THIRD-PARTY-NOTICES.txt
