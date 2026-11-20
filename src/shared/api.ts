@@ -120,6 +120,11 @@ export interface EngineStatus {
   ready: boolean
   /** El proceso que lee los PDF corre aislado (null mientras no se sabe). */
   isolated: boolean | null
+  /**
+   * Las ventanas tienen el aislamiento de Chromium. En Linux, la AppImage arranca
+   * sin él cuando el sistema no lo deja usar (Ubuntu 24.04 y posteriores).
+   */
+  windows: boolean
 }
 
 // ---------------------------------------------------------------- digitalizar

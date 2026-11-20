@@ -118,7 +118,10 @@ export const shell = {
       tip: 'Protección reducida',
       label: 'Protección reducida: el motor de documentos no está aislado',
       warning:
-        'Windows no ha permitido aislar el motor que lee los PDF. Molino PDF funciona con normalidad, pero un PDF malicioso tendría más margen: abre solo documentos de confianza.'
+        'Windows no ha permitido aislar el motor que lee los PDF. Molino PDF funciona con normalidad, pero un PDF malicioso tendría más margen: abre solo documentos de confianza.',
+      labelWindows: 'Protección reducida: las ventanas no están aisladas',
+      warningWindows:
+        'Este sistema no deja aislar las ventanas de Molino a una AppImage (pasa en Ubuntu 24.04 y posteriores). Molino funciona con normalidad, pero un documento malicioso tendría más margen: instala el paquete .deb, que sí lo permite, o abre solo documentos de confianza.'
     },
     undoAction: 'Deshacer: {action}',
     redoAction: 'Rehacer: {action}',

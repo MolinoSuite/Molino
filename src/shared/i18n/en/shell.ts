@@ -115,7 +115,10 @@ export const shell: typeof source = {
       tip: 'Reduced protection',
       label: 'Reduced protection: the document engine isn’t isolated',
       warning:
-        'Windows didn’t allow Molino PDF to isolate the engine that reads PDFs. Molino PDF works normally, but a malicious PDF would have more room to cause harm: only open documents you trust.'
+        'Windows didn’t allow Molino PDF to isolate the engine that reads PDFs. Molino PDF works normally, but a malicious PDF would have more room to cause harm: only open documents you trust.',
+      labelWindows: 'Reduced protection: the windows aren’t isolated',
+      warningWindows:
+        'This system doesn’t let an AppImage isolate Molino’s windows (it happens on Ubuntu 24.04 and later). Molino works normally, but a malicious document would have more room to cause harm: install the .deb package, which allows it, or only open documents you trust.'
     },
     undoAction: 'Undo: {action}',
     redoAction: 'Redo: {action}',

@@ -50,6 +50,7 @@ export function TitleBar() {
   const setActive = useApp((s) => s.setActive)
   const openDialog = useApp((s) => s.openDialog)
   const isolated = useApp((s) => s.isolated)
+  const windowsIsolated = useApp((s) => s.windowsIsolated)
   const toast = useApp((s) => s.toast)
 
   const createMenu: MenuEntry[] = [
@@ -133,13 +134,13 @@ export function TitleBar() {
       {active && <CommandSearchButton onClick={openCommands} />}
       {active && <div className="titlebar-fill" />}
       <div className="titlebar-actions">
-        {isolated === false && (
+        {(isolated === false || !windowsIsolated) && (
           <button
             className="icon-btn isolation-warning"
             data-tip={L.shell.titleBar.isolation.tip}
-            aria-label={L.shell.titleBar.isolation.label}
+            aria-label={isolated === false ? L.shell.titleBar.isolation.label : L.shell.titleBar.isolation.labelWindows}
             onClick={() =>
-              toast('warning', L.shell.titleBar.isolation.warning)
+              toast('warning', isolated === false ? L.shell.titleBar.isolation.warning : L.shell.titleBar.isolation.warningWindows)
             }
           >
             <ShieldAlert size={16} />

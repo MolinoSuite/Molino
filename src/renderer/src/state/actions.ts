@@ -40,9 +40,13 @@ export async function initApp(): Promise<void> {
     app().setIsolated(null)
     app().toast('error', L.state.actions.engineRestarted)
   })
-  window.molino.onEngineStatus((status) => app().setIsolated(status.isolated))
+  window.molino.onEngineStatus((status) => {
+    app().setIsolated(status.isolated)
+    app().setWindowsIsolated(status.windows)
+  })
   void window.molino.engineStatus().then((status) => {
     if (app().isolated === null) app().setIsolated(status.isolated)
+    app().setWindowsIsolated(status.windows)
   })
 
   const recent = await window.molino.recent.list()

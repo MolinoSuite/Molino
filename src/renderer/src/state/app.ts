@@ -154,10 +154,13 @@ interface AppState {
   fullScreen: boolean
   /** El motor que lee los PDF está aislado (null: aún no se sabe). */
   isolated: boolean | null
+  /** Las ventanas tienen el aislamiento de Chromium (en Linux, la AppImage puede no tenerlo). */
+  windowsIsolated: boolean
 
   setReady(settings: Settings, recent: RecentFile[], fonts: FontFamily[]): void
   setFonts(fonts: FontFamily[]): void
   setIsolated(isolated: boolean | null): void
+  setWindowsIsolated(windowsIsolated: boolean): void
   setSettings(settings: Settings): void
   setDark(dark: boolean): void
   setRecent(recent: RecentFile[]): void
@@ -202,10 +205,12 @@ export const useApp = create<AppState>()((set, get) => ({
   dragging: false,
   fullScreen: false,
   isolated: null,
+  windowsIsolated: true,
 
   setReady: (settings, recent, fonts) => set({ ready: true, settings, recent, fonts }),
   setFonts: (fonts) => set({ fonts }),
   setIsolated: (isolated) => set({ isolated }),
+  setWindowsIsolated: (windowsIsolated) => set({ windowsIsolated }),
   setSettings: (settings) => set({ settings }),
   setDark: (dark) => set({ dark }),
   setRecent: (recent) => set({ recent }),

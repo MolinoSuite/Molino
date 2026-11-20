@@ -228,7 +228,7 @@ export class Bridge {
   }
 
   private engineStatus(): EngineStatus {
-    return { ready: this.engine.isReady, isolated: this.engine.isolated }
+    return { ready: this.engine.isReady, isolated: this.engine.isolated, windows: !(process.platform === 'linux' && app.commandLine.hasSwitch('no-sandbox')) }
   }
 
   attach(window: BrowserWindow): void {
@@ -589,7 +589,7 @@ export class Bridge {
     )
 
     ipcMain.handle('engine:status', (event) =>
-      isTrustedSender(event, this.window?.webContents ?? null) ? this.engineStatus() : { ready: false, isolated: null }
+      isTrustedSender(event, this.window?.webContents ?? null) ? this.engineStatus() : { ready: false, isolated: null, windows: true }
     )
 
     ipcMain.on('engine:cancel', (event, raw) => {
