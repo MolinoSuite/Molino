@@ -16,7 +16,11 @@ user did not choose.
 
 --store-cert also signs with certificates from the Windows store (RSA, ECDSA
 and an old CSP key). It creates throwaway certificates in CurrentUser\\My and
-always deletes them.
+always deletes them. On Linux, with throwaway certificates where Molino looks
+there, all in a temporary folder: a SoftHSM token seen through p11-kit-proxy
+(like the DNIe through OpenSC; RSA and ECDSA, with its PIN), a Chrome NSS
+database and a Firefox profile with a primary password. It needs softhsm2,
+p11-kit-modules, opensc and libnss3-tools.
 
 --office-piece DIR also runs Documents, Sheets and Presentations with a built
 office piece (office/build.py): the font index, and a new document of each kind
@@ -88,10 +92,10 @@ def expect(condition: Any, what: str) -> None:
 class Engine:
     """The broker as Molino PDF sees it: frames over its standard input and output."""
 
-    def __init__(self, command: list[str], cwd: Path) -> None:
+    def __init__(self, command: list[str], cwd: Path, env: dict[str, str] | None = None) -> None:
         self.process = subprocess.Popen(
             command, cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), env=env,
         )
         self.notes: list[str] = []
         self._errors = threading.Thread(target=self._read_errors, daemon=True)
@@ -584,15 +588,109 @@ def linux_confined_engine(broker_pid: int) -> str | None:
     return None
 
 
-def check_store(engine: Engine, files: Path, thumbprints: dict[str, str]) -> Callable[[Engine, Path], str]:
+def check_store(engine: Engine, files: Path, sources: dict[str, dict[str, str]]) -> Callable[[Engine, Path], str]:
     def run(_engine: Engine, _files: Path) -> str:
         listed, _ = engine.call("sign.certificates")
         mine = {c["thumbprint"] for c in listed["certificates"]}
-        expect(set(thumbprints.values()) <= mine, "the store certificates are listed")
-        for label, thumbprint in thumbprints.items():
-            sign_and_validate(engine, files, f"Signed-{label}", {"type": "store", "thumbprint": thumbprint})
-        return ", ".join(thumbprints)
+        expect({source["thumbprint"] for source in sources.values()} <= mine, "the store certificates are listed")
+        for label, source in sources.items():
+            sign_and_validate(engine, files, f"Signed-{label}", {"type": "store", **source})
+        return ", ".join(sources)
     return run
+
+
+# ================================================================ Linux: cards and browsers
+
+_LINUX_PIN = "12345678"
+_LINUX_PRIMARY = "primary-check-Ñ"
+_LINUX_TOKEN = "Molino Check"
+
+
+def _tool(*command: str) -> None:
+    done = subprocess.run(command, capture_output=True, text=True, timeout=120, check=False)
+    expect(done.returncode == 0, f"{command[0]} failed: {(done.stdout + done.stderr)[-300:]}")
+
+
+def create_linux_certificates(base: Path) -> tuple[dict[str, str], dict[str, dict[str, str]]]:
+    """Throwaway certificates where Molino looks on Linux, all inside ``base``.
+
+    A SoftHSM token (seen through p11-kit-proxy like the DNIe through OpenSC),
+    with an RSA and an ECDSA key; a Chrome NSS database without a password; and
+    a Firefox profile with a primary password. Returns the environment for the
+    engine (HOME and SOFTHSM2_CONF pointing there) and the sources to sign with.
+    """
+    from cryptography import x509
+    from cryptography.hazmat.primitives import hashes, serialization
+    from cryptography.hazmat.primitives.asymmetric import ec, rsa
+    from cryptography.x509.oid import NameOID
+
+    module = next((p for p in ("/usr/lib/softhsm/libsofthsm2.so", "/usr/lib64/pkcs11/libsofthsm2.so") if os.path.isfile(p)), None)
+    expect(module is not None, "SoftHSM is not installed")
+    home, tokens = base / "home", base / "tokens"
+    home.mkdir(parents=True)
+    tokens.mkdir()
+    conf = base / "softhsm2.conf"
+    conf.write_text(f"directories.tokendir = {tokens}\nobjectstore.backend = file\nlog.level = ERROR\n", encoding="utf-8")
+    env = {**os.environ, "HOME": str(home), "SOFTHSM2_CONF": str(conf)}
+    env.pop("XDG_CONFIG_HOME", None)
+    os.environ["SOFTHSM2_CONF"] = str(conf)  # softhsm2-util, here
+    now = datetime.now(timezone.utc)
+    sources: dict[str, dict[str, str]] = {}
+    _tool("softhsm2-util", "--init-token", "--free", "--label", _LINUX_TOKEN, "--pin", _LINUX_PIN, "--so-pin", "87654321")
+    chrome = home / ".pki" / "nssdb"
+    profile = home / ".mozilla" / "firefox" / "check.default-release"
+    for path in (chrome, profile):
+        path.mkdir(parents=True)
+    (profile.parent / "profiles.ini").write_text(
+        "[Profile0]\nName=default-release\nIsRelative=1\nPath=check.default-release\nDefault=1\n", encoding="utf-8"
+    )
+    secret = base / "primary.txt"
+    secret.write_text(_LINUX_PRIMARY + "\n", encoding="utf-8")
+    _tool("certutil", "-N", "-d", f"sql:{chrome}", "--empty-password")
+    _tool("certutil", "-N", "-d", f"sql:{profile}", "-f", str(secret))
+    for index, (label, key) in enumerate((
+        ("card RSA", rsa.generate_private_key(public_exponent=65537, key_size=2048)),
+        ("card ECDSA", ec.generate_private_key(ec.SECP256R1())),
+        ("Chrome", rsa.generate_private_key(public_exponent=65537, key_size=2048)),
+        ("Firefox", ec.generate_private_key(ec.SECP384R1())),
+    )):
+        name = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, f"Molino PDF Check Temporary {label}")])
+        cert = (
+            x509.CertificateBuilder().subject_name(name).issuer_name(name).public_key(key.public_key())
+            .serial_number(x509.random_serial_number()).not_valid_before(now - timedelta(days=1))
+            .not_valid_after(now + timedelta(days=1))
+            .add_extension(x509.KeyUsage(True, True, False, False, False, False, False, False, False), critical=True)
+            .sign(key, hashes.SHA256())
+        )
+        der = cert.public_bytes(serialization.Encoding.DER)
+        thumbprint = hashlib.sha1(der).hexdigest().upper()
+        if label.startswith("card"):
+            key_file, cert_file, key_id = base / f"k{index}.pem", base / f"c{index}.der", f"{index + 10:02x}"
+            key_file.write_bytes(key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()))
+            cert_file.write_bytes(der)
+            _tool("softhsm2-util", "--import", str(key_file), "--token", _LINUX_TOKEN, "--label", label, "--id", key_id, "--pin", _LINUX_PIN)
+            _tool("pkcs11-tool", "--module", module, "--token-label", _LINUX_TOKEN, "--login", "--pin", _LINUX_PIN,
+                  "--write-object", str(cert_file), "--type", "cert", "--id", key_id, "--label", label)
+            sources[label] = {"thumbprint": thumbprint, "pin": _LINUX_PIN}
+        else:
+            # The .p12 made by openssl: the NSS of some systems (Fedora 41) refuses
+            # to import the private key of one made by the cryptography library.
+            p12, pem, word = base / f"p{index}.p12", base / f"p{index}.pem", base / f"p{index}.pass"
+            pem.write_bytes(
+                key.private_bytes(serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+                + cert.public_bytes(serialization.Encoding.PEM)
+            )
+            word.write_text(PASSWORD, encoding="utf-8")
+            _tool("openssl", "pkcs12", "-export", "-in", str(pem), "-out", str(p12), "-name", "check", "-passout", f"file:{word}")
+            pem.unlink()
+            if label == "Chrome":
+                _tool("pk12util", "-i", str(p12), "-d", f"sql:{chrome}", "-W", PASSWORD)
+                sources[label] = {"thumbprint": thumbprint}
+            else:
+                _tool("pk12util", "-i", str(p12), "-d", f"sql:{profile}", "-W", PASSWORD, "-k", str(secret))
+                sources[label] = {"thumbprint": thumbprint, "pin": _LINUX_PRIMARY}
+    secret.unlink()
+    return env, sources
 
 
 # ================================================================ local AI
@@ -799,7 +897,8 @@ def main() -> int:
             fetch_models(models_dir, components)
         checks += ai_checks(components)
 
-    thumbprints: dict[str, str] = {}
+    sources: dict[str, dict[str, str]] = {}
+    engine_env: dict[str, str] | None = None
     with tempfile.TemporaryDirectory(prefix="molino-check-") as tmp:
         work, files = Path(tmp) / "work", Path(tmp) / "files"
         work.mkdir()
@@ -818,10 +917,12 @@ def main() -> int:
             # -E -s: like the app, ignore PYTHON* variables and user site packages.
             command, cwd = [sys.executable, "-E", "-s", "-m", "molino_engine", *options], ROOT / "engine"
         try:
-            if args.store_cert:
+            if args.store_cert and os.name == "nt":
                 remove_store_certificates()  # left over from an interrupted run
-                thumbprints = create_store_certificates()
-            engine = Engine(command, cwd)
+                sources = {label: {"thumbprint": thumbprint} for label, thumbprint in create_store_certificates().items()}
+            elif args.store_cert:
+                engine_env, sources = create_linux_certificates(Path(tmp) / "pki")
+            engine = Engine(command, cwd, engine_env)
             try:
                 expect(engine.hello.get("sandbox") is True, f"the engine is not sandboxed ({engine.hello.get('sandboxIssue')})")
                 if os.name == "nt":
@@ -838,20 +939,22 @@ def main() -> int:
                     layers = next((line.split("motor aislado: ", 1)[1] for line in engine.notes if "motor aislado: " in line), "?")
                     how = f"{layers} ({confined})"
                 print(f"engine: sandboxed with {how}, PyMuPDF {engine.hello.get('pymupdf')}", flush=True)
-                if thumbprints:
+                if sources:
                     position = next(i for i, (name, _) in enumerate(checks) if name.startswith("sign with a .pfx")) + 1
-                    checks.insert(position, ("sign with Windows store certificates", check_store(engine, files, thumbprints)))
+                    title = "sign with Windows store certificates" if os.name == "nt" else "sign with a card (PKCS#11), Chrome and Firefox (NSS)"
+                    checks.insert(position, (title, check_store(engine, files, sources)))
                 for name, check in checks:
                     run(engine, files, name, check)
             finally:
                 engine.close()
         finally:
-            if args.store_cert:
+            if args.store_cert and os.name == "nt":
                 left = remove_store_certificates()
                 if left != 0:
                     print(f"WARNING: {left} test certificates left in the store", flush=True)
     for line in engine.notes:
-        if "emulado" in line or "ERROR" in line or "no autorizado" in line:
+        # (p11-kit: a card module the system has but the engine could not load.)
+        if "emulado" in line or "ERROR" in line or "no autorizado" in line or "p11-kit" in line:
             print(f"  engine: {line[:200]}")
     if any("no autorizado" in line for line in engine.notes):
         raise SystemExit("ERROR: the sandboxed engine asked for something it was not allowed")

@@ -109,7 +109,15 @@ const ENV_ALLOWLIST = [
   'TMPDIR',
   'XDG_DATA_HOME',
   'XDG_CACHE_HOME',
-  'XDG_CONFIG_HOME'
+  'XDG_CONFIG_HOME',
+  // Linux: la ventana con la que OpenSC pide confirmar cada firma con el DNIe
+  // (pinentry) necesita la pantalla y el bus de la sesión. Solo las recibe el
+  // proceso intermediario: el motor aislado no (broker.py arma su entorno aparte).
+  'DISPLAY',
+  'WAYLAND_DISPLAY',
+  'XAUTHORITY',
+  'XDG_RUNTIME_DIR',
+  'DBUS_SESSION_BUS_ADDRESS'
 ]
 
 function childEnv(): NodeJS.ProcessEnv {

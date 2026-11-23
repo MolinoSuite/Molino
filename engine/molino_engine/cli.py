@@ -15,7 +15,10 @@ pasen), como hacia antes el alias.
 
 Si hace falta la contrasena de un certificado (.pfx) y no se ha escrito en la
 orden, se pide aqui sin mostrarla y se pasa por la entrada estandar, nunca en
-la linea de ordenes (que otros procesos pueden leer).
+la linea de ordenes (que otros procesos pueden leer). En Linux, al firmar con
+un certificado de una tarjeta o de Firefox, solo Molino sabe si hace falta su
+PIN: si es asi, lo pide con una linea fija en la salida de errores
+(``PIN_REQUEST``) y este lanzador lo pide igual, sin mostrarlo.
 """
 
 from __future__ import annotations
@@ -28,6 +31,9 @@ import threading
 from pathlib import Path
 
 PASSWORD_OPTIONS = ("--contrasena-certificado", "--certificate-password", "--contrasena-stdin", "--password-stdin")
+STORE_OPTIONS = ("--certificado", "--certificate")
+# La linea con la que Molino pide el PIN (src/main/cli.ts, PIN_REQUEST).
+PIN_REQUEST = b"<<molino:pin>>"
 
 
 def _app_command() -> list[str] | None:
@@ -111,6 +117,27 @@ def _pump(source, target, skip_blank: bool = False) -> None:
             break
 
 
+def _pump_asking_pin(source, target, sink) -> None:
+    """La salida de errores, linea a linea; si Molino pide el PIN, se pide aqui sin mostrarlo y se le manda."""
+    for line in iter(source.readline, b""):
+        if line.rstrip(b"\r\n") == PIN_REQUEST:
+            try:
+                pin = getpass.getpass("PIN o contraseña del certificado: " if _in_spanish() else "Certificate PIN or password: ")
+            except (EOFError, KeyboardInterrupt):
+                pin = ""
+            try:
+                sink.write((pin + "\n").encode("utf-8"))
+                sink.close()
+            except OSError:
+                pass
+            continue
+        try:
+            target.write(line)
+            target.flush()
+        except OSError:
+            break
+
+
 def _utf8_console():
     """La consola, en UTF-8 mientras dura la orden (tildes y eñes); devuelve como restaurarla."""
     if os.name != "nt":
@@ -141,6 +168,14 @@ def main(arguments: list[str]) -> int:
             sys.stderr.write("\n")
             return 130
         args.append("--contrasena-stdin")
+    # Linux: firmar con un certificado de una tarjeta o de Firefox puede necesitar su PIN.
+    ask_pin = (
+        os.name != "nt"
+        and any(a.split("=")[0] in STORE_OPTIONS for a in args)
+        and not any(a.split("=")[0] in PASSWORD_OPTIONS for a in args)
+    )
+    if ask_pin:
+        args.append("--pedir-pin")
     env = dict(os.environ)
     env["MOLINO_CLI_CWD"] = os.getcwd()
     restore = _utf8_console()
@@ -155,12 +190,14 @@ def main(arguments: list[str]) -> int:
         )
         if password is not None and child.stdin is not None:
             child.stdin.write((password + "\n").encode("utf-8"))
-        if child.stdin is not None:
+        if child.stdin is not None and not ask_pin:
             child.stdin.close()
-        threads = [
-            threading.Thread(target=_pump, args=(child.stdout, sys.stdout.buffer, True), daemon=True),
-            threading.Thread(target=_pump, args=(child.stderr, sys.stderr.buffer), daemon=True),
-        ]
+        errors = (
+            threading.Thread(target=_pump_asking_pin, args=(child.stderr, sys.stderr.buffer, child.stdin), daemon=True)
+            if ask_pin
+            else threading.Thread(target=_pump, args=(child.stderr, sys.stderr.buffer), daemon=True)
+        )
+        threads = [threading.Thread(target=_pump, args=(child.stdout, sys.stdout.buffer, True), daemon=True), errors]
         for t in threads:
             t.start()
         try:
@@ -170,6 +207,11 @@ def main(arguments: list[str]) -> int:
             return 130
         for t in threads:
             t.join(timeout=5)
+        if ask_pin and child.stdin is not None and not child.stdin.closed:
+            try:
+                child.stdin.close()
+            except OSError:
+                pass
         return code
     finally:
         restore()

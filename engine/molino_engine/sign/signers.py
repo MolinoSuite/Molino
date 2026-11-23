@@ -2,8 +2,10 @@
 
 Hay tres origenes de clave y todos pasan por el mismo codigo de comprobacion:
 
-* ``StoreSigner``: la clave esta en el almacen de Windows y firma el sistema
-  (ver ``winstore``); este proceso no llega a ver la clave.
+* ``StoreSigner``: la clave esta en el almacen del sistema y firma el sistema
+  (ver ``keystore``: en Windows su almacen; en Linux, una tarjeta o el almacen
+  de Firefox o Chrome, con el PIN que escribe el usuario); este proceso no
+  llega a ver la clave.
 * ``MemorySigner``: la clave viene de un archivo .pfx/.p12 y vive en memoria
   solo mientras dura la operacion.
 * ``BrokeredSigner``: el motor esta aislado y la clave (de cualquiera de los
@@ -117,20 +119,32 @@ class _CertificateSigner(Signer):
 
 
 class StoreSigner(_CertificateSigner):
-    """Firma con una clave del almacen de Windows, sin sacarla de el."""
+    """Firma con una clave del almacen del sistema (Windows, o en Linux una tarjeta o Firefox), sin sacarla de el."""
 
-    def __init__(self, certificate: Any, info: CertificateInfo, hwnd: int | None = None) -> None:
+    def __init__(self, certificate: Any, info: CertificateInfo, hwnd: int | None = None, pin: str | None = None) -> None:
         super().__init__(info, certificate.chain)
-        self._thumbprint = certificate.thumbprint
+        self._certificate = certificate
         self._hwnd = hwnd
+        self._pin = bytearray(pin.encode("utf-8")) if pin else None
 
     def _sign_digest(self, digest: bytes) -> bytes:
-        from . import winstore
+        from . import keystore
 
-        raw = winstore.sign_digest(
-            self._thumbprint, digest, hash_name=self.digest_name, key_kind=self.info.key_kind, hwnd=self._hwnd
-        )
+        try:
+            raw = keystore.sign_digest(
+                self._certificate, digest, hash_name=self.digest_name, key_kind=self.info.key_kind, hwnd=self._hwnd,
+                pin=self._pin,
+            )
+        finally:
+            self.forget()
         return raw if self.info.key_kind != "ec" else ec_raw_to_der(raw)
+
+    def forget(self) -> None:
+        """Borra el PIN en cuanto deja de hacer falta."""
+        if self._pin is not None:
+            for index in range(len(self._pin)):
+                self._pin[index] = 0
+            self._pin = None
 
 
 class MemorySigner(_CertificateSigner):
@@ -161,16 +175,16 @@ class BrokeredSigner(_CertificateSigner):
         return self._host.sign_digest(digest, self.digest_name)
 
 
-def store_signer(thumbprint: str, hwnd: int | None) -> tuple[StoreSigner, list[str]]:
-    """Firmante para un certificado del almacen de Windows y avisos sobre el."""
-    from . import winstore
+def store_signer(thumbprint: str, hwnd: int | None, pin: str | None = None) -> tuple[StoreSigner, list[str]]:
+    """Firmante para un certificado del almacen del sistema y avisos sobre el."""
+    from . import keystore
 
-    certificate = winstore.load_certificate(thumbprint)
+    certificate = keystore.load_certificate(thumbprint)
     info = describe(certificate.der)
     warnings = ensure_signable(info)
-    if certificate.chain_errors is not None and certificate.chain_errors & winstore.CHAIN_NOT_TRUSTED_MASK:
+    if certificate.untrusted:
         warnings.append(_(UNTRUSTED_CHAIN_WARNING))
-    return StoreSigner(certificate, info, hwnd), warnings
+    return StoreSigner(certificate, info, hwnd, pin), warnings
 
 
 def pfx_signer(raw_path: str, password: str) -> tuple[MemorySigner, list[str]]:

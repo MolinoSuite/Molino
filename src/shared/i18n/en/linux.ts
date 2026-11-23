@@ -23,12 +23,23 @@ export const linux: typeof source = {
   main: {
     office: { seeSuite: 'See Molino Suite on the website' }
   },
+  cli: {
+    noCertificates: 'You have no certificates that can sign, neither on a card or DNIe in the reader nor in Firefox.'
+  },
   print: {
     moreSettingsTip: 'Opens the system print dialog (tray, quality…)'
   },
   scan: {
     scanner: {
       none: 'No scanner was found. Check that it is on and connected (if it is a network scanner, on the same network as this computer). Molino uses SANE: the sane-utils package and, for network scanners, sane-airscan.'
+    }
+  },
+  sign: {
+    saved: {
+      privacy: 'Signatures are stored encrypted with your session keyring and never leave this computer.'
+    },
+    cert: {
+      none: 'No certificates to sign with were found, neither on a card or DNIe in the reader nor in Firefox. Cards and the DNIe need OpenSC and pcscd. You can also use a .pfx or .p12 file.'
     }
   }
 }

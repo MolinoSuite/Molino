@@ -28,12 +28,23 @@ export const linux = {
   main: {
     office: { seeSuite: 'Ver Molino Suite en la web' }
   },
+  cli: {
+    noCertificates: 'No tienes certificados con los que firmar: ni en una tarjeta o DNIe metido en el lector, ni en Firefox.'
+  },
   print: {
     moreSettingsTip: 'Abre el cuadro de impresión del sistema (bandeja, calidad…)'
   },
   scan: {
     scanner: {
       none: 'No se ha encontrado ningún escáner. Comprueba que está encendido y conectado (si es de red, en la misma red que este equipo). Molino usa SANE: los paquetes sane-utils y, para los de red, sane-airscan.'
+    }
+  },
+  sign: {
+    saved: {
+      privacy: 'Las firmas se guardan cifradas con el llavero de tu sesión y no salen de este equipo.'
+    },
+    cert: {
+      none: 'No se encuentran certificados con los que firmar, ni en una tarjeta o DNIe metido en el lector ni en Firefox. Para el DNIe y las tarjetas hacen falta OpenSC y pcscd. También puedes usar un archivo .pfx o .p12.'
     }
   }
 } satisfies Overlay<Messages>

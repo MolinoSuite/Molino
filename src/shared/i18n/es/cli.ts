@@ -24,7 +24,7 @@ Archivos
 Firmas y formularios
   firmar <pdf> -o <salida> (--certificado <huella o nombre> | --pfx <archivo.pfx>)
          [--motivo …] [--lugar …] [--sin-sello] [--larga-duracion] [--pagina N --zona x0,y0,x1,y1]
-  certificados                       Tus certificados de Windows con los que se puede firmar
+  certificados                       Tus certificados con los que se puede firmar
   verificar <pdf> [--en-linea]       Comprueba las firmas (sale con 3 si alguna no es válida)
   campos <pdf>                       Los campos del formulario
   rellenar <pdf> --datos <datos.json> -o <salida>
@@ -59,6 +59,7 @@ Manual: https://github.com/MolinoSuite/Molino/blob/main/docs/linea-de-ordenes.md
   noCertificate: 'No hay ningún certificado con el que firmar que coincida con «{name}». Mira los tuyos con «molino certificados».',
   manyCertificates: 'Hay varios certificados que coinciden con «{name}»; usa su huella:',
   noCertificates: 'No tienes certificados con los que firmar en Windows.',
+  pinNeeded: 'Este certificado necesita su PIN (o la contraseña principal de Firefox). En un script, pásalo con --contrasena-stdin.',
   signed: 'Firmado: {path}',
   noSignatures: 'El PDF no tiene firmas.',
   noFields: 'El PDF no tiene campos de formulario.',

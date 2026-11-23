@@ -602,6 +602,43 @@ CATALOG: dict[str, str] = {
         "The provider that holds this certificate’s key isn’t supported."
     ),
     "Este tipo de clave no es compatible.": "This key type isn’t supported.",
+    # Linux: tarjetas y dispositivos (PKCS#11) y los almacenes de Firefox y Chrome
+    "Este equipo no encuentra una autoridad de confianza para este certificado: "
+    "quien reciba el documento puede ver la firma como no fiable.": (
+        "This computer can’t find a trusted authority for this certificate: "
+        "whoever receives the document may see the signature as untrusted."
+    ),
+    "La tarjeta o el dispositivo devolvió una firma con un formato inesperado.": (
+        "The card or device returned a signature in an unexpected format."
+    ),
+    "El certificado ya no está disponible. Si está en una tarjeta, comprueba que sigue en el lector.": (
+        "The certificate is no longer available. If it’s on a card, check that the card is still in the reader."
+    ),
+    "El PIN ha caducado. Cámbialo con el programa de tu tarjeta o dispositivo.": (
+        "The PIN has expired. Change it with your card or device software."
+    ),
+    "La contraseña principal no es correcta.": "The primary password is incorrect.",
+    "El PIN no es correcto. Te queda un solo intento: si vuelves a fallar, se bloqueará.": (
+        "The PIN is incorrect. You have one try left: if it fails again, the PIN will be blocked."
+    ),
+    "El PIN no es correcto. Te quedan pocos intentos antes de que se bloquee.": (
+        "The PIN is incorrect. You have few tries left before it’s blocked."
+    ),
+    "El PIN debe tener entre {minimum} y {maximum} caracteres.": "The PIN must have between {minimum} and {maximum} characters.",
+    "La tarjeta o el dispositivo no permite firmar con la clave de este certificado.": (
+        "The card or device doesn’t allow signing with this certificate’s key."
+    ),
+    "Escribe el PIN para firmar con este certificado.": "Enter the PIN to sign with this certificate.",
+    "Escribe la contraseña principal para firmar con este certificado.": (
+        "Enter the primary password to sign with this certificate."
+    ),
+    "La tarjeta o el dispositivo no pudo firmar con la clave de este certificado.": (
+        "The card or device couldn’t sign with this certificate’s key."
+    ),
+    "No se encuentra la clave privada de este certificado.": "This certificate’s private key can’t be found.",
+    "No se pudo abrir el módulo de las tarjetas o del almacén de certificados.": (
+        "Couldn’t open the module for cards or the certificate store."
+    ),
     # ---------------------------------------------- red: sello de tiempo, revocacion
     "La dirección del servidor de sello de tiempo no es válida. Debe empezar por http:// o https://.": (
         "The timestamp server address isn’t valid. It must start with http:// or https://."

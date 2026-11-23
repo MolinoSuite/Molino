@@ -304,6 +304,9 @@ class StoreSource(Params):
     type: Literal["store"]
     thumbprint: Thumbprint
     hwnd: WindowHandle | None = None
+    # Linux: el PIN de la tarjeta o la contrasena principal de Firefox (en
+    # Windows lo pide el propio Windows). Solo para esta firma; no se guarda.
+    pin: Annotated[str, StringConstraints(max_length=64)] | None = None
 
 
 class PfxSource(Params):
@@ -424,7 +427,7 @@ def sign_sign(ctx: Ctx, p: SignParams) -> dict[str, Any]:
                 raise invalid(_("El certificado no es válido.")) from None
             signer, warnings = signers.brokered_signer(host, certificate, chain, p.source.untrustedChain)
         elif isinstance(p.source, StoreSource):
-            signer, warnings = signers.store_signer(p.source.thumbprint.upper(), p.source.hwnd)
+            signer, warnings = signers.store_signer(p.source.thumbprint.upper(), p.source.hwnd, p.source.pin)
         else:
             signer, warnings = signers.pfx_signer(p.source.path, p.source.password)
         stamp_file = None

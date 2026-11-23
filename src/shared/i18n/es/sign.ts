@@ -79,6 +79,19 @@ export const sign = {
     wrongPassword: 'La contraseña del certificado no es correcta.',
     searching: 'Buscando certificados en este equipo…',
     none: 'No hay certificados con clave privada instalados en tu cuenta de Windows. Puedes usar un archivo .pfx o .p12.',
+    searchAgain: 'Buscar de nuevo',
+    /** Linux: dónde está el certificado y lo que pide para firmar (en Windows lo pide Windows). */
+    inFirefox: 'en Firefox',
+    inChrome: 'en Chrome y Chromium',
+    pin: 'PIN',
+    primaryPassword: 'Contraseña principal de Firefox',
+    storePassword: 'Contraseña del almacén de certificados',
+    pinHint: 'Solo se usa para esta firma; no se guarda.',
+    pinpad: 'Escribe el PIN en el teclado del lector cuando te lo pida.',
+    pinLow: 'Quedan pocos intentos antes de que el PIN se bloquee.',
+    pinFinal: 'Queda un solo intento: si el PIN no es correcto, se bloqueará.',
+    pinLocked: 'El PIN de esta tarjeta está bloqueado. Desbloquéalo con el programa de la tarjeta (el del DNIe, en un punto de actualización de una comisaría).',
+    dnieConsent: 'Al firmar, el DNIe te pedirá confirmarlo en otra ventana.',
     /** Motivos por los que un certificado puede no servir. */
     issue: {
       expired: 'caducado',

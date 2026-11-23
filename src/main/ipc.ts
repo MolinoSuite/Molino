@@ -1022,20 +1022,26 @@ export class Bridge {
         this.docPath(doc)
         const source = z
           .discriminatedUnion('type', [
-            z.object({ type: z.literal('store'), thumbprint: z.string().regex(/^[0-9A-Fa-f]{40}$/) }),
+            // pin: en Linux, el de la tarjeta o la contraseña principal de Firefox
+            // (en Windows lo pide el propio Windows). Solo para esta firma.
+            z.object({ type: z.literal('store'), thumbprint: z.string().regex(/^[0-9A-Fa-f]{40}$/), pin: z.string().max(64).optional() }),
             z.object({ type: z.literal('pfx'), token: Token, password: z.string().max(1024) })
           ])
           .parse(request.source)
         let engineSource: Record<string, unknown>
         if (source.type === 'store') {
-          // Se pasa el identificador de la ventana para que el aviso de Windows
-          // sobre el uso de la clave privada aparezca asociado a la aplicación.
-          const handle = this.requireWindow().getNativeWindowHandle()
-          const hwnd = handle.length >= 8 ? Number(handle.readBigUInt64LE(0)) : handle.readUInt32LE(0)
           engineSource = { type: 'store', thumbprint: source.thumbprint.toUpperCase() }
-          // El motor solo admite identificadores de 32 bits (los de Windows lo
-          // son). Si alguna vez no lo fuese, se firma igual sin asociar el aviso.
-          if (Number.isSafeInteger(hwnd) && hwnd >= 1 && hwnd <= 0xffffffff) engineSource.hwnd = hwnd
+          if (process.platform === 'win32') {
+            // Se pasa el identificador de la ventana para que el aviso de Windows
+            // sobre el uso de la clave privada aparezca asociado a la aplicación.
+            const handle = this.requireWindow().getNativeWindowHandle()
+            const hwnd = handle.length >= 8 ? Number(handle.readBigUInt64LE(0)) : handle.readUInt32LE(0)
+            // El motor solo admite identificadores de 32 bits (los de Windows lo
+            // son). Si alguna vez no lo fuese, se firma igual sin asociar el aviso.
+            if (Number.isSafeInteger(hwnd) && hwnd >= 1 && hwnd <= 0xffffffff) engineSource.hwnd = hwnd
+          } else if (source.pin) {
+            engineSource.pin = source.pin
+          }
         } else {
           const path = this.pfxFiles.get(source.token)
           if (!path) throw new EngineError({ code: 'not_found', message: L.main.errors.pickPfxAgain })

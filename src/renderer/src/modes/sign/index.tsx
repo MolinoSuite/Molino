@@ -543,7 +543,13 @@ interface Certificate {
   /** Motivos por los que el certificado puede no servir (caducado, clave débil…). */
   issues?: string[]
   hardware?: boolean
+  /** Linux: dónde está, qué pide para firmar y cómo va su PIN (en Windows lo pide Windows). */
+  where?: 'card' | 'device' | 'firefox' | 'chrome'
+  pin?: 'required' | 'pinpad' | 'none'
+  pinState?: 'low' | 'final' | 'locked' | null
 }
+
+const WHERE_TEXT: Record<string, string> = { firefox: L.sign.cert.inFirefox, chrome: L.sign.cert.inChrome }
 
 // Con estos motivos el motor se niega a firmar. «noSigningUsage» no está aquí:
 // el motor firma igualmente y lo avisa, así que se deja elegir el certificado.
@@ -588,9 +594,12 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
   const [lock, setLock] = useState(true)
   const [error, setError] = useState('')
   const [working, setWorking] = useState(false)
+  // Linux: el PIN de la tarjeta (o la contraseña principal de Firefox) para esta firma.
+  const [pin, setPin] = useState('')
 
-  useEffect(() => {
-    void signatures.load()
+  const search = (): void => {
+    setCerts(null)
+    setError('')
     query<{ certificates: Certificate[] }>('sign.certificates')
       .then((result) => {
         setCerts(result.certificates)
@@ -600,6 +609,11 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
         setCerts([])
         setError(errorMessage(err))
       })
+  }
+
+  useEffect(() => {
+    void signatures.load()
+    search()
     // Solo al abrir el diálogo.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -612,6 +626,14 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
   const handwritten = signatures.list.find((s) => s.id === signatures.active)
   const current = pfx ? pfxInfo : (certs?.find((c) => c.thumbprint === chosen) ?? null)
   const name = certName(current)
+  const stored = pfx ? null : current
+  const needsPin = stored?.pin === 'required'
+  const pinLocked = stored?.pinState === 'locked'
+  const choose = (thumbprint: string): void => {
+    setChosen(thumbprint)
+    setPin('')
+    setError('')
+  }
 
   const pickPfx = async (): Promise<void> => {
     try {
@@ -648,7 +670,9 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
     try {
       if (pfx && !pfxInfo && !(await checkPfx())) return
       const request: Record<string, unknown> = {
-        source: pfx ? { type: 'pfx', token: pfx.token, password: pfxPassword } : { type: 'store', thumbprint: chosen },
+        source: pfx
+          ? { type: 'pfx', token: pfx.token, password: pfxPassword }
+          : { type: 'store', thumbprint: chosen, ...(needsPin ? { pin } : {}) },
         appearance: { name: true, date: true, id: true, label: true, reason: Boolean(reason.trim()), location: Boolean(location.trim()), border: false }
       }
       if (reason.trim()) request.reason = reason.trim()
@@ -685,6 +709,8 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
         useApp.getState().toast('info', L.sign.tramite.offer, { label: L.sign.cert.checkTramite, run: () => openTramite(doc.id) })
       )
     } catch (err) {
+      // Un PIN que no vale no se deja escrito: hay que volver a teclearlo.
+      if (err instanceof MolinoError && ['wrong_pin', 'pin_required', 'pin_blocked', 'pin_expired'].includes(err.code)) setPin('')
       // Cancelar el aviso de Windows (o el PIN) no es un error que mostrar.
       if (!(err instanceof MolinoError && err.code === 'cancelled')) {
         setError(errorMessage(err))
@@ -696,7 +722,7 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
     }
   }
 
-  const canSign = !working && (pfx ? pfxPassword.length > 0 : Boolean(chosen))
+  const canSign = !working && (pfx ? pfxPassword.length > 0 : Boolean(chosen) && !pinLocked && (!needsPin || pin.length > 0))
   return (
     <Dialog
       title={L.sign.cert.title}
@@ -756,31 +782,64 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
       ) : certs.length === 0 ? (
         <div className="notice warn">
           <CircleAlert size={15} />
-          <span>{L.sign.cert.none}</span>
+          <span className="grow">{L.sign.cert.none}</span>
+          <button className="btn sm ghost" onClick={search}>
+            {L.sign.cert.searchAgain}
+          </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 210, overflow: 'auto' }}>
-          {certs.map((cert) => {
-            const usable = certUsable(cert)
-            const issues = (cert.issues ?? []).filter((issue) => issue !== 'expired' && issue !== 'notYetValid')
-            return (
-              <button key={cert.thumbprint} className={cn('cert', chosen === cert.thumbprint && 'on', !usable && 'off')} disabled={!usable} onClick={() => setChosen(cert.thumbprint)}>
-                <FileKey size={20} />
-                <div className="grow">
-                  <div className="cert-name">
-                    {certName(cert) || L.sign.cert.certificate}
-                    {cert.displayId ? ` · ${cert.displayId}` : ''}
+        <>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 210, overflow: 'auto' }}>
+            {certs.map((cert) => {
+              const usable = certUsable(cert)
+              const issues = (cert.issues ?? []).filter((issue) => issue !== 'expired' && issue !== 'notYetValid')
+              return (
+                <button key={cert.thumbprint} className={cn('cert', chosen === cert.thumbprint && 'on', !usable && 'off')} disabled={!usable} onClick={() => choose(cert.thumbprint)}>
+                  <FileKey size={20} />
+                  <div className="grow">
+                    <div className="cert-name">
+                      {certName(cert) || L.sign.cert.certificate}
+                      {cert.displayId ? ` · ${cert.displayId}` : ''}
+                    </div>
+                    <div className="cert-meta">
+                      {cert.issuer.cn ?? cert.issuer.organization ?? '—'} · {cert.valid ? fmt(L.sign.cert.validUntil, { date: formatDate(cert.notAfter) }) : L.sign.cert.notValid}
+                      {cert.hardware ? ` · ${L.sign.cert.hardware}` : ''}
+                      {cert.where && WHERE_TEXT[cert.where] ? ` · ${WHERE_TEXT[cert.where]}` : ''}
+                      {issues.map((issue) => ` · ${ISSUE_TEXT[issue] ?? L.sign.cert.issue.other}`).join('')}
+                    </div>
                   </div>
-                  <div className="cert-meta">
-                    {cert.issuer.cn ?? cert.issuer.organization ?? '—'} · {cert.valid ? fmt(L.sign.cert.validUntil, { date: formatDate(cert.notAfter) }) : L.sign.cert.notValid}
-                    {cert.hardware ? ` · ${L.sign.cert.hardware}` : ''}
-                    {issues.map((issue) => ` · ${ISSUE_TEXT[issue] ?? L.sign.cert.issue.other}`).join('')}
-                  </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+                </button>
+              )
+            })}
+          </div>
+          {stored && (stored.pin === 'pinpad' || pinLocked) ? (
+            <div className={cn('notice', pinLocked && 'warn')}>
+              <CircleAlert size={15} />
+              <span>{pinLocked ? L.sign.cert.pinLocked : L.sign.cert.pinpad}</span>
+            </div>
+          ) : needsPin ? (
+            <Field
+              label={stored?.where === 'firefox' ? L.sign.cert.primaryPassword : stored?.where === 'chrome' ? L.sign.cert.storePassword : L.sign.cert.pin}
+              hint={stored?.pinState === 'final' ? L.sign.cert.pinFinal : stored?.pinState === 'low' ? L.sign.cert.pinLow : L.sign.cert.pinHint}
+            >
+              <input
+                className="input"
+                type="password"
+                autoComplete="off"
+                maxLength={64}
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && canSign && void sign()}
+              />
+            </Field>
+          ) : null}
+          {stored?.where === 'card' && /DNIE/i.test(stored.issuer.cn ?? '') && !pinLocked && (
+            <div className="notice">
+              <ShieldCheck size={15} />
+              <span>{L.sign.cert.dnieConsent}</span>
+            </div>
+          )}
+        </>
       )}
 
       <div className="form-grid">

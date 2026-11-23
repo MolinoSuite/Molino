@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import re
+import sys
 import unicodedata
 import warnings
 from dataclasses import dataclass
@@ -67,10 +68,18 @@ _DNIE_CN = re.compile(r"^(?P<surname>[^,()]+),\s*(?P<given>[^,()]+?)\s*\((?:FIRM
 _HIDDEN = {"Cc", "Cf", "Cs", "Co", "Cn"}
 _LINE_BREAKS = {"Zl", "Zp"}
 
-# Se traduce al usarlo: ``_(UNTRUSTED_CHAIN_WARNING)``.
-UNTRUSTED_CHAIN_WARNING = N_(
-    "Windows no encuentra una autoridad de confianza para este certificado: "
-    "quien reciba el documento puede ver la firma como no fiable."
+# Se traduce al usarlo: ``_(UNTRUSTED_CHAIN_WARNING)``. En Linux, las
+# autoridades son las del paquete de certificados del sistema.
+UNTRUSTED_CHAIN_WARNING = (
+    N_(
+        "Windows no encuentra una autoridad de confianza para este certificado: "
+        "quien reciba el documento puede ver la firma como no fiable."
+    )
+    if sys.platform == "win32"
+    else N_(
+        "Este equipo no encuentra una autoridad de confianza para este certificado: "
+        "quien reciba el documento puede ver la firma como no fiable."
+    )
 )
 
 
@@ -313,10 +322,12 @@ def sign_with_key(key: Any, info: CertificateInfo, digest: bytes) -> bytes:
 
 
 def ec_raw_to_der(raw: bytes) -> bytes:
-    """Windows devuelve la firma ECDSA como r y s seguidos; el PDF la espera en DER."""
+    """Windows y PKCS#11 devuelven la firma ECDSA como r y s seguidos; el PDF la espera en DER."""
     half = len(raw) // 2
     if half == 0 or len(raw) != 2 * half:
-        raise EngineError("sign_failed", _("Windows devolvió una firma con un formato inesperado."))
+        if sys.platform == "win32":
+            raise EngineError("sign_failed", _("Windows devolvió una firma con un formato inesperado."))
+        raise EngineError("sign_failed", _("La tarjeta o el dispositivo devolvió una firma con un formato inesperado."))
     return utils.encode_dss_signature(int.from_bytes(raw[:half], "big"), int.from_bytes(raw[half:], "big"))
 
 
@@ -398,18 +409,22 @@ def load_pfx(raw_path: str, password: str) -> PfxContents:
 def store_certificates(limit: int) -> list[dict[str, Any]]:
     """Certificados personales del usuario con clave privada, listos para mostrar.
 
-    Primero los vigentes y aptos para firmar; a igual nombre, el que caduca mas
-    tarde. Un certificado ilegible se omite: no impide ver los demas.
+    En Windows, los de su almacen; en Linux, los de las tarjetas y dispositivos
+    y los de Firefox y Chrome (con donde estan y si piden PIN). Primero los
+    vigentes y aptos para firmar; a igual nombre, el que caduca mas tarde. Un
+    certificado ilegible se omite: no impide ver los demas.
     """
+    from . import keystore
+
     now = datetime.now(timezone.utc)
     found = []
-    for item in winstore.list_certificates():
+    for item in keystore.list_certificates():
         try:
             info = describe(item.der)
         except EngineError:
             continue
-        found.append((info, item.hardware))
-    payloads = [info.payload(hardware=hardware, now=now) for info, hardware in found]
+        found.append((info, item))
+    payloads = [{**info.payload(hardware=item.hardware, now=now), **item.extras} for info, item in found]
     order = sorted(
         range(len(found)),
         key=lambda i: (

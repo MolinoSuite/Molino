@@ -91,7 +91,7 @@ const shownOption = (name: string): string => (lang === 'en' ? (ENGLISH_OPTION[n
 
 const FLAGS = new Set([
   'sobrescribir', 'grises', 'json', 'sin-imprimir', 'sin-copiar', 'sin-modificar', 'sin-sello', 'larga-duracion',
-  'en-linea', 'doble-cara', 'contrasena-stdin', 'help'
+  'en-linea', 'doble-cara', 'contrasena-stdin', 'pedir-pin', 'help'
 ])
 
 interface Parsed {
@@ -339,7 +339,16 @@ interface Certificate {
   valid: boolean
   canSign: boolean
   displayName?: string
+  /** Linux: si para firmar hace falta el PIN (o la contraseña principal de Firefox). */
+  pin?: 'required' | 'pinpad' | 'none'
 }
+
+/**
+ * Linux: lo que se escribe en la salida de errores para que el lanzador
+ * (engine/molino_engine/cli.py) pida el PIN sin mostrarlo y lo mande por la
+ * entrada estándar. Solo si el lanzador ha dicho que sabe hacerlo (--pedir-pin).
+ */
+const PIN_REQUEST = '<<molino:pin>>'
 const certName = (c: Certificate): string => c.displayName || c.subject.cn || [c.subject.givenName, c.subject.surname].filter(Boolean).join(' ') || c.thumbprint
 
 const COMMAND_RUNNERS: Record<string, Command> = {
@@ -597,6 +606,17 @@ const COMMAND_RUNNERS: Record<string, Command> = {
       if (found.length === 0) throw new Failure(fmt(L.cli.noCertificate, { name: wanted }))
       if (found.length > 1) throw new Failure([fmt(L.cli.manyCertificates, { name: wanted }), ...found.map((c) => `  ${c.thumbprint}  ${certName(c)}`)].join('\n'))
       source = { type: 'store', thumbprint: found[0].thumbprint.toUpperCase() }
+      if (found[0].pin === 'required') {
+        // Linux: el PIN de la tarjeta o la contraseña principal de Firefox. Lo pide
+        // el lanzador sin mostrarlo, o lo pasa un script por la entrada estándar.
+        let pin = s.opt('contrasena-certificado') ?? (s.flag('contrasena-stdin') ? await readLine() : undefined)
+        if (pin === undefined && s.flag('pedir-pin')) {
+          err(PIN_REQUEST)
+          pin = await readLine()
+        }
+        if (!pin) throw new UsageError(L.cli.pinNeeded)
+        source.pin = pin
+      }
     }
     const doc = await s.openPdf(input)
     const settings = s.store.settings

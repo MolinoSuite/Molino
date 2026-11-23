@@ -37,4 +37,15 @@ cd "$root/engine"
 
 # python-docx trae, junto a su plantilla (default.docx, la que usa), la misma
 # plantilla descomprimida, de la que se armó: no se usa.
-rm -rf "$root/dist-engine/molino-engine/_internal/docx/templates/default-docx-template"echo "Motor empaquetado en dist-engine/molino-engine"
+rm -rf "$root/dist-engine/molino-engine/_internal/docx/templates/default-docx-template"
+
+# OpenSSL y SQLite, las del sistema y no copias de la máquina donde se empaqueta:
+# al firmar con el DNIe o una tarjeta, OpenSC (del sistema) usa la misma OpenSSL
+# que el motor, y NSS (Firefox, Chrome) la misma SQLite. Una copia de otra
+# distribución busca sus módulos en otra ruta (en Fedora, OpenSSL no cargaría el
+# «legacy») y puede quedarse corta para las bibliotecas del sistema. Todas las
+# distribuciones en las que funciona el motor las traen (el .deb y el .rpm las piden).
+for lib in libcrypto.so.3 libssl.so.3 libsqlite3.so.0; do
+  rm -f "$root/dist-engine/molino-engine/_internal/$lib"
+done
+echo "Motor empaquetado en dist-engine/molino-engine"

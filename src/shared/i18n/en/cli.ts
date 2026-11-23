@@ -27,7 +27,7 @@ Files
 Signatures and forms
   sign <pdf> -o <output> (--certificate <thumbprint or name> | --pfx <file.pfx>)
        [--reason …] [--location …] [--no-timestamp] [--long-term] [--page N --area x0,y0,x1,y1]
-  certificates                       Your Windows certificates that can sign
+  certificates                       Your certificates that can sign
   verify <pdf> [--online]            Checks the signatures (exits with 3 if any is not valid)
   fields <pdf>                       The form fields
   fill <pdf> --data <data.json> -o <output>
@@ -62,6 +62,7 @@ Manual: https://github.com/MolinoSuite/Molino/blob/main/docs/command-line.md`,
   noCertificate: 'No signing certificate matches «{name}». See yours with «molino certificates».',
   manyCertificates: 'Several certificates match «{name}»; use its thumbprint:',
   noCertificates: 'You have no Windows certificates that can sign.',
+  pinNeeded: 'This certificate needs its PIN (or the Firefox primary password). In a script, pass it with --password-stdin.',
   signed: 'Signed: {path}',
   noSignatures: 'The PDF has no signatures.',
   noFields: 'The PDF has no form fields.',

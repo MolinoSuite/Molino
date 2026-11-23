@@ -174,9 +174,9 @@ class DirectHost:
         return net.revocation_backend()
 
     def trust_material(self) -> TrustMaterial:
-        from .sign import winstore
+        from .sign import keystore
 
-        material = winstore.trust_material()
+        material = keystore.trust_material()
         return TrustMaterial(tuple(material.roots), tuple(material.intermediates))
 
     def sign_digest(self, digest: bytes, hash_name: str) -> bytes:

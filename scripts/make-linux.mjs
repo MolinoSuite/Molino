@@ -142,25 +142,37 @@ const config = {
     ...scripts,
     packageName: executableName,
     // Las de electron-builder y lo que Electron necesita y un sistema mínimo no
-    // trae (el sonido y la memoria gráfica).
+    // trae (el sonido y la memoria gráfica). Y OpenSSL y SQLite, que el motor
+    // usa del sistema (scripts/build-engine.sh).
     depends: [
       'libgtk-3-0', 'libnotify4', 'libnss3', 'libxss1', 'libxtst6', 'xdg-utils', 'libatspi2.0-0', 'libuuid1', 'libsecret-1-0',
-      'libasound2t64 | libasound2', 'libgbm1', 'libdrm2', 'libxkbcommon0'
+      'libasound2t64 | libasound2', 'libgbm1', 'libdrm2', 'libxkbcommon0', 'libssl3t64 | libssl3', 'libsqlite3-0'
     ],
     // Lo que usa si está: la primera capa del aislamiento del motor, el escáner
-    // (también los de red), la impresora predeterminada y las fuentes con las
-    // medidas de las de Microsoft.
-    recommends: ['bubblewrap', 'sane-utils', 'sane-airscan', 'cups-client', 'fonts-liberation', 'fonts-crosextra-carlito', 'fonts-crosextra-caladea'],
+    // (también los de red), la impresora predeterminada, las fuentes con las
+    // medidas de las de Microsoft y, para firmar con el DNIe y otras tarjetas,
+    // OpenSC, el servicio del lector (pcscd), p11-kit-proxy (por donde Molino ve
+    // las tarjetas) y pinentry (la ventana con la que OpenSC pide confirmar cada
+    // firma con el DNIe).
+    recommends: [
+      'bubblewrap', 'sane-utils', 'sane-airscan', 'cups-client', 'fonts-liberation', 'fonts-crosextra-carlito', 'fonts-crosextra-caladea',
+      'opensc-pkcs11', 'pcscd', 'p11-kit-modules', 'pinentry-gnome3 | pinentry-qt | pinentry-gtk2'
+    ],
     fpm,
     artifactName: `${executableName}_\${version}_\${arch}.\${ext}`
   },
   rpm: {
     ...scripts,
     packageName: executableName,
-    // Las de electron-builder y bubblewrap, la primera capa del aislamiento del motor
-    // (Fedora y openSUSE lo traen; rpm no tiene «recomendados» con fpm).
-    depends: ['gtk3', 'libnotify', 'nss', 'libXScrnSaver', '(libXtst or libXtst6)', 'xdg-utils', 'at-spi2-core', '(libuuid or libuuid1)', 'bubblewrap'],
-    fpm,
+    // Las de electron-builder, bubblewrap (la primera capa del aislamiento del
+    // motor; Fedora y openSUSE lo traen) y OpenSSL y SQLite, que el motor usa del sistema.
+    depends: [
+      'gtk3', 'libnotify', 'nss', 'libXScrnSaver', '(libXtst or libXtst6)', 'xdg-utils', 'at-spi2-core', '(libuuid or libuuid1)', 'bubblewrap',
+      '(openssl-libs or libopenssl3)', '(sqlite-libs or libsqlite3-0)'
+    ],
+    // Recomendados (dnf los instala si puede): para firmar con el DNIe y otras
+    // tarjetas, OpenSC, el servicio del lector y pinentry, como en el .deb.
+    fpm: ['--rpm-tag', 'Recommends: opensc', '--rpm-tag', 'Recommends: pcsc-lite', '--rpm-tag', 'Recommends: pinentry', ...fpm],
     artifactName: `${executableName}-\${version}.\${arch}.\${ext}`
   },
   appImage: { artifactName: `${executableName}-\${version}-\${arch}.\${ext}` },

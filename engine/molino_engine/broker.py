@@ -146,7 +146,15 @@ class _Key:
     thumbprint: str = ""
     hwnd: int | None = None
     secret: Any = None  # clave de un .pfx; se suelta al terminar la operacion
+    loaded: Any = None  # certificado del almacen del sistema (keystore.Loaded)
+    pin: bytearray | None = None  # Linux: PIN o contrasena principal; se borra al usarlo o al terminar
     used: bool = False
+
+    def forget_pin(self) -> None:
+        if self.pin is not None:
+            for index in range(len(self.pin)):
+                self.pin[index] = 0
+            self.pin = None
 
     def __repr__(self) -> str:
         return "<_Key>"
@@ -653,7 +661,7 @@ class Broker:
 
     def _prepare_signing(self, grant: Grant, params: dict[str, Any]) -> dict[str, Any]:
         """Carga aqui la clave elegida y le pasa al motor solo los certificados publicos."""
-        from .sign import certs, net, winstore
+        from .sign import certs, keystore, net
 
         source = params.get("source")
         if not isinstance(source, dict):
@@ -675,12 +683,18 @@ class Broker:
                 raise invalid(_("Parámetros no válidos."))
             if hwnd is not None and (not isinstance(hwnd, int) or isinstance(hwnd, bool) or not 1 <= hwnd <= 0xFFFFFFFF):
                 raise invalid(_("Parámetros no válidos."))
-            certificate = winstore.load_certificate(thumbprint.upper())
+            pin = source.get("pin")
+            if pin is not None and (not isinstance(pin, str) or len(pin) > 64):
+                raise invalid(_("Parámetros no válidos."))
+            certificate = keystore.load_certificate(thumbprint.upper())
             info = certs.describe(certificate.der)
             certs.ensure_signable(info)
             chain = tuple(certificate.chain)
-            untrusted = bool(certificate.chain_errors is not None and certificate.chain_errors & winstore.CHAIN_NOT_TRUSTED_MASK)
-            grant.key = _Key("store", info, thumbprint=certificate.thumbprint, hwnd=hwnd)
+            untrusted = certificate.untrusted
+            grant.key = _Key(
+                "store", info, thumbprint=certificate.thumbprint, hwnd=hwnd, loaded=certificate,
+                pin=bytearray(pin.encode("utf-8")) if pin else None,
+            )
         elif kind == "pfx":
             contents, _warnings = certs.pfx_key(_text(source, "path"), _secret(source, "password"))
             info, chain, untrusted = contents.info, contents.chain, False
@@ -911,7 +925,7 @@ class Broker:
     # --- firma y red
 
     def _key_sign(self, grant: Grant, params: dict[str, Any], _payload: bytes) -> tuple[dict[str, Any], bytes]:
-        from .sign import certs, winstore
+        from .sign import certs, keystore
 
         key = grant.key
         if key is None or key.used:
@@ -928,7 +942,12 @@ class Broker:
             raise invalid(_("Parámetros no válidos."))
         key.used = True
         if key.kind == "store":
-            raw = winstore.sign_digest(key.thumbprint, digest, hash_name=hash_name, key_kind=key.info.key_kind, hwnd=key.hwnd)
+            try:
+                raw = keystore.sign_digest(
+                    key.loaded, digest, hash_name=hash_name, key_kind=key.info.key_kind, hwnd=key.hwnd, pin=key.pin
+                )
+            finally:
+                key.forget_pin()  # un solo intento por operacion: el PIN no se reutiliza
             signature = raw if key.info.key_kind != "ec" else certs.ec_raw_to_der(raw)
         else:
             signature = certs.sign_with_key(key.secret, key.info, digest)
@@ -955,9 +974,9 @@ class Broker:
         return {"status": status, "contentType": kind}, body
 
     def _trust(self, _grant: Grant, _params: dict[str, Any], _payload: bytes) -> tuple[dict[str, Any], bytes]:
-        from .sign import winstore
+        from .sign import keystore
 
-        material = winstore.trust_material()
+        material = keystore.trust_material()
         return {"roots": [_b64(der) for der in material.roots], "intermediates": [_b64(der) for der in material.intermediates]}, b""
 
     def _word(self, grant: Grant, params: dict[str, Any], payload: bytes) -> tuple[dict[str, Any], bytes]:
@@ -1195,6 +1214,7 @@ def _close_grant(grant: Grant) -> None:
     grant.uploads.clear()
     if grant.key is not None:
         grant.key.secret = None  # la clave de un .pfx no sobrevive a la operacion
+        grant.key.forget_pin()
         grant.key = None
 
 

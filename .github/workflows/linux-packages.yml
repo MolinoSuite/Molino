@@ -55,8 +55,9 @@ jobs:
       - name: System packages
         run: |
           sudo apt-get update -qq
-          # rpm to build the .rpm; bubblewrap and fonts for the engine check.
-          sudo apt-get install -y -qq --no-install-recommends rpm bubblewrap fonts-liberation fonts-dejavu-core
+          # rpm to build the .rpm; for the engine check, bubblewrap, fonts and, to
+          # sign, p11-kit-proxy, OpenSC, a SoftHSM test token and the NSS tools.
+          sudo apt-get install -y -qq --no-install-recommends rpm bubblewrap fonts-liberation fonts-dejavu-core             p11-kit-modules opensc softhsm2 libnss3-tools
 
       - name: App
         run: |
@@ -81,13 +82,13 @@ jobs:
           engine/.venv/bin/python -I scripts/fetch-dictionaries.py
 
       # The packaged engine as it ships, sandboxed, with every native part, the
-      # local AI with the real basic models and, for the Suite, the office piece
-      # of this architecture.
+      # local AI with the real basic models, signing with a card (SoftHSM),
+      # Chrome and Firefox and, for the Suite, the office piece of this architecture.
       - name: Engine check
         run: |
           extra=()
           if [ "$PRODUCT" = suite ]; then extra=(--office-piece dist-office/MolinoOffice-*-linux-"$ARCH"); fi
-          engine/.venv/bin/python scripts/engine-check.py --packaged dist-engine/molino-engine/molino-engine --full "${extra[@]}" --models "$RUNNER_TEMP/models" --fetch-models
+          engine/.venv/bin/python scripts/engine-check.py --packaged dist-engine/molino-engine/molino-engine --full --store-cert "${extra[@]}" --models "$RUNNER_TEMP/models" --fetch-models
 
       - name: Packages
         run: node scripts/make-linux.mjs "--$PRODUCT"
