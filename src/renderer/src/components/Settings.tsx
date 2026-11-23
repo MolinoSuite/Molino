@@ -111,6 +111,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             <AuthorSettings />
             {app === 'pdf' ? <DefaultAppSettings /> : <DeveloperSettings app={app} />}
             {app !== 'pdf' && <NewDocumentTheme app={app} />}
+            {window.molino.env.os === 'linux' && <UpdatesSettings />}
           </>
         )}
         {tab === 'apps' && <AppsSettings />}
@@ -373,6 +374,19 @@ function DefaultAppSettings() {
           {T.ask}
         </Checkbox>
       )}
+    </Field>
+  )
+}
+
+/** Linux: buscar versiones nuevas (en Windows las trae la Microsoft Store). */
+function UpdatesSettings() {
+  const on = useApp((s) => s.settings.linuxUpdates)
+  const T = L.dialogs.settings.updates
+  return (
+    <Field label={T.label} hint={T.hint}>
+      <Checkbox checked={on} onChange={(linuxUpdates) => void updateSettings({ linuxUpdates })}>
+        {T.check}
+      </Checkbox>
     </Field>
   )
 }

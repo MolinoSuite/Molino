@@ -128,6 +128,11 @@ export const dialogs: typeof source = {
       all: 'Close all',
       current: 'Current only'
     },
+    updates: {
+      label: 'New versions',
+      check: 'Look for new versions',
+      hint: 'When it opens and every six hours, Molino checks molinosuite.org for a new version and, if there is one, downloads it from GitHub. It sends nothing of yours.'
+    },
     apps: {
       title: 'Apps',
       open: 'Open',

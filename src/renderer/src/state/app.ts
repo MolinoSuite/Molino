@@ -127,6 +127,7 @@ export const DEFAULT_SETTINGS: Settings = {
   signLevel: 'timestamp',
   askDefaultPdf: true,
   closeMany: 'ask',
+  linuxUpdates: true,
   printer: '',
   language: 'auto',
   appearance: {},

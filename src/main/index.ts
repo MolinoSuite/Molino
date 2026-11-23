@@ -430,7 +430,7 @@ void app.whenReady().then(async () => {
   // Linux, con la AppImage: añadir Molino al menú (la primera vez, preguntando).
   setTimeout(() => void offerAppImageIntegration(() => BrowserWindow.getFocusedWindow() ?? mainWindow), 2500)
   // Linux: versiones nuevas (en Windows, la Store).
-  startUpdates(() => BrowserWindow.getFocusedWindow() ?? mainWindow)
+  startUpdates(() => BrowserWindow.getFocusedWindow() ?? mainWindow, () => store.settings.linuxUpdates)
   // Al minuto, sin estorbar el arranque: huella de los modelos de IA instalados.
   // En pruebas (sin empaquetar) se puede adelantar con MOLINO_TEST_AI_RECHECK_MS.
   const recheckDelay = !app.isPackaged ? Number(process.env.MOLINO_TEST_AI_RECHECK_MS) : NaN

@@ -236,6 +236,8 @@ export interface Settings {
   askDefaultPdf: boolean
   /** Qué hacer al cerrar la ventana con varios archivos abiertos. */
   closeMany: CloseMany
+  /** Linux: buscar versiones nuevas en la web de Molino (en Windows las trae la Microsoft Store). */
+  linuxUpdates: boolean
   /** Impresora usada la última vez ('' = la predeterminada de Windows). */
   printer: string
   /** Idioma de Molino PDF: 'auto' sigue a Windows. Se aplica al volver a abrir Molino PDF. */

@@ -88,6 +88,7 @@ const SettingsSchema = z.object({
   signLevel: z.enum(['basic', 'timestamp', 'longTerm']).default('timestamp'),
   askDefaultPdf: z.boolean().default(true),
   closeMany: z.enum(['ask', 'all', 'current']).default('ask'),
+  linuxUpdates: z.boolean().default(true),
   // Solo el nombre de la impresora, que Windows ya conoce; se comprueba al imprimir.
   printer: z.string().max(260).default(''),
   language: z.enum(['auto', 'es', 'en']).default('auto'),

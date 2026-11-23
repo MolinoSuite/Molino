@@ -18,10 +18,15 @@ import { log } from './log'
  *   novedades.
  * - .deb y .rpm: instalarla pide la contraseña del sistema, así que, ya
  *   descargada, Molino pregunta si se instala ahora (y vuelve a abrirse) o más tarde.
+ *
+ * Se puede apagar en Ajustes → General («Buscar versiones nuevas»): entonces no
+ * se pregunta nada a la web. Si se vuelve a encender, busca enseguida.
  */
 
 const FIRST_CHECK_MS = 60_000
 const EVERY_MS = 6 * 60 * 60_000
+/** Cada cuánto se mira si el ajuste ha cambiado (sin red: solo leerlo). */
+const SETTING_MS = 30_000
 
 /** Cómo se instaló: AppImage, .deb o .rpm (lo deja electron-builder en resources/package-type). */
 function packageType(): 'appimage' | 'deb' | 'rpm' | null {
@@ -34,7 +39,7 @@ function packageType(): 'appimage' | 'deb' | 'rpm' | null {
   }
 }
 
-export function startUpdates(parent: () => BrowserWindow | null): void {
+export function startUpdates(parent: () => BrowserWindow | null, enabled: () => boolean): void {
   if (process.platform !== 'linux' || !app.isPackaged) return
   const type = packageType()
   if (!type) return
@@ -65,7 +70,19 @@ export function startUpdates(parent: () => BrowserWindow | null): void {
       if (response === 0) autoUpdater.quitAndInstall(false, true)
     })
   })
-  const check = (): void => void autoUpdater.checkForUpdates().catch(() => undefined)
+  let last = 0
+  const check = (): void => {
+    if (!enabled()) return
+    last = Date.now()
+    void autoUpdater.checkForUpdates().catch(() => undefined)
+  }
   setTimeout(check, FIRST_CHECK_MS)
   setInterval(check, EVERY_MS)
+  // Recién encendido en Ajustes (y sin buscar en las últimas seis horas): ya.
+  let was = enabled()
+  setInterval(() => {
+    const now = enabled()
+    if (now && !was && Date.now() - last > EVERY_MS) check()
+    was = now
+  }, SETTING_MS)
 }

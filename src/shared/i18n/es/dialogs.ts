@@ -131,6 +131,12 @@ export const dialogs = {
       all: 'Cerrar todos',
       current: 'Solo el actual'
     },
+    /** Linux: las versiones nuevas (en Windows las trae la Microsoft Store). */
+    updates: {
+      label: 'Versiones nuevas',
+      check: 'Buscar versiones nuevas',
+      hint: 'Al abrirse y cada seis horas, Molino mira en molinosuite.org si hay una versión nueva y, si la hay, la descarga de GitHub. No envía nada tuyo.'
+    },
     apps: {
       title: 'Aplicaciones',
       open: 'Abrir',
