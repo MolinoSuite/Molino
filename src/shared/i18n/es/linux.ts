@@ -41,7 +41,7 @@ export const linux = {
   },
   sign: {
     saved: {
-      privacy: 'Las firmas se guardan cifradas con el llavero de tu sesión y no salen de este equipo.'
+      privacy: 'Las firmas se guardan cifradas con el llavero de tu sesión y no salen de este equipo. Sin llavero, solo duran mientras Molino está abierto.'
     },
     cert: {
       none: 'No se encuentran certificados con los que firmar, ni en una tarjeta o DNIe metido en el lector ni en Firefox. Para el DNIe y las tarjetas hacen falta OpenSC y pcscd. También puedes usar un archivo .pfx o .p12.'

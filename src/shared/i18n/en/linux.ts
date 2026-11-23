@@ -36,7 +36,7 @@ export const linux: typeof source = {
   },
   sign: {
     saved: {
-      privacy: 'Signatures are stored encrypted with your session keyring and never leave this computer.'
+      privacy: 'Signatures are stored encrypted with your session keyring and never leave this computer. Without a keyring, they only last while Molino is open.'
     },
     cert: {
       none: 'No certificates to sign with were found, neither on a card or DNIe in the reader nor in Firefox. Cards and the DNIe need OpenSC and pcscd. You can also use a .pfx or .p12 file.'

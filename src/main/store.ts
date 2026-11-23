@@ -193,6 +193,18 @@ function sanitizeThemes(settings: Record<string, unknown>): void {
 }
 
 /** Escritura atómica: un corte de luz a mitad no deja el archivo a medias. */
+/**
+ * Si se puede cifrar de verdad con la cuenta del usuario. En Linux, sin llavero
+ * de sesión (GNOME, KDE…), Electron «cifra» con una clave fija («basic_text»):
+ * eso no protege nada, así que cuenta como no disponible.
+ */
+function encryptionAvailable(): boolean {
+  if (!safeStorage.isEncryptionAvailable()) return false
+  if (process.platform !== 'linux') return true
+  const backend = safeStorage.getSelectedStorageBackend()
+  return backend !== 'basic_text' && backend !== 'unknown'
+}
+
 function writeAtomic(file: string, data: string | Buffer): void {
   mkdirSync(dirname(file), { recursive: true })
   const tmp = `${file}.${randomBytes(4).toString('hex')}.tmp`
@@ -412,14 +424,14 @@ export class Store {
    * Las firmas manuscritas guardadas son un dato especialmente sensible: quien
    * las copie puede estamparlas en otros documentos. Se guardan cifradas con la
    * protección de datos de Windows (DPAPI, a través de safeStorage), ligada a la
-   * cuenta del usuario; si el cifrado no está disponible, no se guardan en disco
-   * (OWASP A04:2025).
+   * cuenta del usuario, o en Linux con el llavero de la sesión (GNOME o KDE); si
+   * el cifrado no está disponible, no se guardan en disco (OWASP A04:2025).
    */
   private loadSignatures(): z.infer<typeof SignatureSchema>[] {
     if (this.signatures) return this.signatures
     this.signatures = []
     try {
-      if (existsSync(this.signaturesFile) && safeStorage.isEncryptionAvailable()) {
+      if (existsSync(this.signaturesFile) && encryptionAvailable()) {
         const json = safeStorage.decryptString(readFileSync(this.signaturesFile))
         const parsed = z.array(SignatureSchema).max(MAX_SIGNATURES).safeParse(JSON.parse(json))
         if (parsed.success) this.signatures = parsed.data
@@ -431,7 +443,7 @@ export class Store {
   }
 
   private persistSignatures(): void {
-    if (!this.signatures || !safeStorage.isEncryptionAvailable()) return
+    if (!this.signatures || !encryptionAvailable()) return
     try {
       writeAtomic(this.signaturesFile, safeStorage.encryptString(JSON.stringify(this.signatures)))
     } catch {
