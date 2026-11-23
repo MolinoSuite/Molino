@@ -1756,8 +1756,29 @@ export class OfficeWindows {
         options = undefined
       }
     }
+    const write = (force: boolean): Promise<unknown> =>
+      this.engine.request(pdf ? 'office.exportPdf' : 'office.save', { doc: open.doc, path: dest, ...(options ? { options } : {}), ...(force ? { force: true } : {}) }, { priority: 7 })
     try {
-      await this.engine.request(pdf ? 'office.exportPdf' : 'office.save', { doc: open.doc, path: dest, ...(options ? { options } : {}) }, { priority: 7 })
+      try {
+        await write(false)
+      } catch (error) {
+        // Otro programa (o la sincronización de una nube) lo ha cambiado desde que
+        // se abrió o se guardó aquí: se pregunta antes de pisarlo, como en los PDF.
+        if (!(error instanceof EngineError && error.code === 'changed_on_disk')) throw error
+        const C = L.state.actions.changedOnDisk
+        const answer = await this.ask(win, {
+          type: 'warning',
+          title: L.main.office.apps[win.kind],
+          message: C.title,
+          detail: C.message,
+          buttons: [C.overwrite, L.common.saveAs, L.main.office.cancel],
+          defaultId: 1,
+          cancelId: 2
+        })
+        if (answer === 2) return 1
+        if (answer === 1) return await this.save(win, open, true, format, rawOptions)
+        await write(true)
+      }
     } catch (error) {
       log.warn(`oficina: no se pudo guardar (${error instanceof EngineError ? error.code : '?'})`)
       this.notify(win, 'error', fmt(L.main.office.saveFailed, { name: basename(dest) }), error instanceof EngineError ? error.message : undefined)

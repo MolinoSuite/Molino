@@ -82,6 +82,10 @@ class OfficeDoc:
     index: Path | None = None
     # Su contrasena, si esta cifrado: solo en memoria, para volver a cifrarlo al guardar.
     password: str | None = field(default=None, repr=False)
+    # El archivo del usuario y su tamano y fecha al abrirlo o guardarlo, para no
+    # pisar sin avisar lo que otro programa (o la nube) haya cambiado despues.
+    source: str | None = field(default=None, repr=False)
+    source_stat: tuple[int, int] | None = None
 
     def note(self) -> None:
         recovery.note_office(self.folder, self.name or "?", self.kind, self.dirty)
@@ -332,7 +336,7 @@ def office_open(ctx: Ctx, p: OfficeOpenParams) -> Reply:
     source = folder / f"source{suffix}"
     extra: dict[str, object] | None = None
     try:
-        ctx.engine.host.fetch(p.path, source, max_bytes=office.MAX_INPUT)
+        fetched = ctx.engine.host.fetch(p.path, source, max_bytes=office.MAX_INPUT)
         with open(source, "rb") as fh:
             head = fh.read(office.CSV_SAMPLE if suffix == ".csv" else 8)
         if suffix == ".csv":
@@ -353,7 +357,10 @@ def office_open(ctx: Ctx, p: OfficeOpenParams) -> Reply:
     fonts = office.used_fonts(source, suffix)
     if p.password:
         extra = {**(extra or {}), "m_sPassword": p.password}
-    return _load(ctx, piece, source, kind, doc_id, folder, extra, name=Path(p.path).name, fonts=fonts, password=p.password)
+    reply = _load(ctx, piece, source, kind, doc_id, folder, extra, name=Path(p.path).name, fonts=fonts, password=p.password)
+    item = ctx.engine.office_docs[doc_id]
+    item.source, item.source_stat = fetched.path, fetched.stat
+    return reply
 
 
 class OfficeNewParams(Params):
@@ -504,6 +511,9 @@ class SaveParams(Params):
     # Exportar (texto, pagina web, EPUB, .ppsx): una copia; el documento abierto
     # sigue siendo el de antes, con sus cambios sin guardar.
     export: bool = False
+    # Sobrescribir aunque el archivo haya cambiado en el disco desde que se abrio
+    # (el usuario lo ha confirmado).
+    force: bool = False
 
 
 def _export(
@@ -566,6 +576,15 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
     code = office.SAVE_FORMATS[item.kind].get(suffix)
     if code is None or (suffix in office.EXPORT_ONLY and not p.export):
         raise invalid(_("Este documento no se puede guardar en ese formato."))
+    host = ctx.engine.host
+    if item.source is not None and item.source_stat is not None and not p.force and host.same_file(dest, item.source):
+        # Como en los PDF: si otro programa (o la sincronizacion de una nube) lo ha
+        # cambiado desde que se abrio o se guardo aqui, se pregunta antes de pisarlo.
+        if host.stat(item.source) != item.source_stat:
+            raise EngineError(
+                "changed_on_disk",
+                _("El archivo ha cambiado en el disco desde que se abrió. ¿Quieres sobrescribirlo?"),
+            )
     ctx.progress(0, 0, _("Guardando…"))
     extra = {"m_nCsvTxtEncoding": office.UTF8, "m_nCsvDelimiter": office.CSV_DELIMITERS[";" if language() == "es" else ","]} if code == office.CSV else None
     # Con contrasena, cifrado (los de Office; las copias exportadas, no).
@@ -579,12 +598,14 @@ def office_save(ctx: Ctx, p: SaveParams) -> dict[str, Any]:
         except (OSError, ValueError, KeyError, zipfile.BadZipFile) as error:
             log.warning("no se pudieron meter los medios en la presentacion (%s)", type(error).__name__)
     try:
-        size, _mtime = ctx.engine.host.install(out, dest)
+        stamp = host.install(out, dest)
     finally:
         out.unlink(missing_ok=True)
+    size = stamp[0]
     if p.export:
         return {"path": dest, "size": size}
     # Guardado: lo que haya ahora ya esta en el archivo del usuario.
+    item.source, item.source_stat = dest, stamp
     item.name, item.dirty = Path(dest).name, False
     item.note()
     return {"path": dest, "size": size}
