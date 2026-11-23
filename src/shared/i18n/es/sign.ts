@@ -80,6 +80,9 @@ export const sign = {
     searching: 'Buscando certificados en este equipo…',
     none: 'No hay certificados con clave privada instalados en tu cuenta de Windows. Puedes usar un archivo .pfx o .p12.',
     searchAgain: 'Buscar de nuevo',
+    /** Los dos certificados del DNIe llevan el mismo nombre: cuál es cada uno. */
+    dnieSignature: 'DNIe, firma',
+    dnieAuthentication: 'DNIe, autenticación',
     /** Linux: dónde está el certificado y lo que pide para firmar (en Windows lo pide Windows). */
     inFirefox: 'en Firefox',
     inChrome: 'en Chrome y Chromium',

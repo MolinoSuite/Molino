@@ -60,7 +60,7 @@ _KEY_USAGES = (
 _SEMANTIC_ID = re.compile(r"^(?:IDC|PAS|PNO|TIN|VAT|NTR)[A-Z]{2}-(.+)$")
 _SPANISH_ID = re.compile(r"^(?:[0-9]{8}[A-Z]|[KLMXYZ][0-9]{7}[A-Z]|[ABCDEFGHJNPQRSUVW][0-9]{7}[0-9A-J])$")
 # Nombre comun del DNI electronico: "APELLIDOS, NOMBRE (FIRMA)".
-_DNIE_CN = re.compile(r"^(?P<surname>[^,()]+),\s*(?P<given>[^,()]+?)\s*\((?:FIRMA|AUTENTICACI[OÓ]N)\)$")
+_DNIE_CN = re.compile(r"^(?P<surname>[^,()]+),\s*(?P<given>[^,()]+?)\s*\((?P<role>FIRMA|AUTENTICACI[OÓ]N)\)$")
 
 # Categorias Unicode que no se dibujan: controles, caracteres de formato (entre
 # ellos los que invierten el sentido del texto), sustitutos sueltos, uso
@@ -144,6 +144,17 @@ class CertificateInfo:
         return cn or self.subject["organization"]
 
     @property
+    def dnie_role(self) -> str | None:
+        """En el DNI electronico, cual de sus dos certificados es: "signature" (FIRMA) o "authentication".
+
+        Los dos llevan el mismo nombre de persona; sin esto no se distinguen en la lista.
+        """
+        dnie = _DNIE_CN.match(self.subject["cn"])
+        if not dnie:
+            return None
+        return "signature" if dnie.group("role") == "FIRMA" else "authentication"
+
+    @property
     def display_id(self) -> str:
         """Identificador de la persona para la firma visible ("NIF: ..."), o vacio."""
         value = _SEMANTIC_ID.sub(r"\1", self.subject["serialNumber"])
@@ -183,6 +194,7 @@ class CertificateInfo:
             "issues": issues,
             "displayName": clean_text(self.display_name, 120),
             "displayId": self.display_id,
+            "dnieRole": self.dnie_role,
         }
 
 
@@ -429,6 +441,8 @@ def store_certificates(limit: int) -> list[dict[str, Any]]:
         range(len(found)),
         key=lambda i: (
             not payloads[i]["valid"], not payloads[i]["canSign"], payloads[i]["displayName"].casefold(),
+            # Del DNIe, primero el de firma: es el que corresponde a un documento.
+            payloads[i]["dnieRole"] == "authentication",
             -found[i][0].not_after.timestamp(),
         ),
     )

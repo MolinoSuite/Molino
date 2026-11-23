@@ -543,6 +543,8 @@ interface Certificate {
   /** Motivos por los que el certificado puede no servir (caducado, clave débil…). */
   issues?: string[]
   hardware?: boolean
+  /** Del DNIe: cuál de sus dos certificados es (los dos llevan el mismo nombre). */
+  dnieRole?: 'signature' | 'authentication' | null
   /** Linux: dónde está, qué pide para firmar y cómo va su PIN (en Windows lo pide Windows). */
   where?: 'card' | 'device' | 'firefox' | 'chrome'
   pin?: 'required' | 'pinpad' | 'none'
@@ -800,6 +802,7 @@ function CertSignDialog({ doc: docId, data }: CustomDialogProps) {
                     <div className="cert-name">
                       {certName(cert) || L.sign.cert.certificate}
                       {cert.displayId ? ` · ${cert.displayId}` : ''}
+                      {cert.dnieRole ? ` · ${cert.dnieRole === 'signature' ? L.sign.cert.dnieSignature : L.sign.cert.dnieAuthentication}` : ''}
                     </div>
                     <div className="cert-meta">
                       {cert.issuer.cn ?? cert.issuer.organization ?? '—'} · {cert.valid ? fmt(L.sign.cert.validUntil, { date: formatDate(cert.notAfter) }) : L.sign.cert.notValid}

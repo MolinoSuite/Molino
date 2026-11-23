@@ -339,6 +339,8 @@ interface Certificate {
   valid: boolean
   canSign: boolean
   displayName?: string
+  /** Del DNIe: cuál de sus dos certificados es (los dos llevan el mismo nombre). */
+  dnieRole?: 'signature' | 'authentication' | null
   /** Linux: si para firmar hace falta el PIN (o la contraseña principal de Firefox). */
   pin?: 'required' | 'pinpad' | 'none'
 }
@@ -350,6 +352,8 @@ interface Certificate {
  */
 const PIN_REQUEST = '<<molino:pin>>'
 const certName = (c: Certificate): string => c.displayName || c.subject.cn || [c.subject.givenName, c.subject.surname].filter(Boolean).join(' ') || c.thumbprint
+const certRole = (c: Certificate): string =>
+  c.dnieRole ? ` (${c.dnieRole === 'signature' ? L.sign.cert.dnieSignature : L.sign.cert.dnieAuthentication})` : ''
 
 const COMMAND_RUNNERS: Record<string, Command> = {
   async help() {
@@ -580,7 +584,7 @@ const COMMAND_RUNNERS: Record<string, Command> = {
     const usable = certificates.filter((c) => c.canSign)
     if (s.flag('json')) return (out(JSON.stringify(usable, null, 2)), 0)
     if (usable.length === 0) return (out(L.cli.noCertificates), 0)
-    for (const c of usable) out(`${c.thumbprint}  ${certName(c)}  (${c.issuer.cn ?? ''}, ${c.notAfter.slice(0, 10)})${c.valid ? '' : ' ✗'}`)
+    for (const c of usable) out(`${c.thumbprint}  ${certName(c)}${certRole(c)}  (${c.issuer.cn ?? ''}, ${c.notAfter.slice(0, 10)})${c.valid ? '' : ' ✗'}`)
     return 0
   },
 
@@ -604,7 +608,9 @@ const COMMAND_RUNNERS: Record<string, Command> = {
       let found = usable.filter((c) => c.thumbprint.toUpperCase() === needle)
       if (found.length === 0) found = usable.filter((c) => `${certName(c)} ${c.subject.serialNumber ?? ''}`.toLowerCase().includes(wanted.toLowerCase()))
       if (found.length === 0) throw new Failure(fmt(L.cli.noCertificate, { name: wanted }))
-      if (found.length > 1) throw new Failure([fmt(L.cli.manyCertificates, { name: wanted }), ...found.map((c) => `  ${c.thumbprint}  ${certName(c)}`)].join('\n'))
+      // El nombre de una persona coincide con los dos certificados de su DNIe: el de firma.
+      if (found.length > 1 && found.filter((c) => c.dnieRole !== 'authentication').length === 1) found = found.filter((c) => c.dnieRole !== 'authentication')
+      if (found.length > 1) throw new Failure([fmt(L.cli.manyCertificates, { name: wanted }), ...found.map((c) => `  ${c.thumbprint}  ${certName(c)}${certRole(c)}`)].join('\n'))
       source = { type: 'store', thumbprint: found[0].thumbprint.toUpperCase() }
       if (found[0].pin === 'required') {
         // Linux: el PIN de la tarjeta o la contraseña principal de Firefox. Lo pide

@@ -78,6 +78,8 @@ export const sign: typeof source = {
     searching: 'Looking for certificates on this computer…',
     none: 'There are no certificates with a private key installed in your Windows account. You can use a .pfx or .p12 file.',
     searchAgain: 'Search again',
+    dnieSignature: 'DNIe, signing',
+    dnieAuthentication: 'DNIe, authentication',
     inFirefox: 'in Firefox',
     inChrome: 'in Chrome and Chromium',
     pin: 'PIN',
